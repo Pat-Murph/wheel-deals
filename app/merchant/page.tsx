@@ -5,34 +5,50 @@ import {
   getAuth,
   onAuthStateChanged,
   signInWithEmailAndPassword,
-  signOut,
   User,
+  deleteUser,
 } from "firebase/auth";
-import { app } from "../../lib/firebase";
+import { doc, getDoc, updateDoc, deleteDoc } from "firebase/firestore";
+import { app, db } from "../../lib/firebase";
+import { blockAnonAuth, fullSignOut } from "../../lib/auth";
 import {
-  findMerchantIdForUser,
   getMerchantDaily,
   getMerchantName,
   lastNDaysKeysLocal,
   todayKeyLocal,
+  ytdKeysLocal,
 } from "../../lib/merchantStats";
 
 const PAY_PER_SPIN = 0.7;
+
+type MerchantDoc = {
+  name?: string;
+  about?: string;
+  photoUrls?: string[];
+  active?: boolean;
+  ownerUid?: string;
+};
 
 function money(n: number) {
   return n.toLocaleString(undefined, { style: "currency", currency: "USD" });
 }
 
-export default function MerchantPage() {
+export default function MerchantDashboardPage() {
+  /** 🔒 Merchant pages NEVER allow anon auth */
+  useEffect(() => {
+    blockAnonAuth().catch(() => {
+      // swallow – we never want a hard crash on merchant page
+    });
+  }, []);
+
   const auth = useMemo(() => getAuth(app), []);
   const [user, setUser] = useState<User | null>(null);
 
-  // login form
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  // dashboard
   const [merchantId, setMerchantId] = useState<string | null>(null);
+  const [merchant, setMerchant] = useState<MerchantDoc | null>(null);
   const [merchantName, setMerchantName] = useState<string | null>(null);
 
   const [busy, setBusy] = useState(false);
@@ -41,11 +57,22 @@ export default function MerchantPage() {
   const [spinsToday, setSpinsToday] = useState(0);
   const [spins7d, setSpins7d] = useState(0);
 
-  // Redemption rate requires querying spins; we’ll do last 7 days (good enough).
-  const [redeemRate7d, setRedeemRate7d] = useState<number | null>(null);
+  // NEW
+  const [spins30d, setSpins30d] = useState(0);
+  const [revenue30d, setRevenue30d] = useState(0); // dollars
+  const [spinsYtd, setSpinsYtd] = useState(0);
+  const [revenueYtd, setRevenueYtd] = useState(0); // dollars
+
+  /* ---------- AUTH ---------- */
 
   useEffect(() => {
-    return onAuthStateChanged(auth, (u) => setUser(u));
+    return onAuthStateChanged(auth, (u) => {
+      if (u?.isAnonymous) {
+        setUser(null);
+      } else {
+        setUser(u);
+      }
+    });
   }, [auth]);
 
   async function doLogin() {
@@ -53,213 +80,219 @@ export default function MerchantPage() {
     setStatus(null);
     try {
       await signInWithEmailAndPassword(auth, email.trim(), password);
-      setStatus("✅ Signed in.");
     } catch (e: any) {
-      console.error(e);
-      setStatus(e?.message ?? "❌ Login failed.");
+      setStatus(e?.message ?? "Login failed.");
     } finally {
       setBusy(false);
     }
   }
 
   async function doLogout() {
-    await signOut(auth);
+    await fullSignOut();
+    setUser(null);
+    setMerchant(null);
     setMerchantId(null);
     setMerchantName(null);
+
+    // reset stats
     setSpinsToday(0);
     setSpins7d(0);
-    setRedeemRate7d(null);
-    setStatus(null);
+    setSpins30d(0);
+    setRevenue30d(0);
+    setSpinsYtd(0);
+    setRevenueYtd(0);
   }
 
-  async function refreshDashboard(u: User) {
-    setBusy(true);
-    setStatus(null);
+  /* ---------- LOAD MERCHANT ---------- */
 
-    try {
-      const mid = await findMerchantIdForUser(u.uid);
-      if (!mid) {
-        setMerchantId(null);
-        setMerchantName(null);
-        setStatus(
-          "❌ This account is not authorized for any merchant. (Missing merchants/{merchantId}/staff/{uid})"
-        );
-        return;
-      }
+  useEffect(() => {
+    if (!user) return;
 
-      setMerchantId(mid);
-      const name = await getMerchantName(mid);
-      setMerchantName(name);
-
-      const today = todayKeyLocal();
-      const todayStat = await getMerchantDaily(mid, today);
-      setSpinsToday(todayStat.spinsCount ?? 0);
-
-      const keys = lastNDaysKeysLocal(7);
-      const stats = await Promise.all(keys.map((k) => getMerchantDaily(mid, k)));
-      const total7 = stats.reduce((sum, s) => sum + (s.spinsCount ?? 0), 0);
-      setSpins7d(total7);
-
-      // Redemption rate (last 7 days) — optional upgrade:
-      // We’ll compute this by querying spins collection for merchantId + dateKey in last 7 keys.
-      // This requires an index? Usually not for simple where+in.
-      // If you hit an index error, tell me and I’ll give the exact index to create.
+    (async () => {
+      setBusy(true);
       try {
-        const { getRedeemRateForMerchantLast7Days } = await import("../../lib/redeemRate");
-        const rate = await getRedeemRateForMerchantLast7Days(mid, keys);
-        setRedeemRate7d(rate);
-      } catch {
-        // If helper not added yet, we just skip.
-        setRedeemRate7d(null);
+        const userSnap = await getDoc(doc(db, "users", user.uid));
+        const mid = userSnap.exists()
+          ? (userSnap.data() as any)?.merchantId
+          : null;
+        if (!mid) return;
+
+        setMerchantId(mid);
+
+        const mSnap = await getDoc(doc(db, "merchants", mid));
+        setMerchant(mSnap.exists() ? (mSnap.data() as MerchantDoc) : null);
+
+        const name = await getMerchantName(mid);
+        setMerchantName(name);
+
+        // ---- today
+        const today = todayKeyLocal();
+        const t = await getMerchantDaily(mid, today);
+        setSpinsToday(t.spinsCount ?? 0);
+
+        // ---- 7 days
+        const keys7 = lastNDaysKeysLocal(7);
+        const stats7 = await Promise.all(keys7.map((k) => getMerchantDaily(mid, k)));
+        setSpins7d(stats7.reduce((s, d) => s + (d.spinsCount ?? 0), 0));
+
+        // ---- 30 days (spins + revenue)
+        const keys30 = lastNDaysKeysLocal(30);
+        const stats30 = await Promise.all(keys30.map((k) => getMerchantDaily(mid, k)));
+
+        const spins30 = stats30.reduce((s, d) => s + (d.spinsCount ?? 0), 0);
+        setSpins30d(spins30);
+
+        // Prefer revenueCents if present; fallback to spins * PAY_PER_SPIN
+        const cents30 = stats30.reduce((c, d) => c + (d.revenueCents ?? 0), 0);
+        const rev30 =
+          cents30 > 0 ? cents30 / 100 : spins30 * PAY_PER_SPIN;
+        setRevenue30d(rev30);
+
+        // ---- YTD (spins + revenue)
+        const keysYtd = ytdKeysLocal();
+        const statsYtd = await Promise.all(keysYtd.map((k) => getMerchantDaily(mid, k)));
+
+        const spinsY = statsYtd.reduce((s, d) => s + (d.spinsCount ?? 0), 0);
+        setSpinsYtd(spinsY);
+
+        const centsY = statsYtd.reduce((c, d) => c + (d.revenueCents ?? 0), 0);
+        const revY =
+          centsY > 0 ? centsY / 100 : spinsY * PAY_PER_SPIN;
+        setRevenueYtd(revY);
+      } finally {
+        setBusy(false);
       }
-    } catch (e: any) {
-      console.error(e);
-      setStatus(e?.message ?? "❌ Could not load dashboard.");
+    })();
+  }, [user]);
+
+  /* ---------- CONTROLS ---------- */
+
+  async function toggleActive() {
+    if (!merchantId || !merchant) return;
+    const next = !merchant.active;
+    setBusy(true);
+    try {
+      await updateDoc(doc(db, "merchants", merchantId), { active: next });
+      setMerchant((m) => (m ? { ...m, active: next } : m));
     } finally {
       setBusy(false);
     }
   }
 
-  useEffect(() => {
-    if (user) refreshDashboard(user);
-  }, [user]);
+  async function deleteMerchantAccount() {
+    if (!merchantId || !user) return;
 
-  const revenueToday = spinsToday * PAY_PER_SPIN;
-  const revenue7d = spins7d * PAY_PER_SPIN;
+    const ok = confirm(
+      "This will permanently delete your merchant, dashboard access, and account.\n\nThis CANNOT be undone. Continue?"
+    );
+    if (!ok) return;
+
+    setBusy(true);
+    try {
+      await deleteDoc(doc(db, "merchants", merchantId));
+      await deleteDoc(doc(db, "users", user.uid));
+      await deleteUser(user);
+      await fullSignOut();
+    } catch (e: any) {
+      alert(e?.message ?? "Could not delete account.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  /* ---------- UI ---------- */
+
+  if (!user) {
+    return (
+      <main style={{ padding: 24, maxWidth: 520 }}>
+        <h1>Merchant Sign In</h1>
+        <input
+          placeholder="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+        />
+        <input
+          placeholder="password"
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
+        <button onClick={doLogin} disabled={busy}>
+          Sign in
+        </button>
+        {status && <div>{status}</div>}
+      </main>
+    );
+  }
+
+  if (!merchant || !merchantId) {
+    return (
+      <main style={{ padding: 24 }}>
+        <h2>No merchant linked</h2>
+        <a href="/merchant/onboard">Create merchant →</a>
+      </main>
+    );
+  }
 
   return (
-    <main style={{ padding: 24, display: "grid", gap: 12, maxWidth: 900 }}>
-      <h1 style={{ fontSize: 28, fontWeight: 900, margin: 0 }}>
-        Merchant Dashboard
-      </h1>
+    <main style={{ padding: 24, display: "grid", gap: 14, maxWidth: 960 }}>
+      <h1>Merchant Dashboard</h1>
 
-      {!user ? (
-        <div style={{ border: "1px solid #ddd", borderRadius: 14, padding: 14, background: "white" }}>
-          <div style={{ fontWeight: 900 }}>Merchant sign in</div>
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+        <strong>{merchantName}</strong>
+        <span>Status: {merchant.active ? "🟢 Live" : "⏸ Paused"}</span>
+        {busy && <span style={{ opacity: 0.7 }}>Loading…</span>}
+      </div>
 
-          <input
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="merchant email"
-            style={{ marginTop: 10, padding: 12, borderRadius: 12, border: "1px solid #ddd", width: "100%" }}
-          />
+      {/* CONTROLS */}
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+        <button onClick={toggleActive} disabled={busy}>
+          {merchant.active ? "Pause merchant" : "Go live"}
+        </button>
 
-          <input
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="password"
-            type="password"
-            style={{ marginTop: 10, padding: 12, borderRadius: 12, border: "1px solid #ddd", width: "100%" }}
-          />
+        <a href="/merchant/onboard">Edit merchant →</a>
 
-          <button
-            onClick={doLogin}
-            disabled={busy || !email.trim() || !password}
-            style={{
-              marginTop: 10,
-              padding: 12,
-              borderRadius: 12,
-              border: "1px solid rgba(0,0,0,0.12)",
-              fontWeight: 900,
-              cursor: busy ? "not-allowed" : "pointer",
-              background: "linear-gradient(180deg, rgba(255,217,61,0.95), rgba(255,155,61,0.95))",
-              width: "100%",
-            }}
-          >
-            {busy ? "Signing in…" : "Sign in"}
-          </button>
+        <button
+          onClick={deleteMerchantAccount}
+          style={{ color: "red" }}
+          disabled={busy}
+        >
+          Delete account
+        </button>
 
-          {status && <div style={{ marginTop: 10, fontWeight: 800 }}>{status}</div>}
-        </div>
-      ) : (
-        <>
-          <div style={{ border: "1px solid #ddd", borderRadius: 14, padding: 14, background: "white" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
-              <div>
-                <div style={{ fontWeight: 900 }}>Signed in</div>
-                <div style={{ opacity: 0.7, fontWeight: 700 }}>
-                  {user.email ?? user.uid}
-                </div>
-                <div style={{ marginTop: 6, fontWeight: 900 }}>
-                  Merchant: {merchantName ?? (merchantId ? merchantId : "—")}
-                </div>
-              </div>
+        <button onClick={doLogout}>Sign out</button>
+      </div>
 
-              <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                <button
-                  onClick={() => user && refreshDashboard(user)}
-                  disabled={busy}
-                  style={{
-                    padding: "10px 12px",
-                    borderRadius: 12,
-                    border: "1px solid rgba(0,0,0,0.12)",
-                    fontWeight: 900,
-                    cursor: busy ? "not-allowed" : "pointer",
-                    background: "linear-gradient(180deg, #f3f4f6, #fff)",
-                  }}
-                >
-                  {busy ? "Refreshing…" : "Refresh"}
-                </button>
+      {/* STATS */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(200px,1fr))",
+          gap: 12,
+        }}
+      >
+        <Stat title="Spins today" value={String(spinsToday)} />
+        <Stat title="Revenue today" value={money(spinsToday * PAY_PER_SPIN)} />
 
-                <a
-                  href="/redeem"
-                  style={{
-                    padding: "10px 12px",
-                    borderRadius: 12,
-                    border: "1px solid rgba(0,0,0,0.12)",
-                    fontWeight: 900,
-                    textDecoration: "none",
-                    color: "#111",
-                    background: "linear-gradient(180deg, #f3f4f6, #fff)",
-                    display: "inline-flex",
-                    alignItems: "center",
-                  }}
-                >
-                  Redeem →
-                </a>
+        <Stat title="Spins (7 days)" value={String(spins7d)} />
+        <Stat title="Revenue (7 days)" value={money(spins7d * PAY_PER_SPIN)} />
 
-                <button
-                  onClick={doLogout}
-                  style={{
-                    padding: "10px 12px",
-                    borderRadius: 12,
-                    border: "1px solid rgba(0,0,0,0.12)",
-                    fontWeight: 900,
-                    cursor: "pointer",
-                    background: "linear-gradient(180deg, #f3f4f6, #fff)",
-                  }}
-                >
-                  Sign out
-                </button>
-              </div>
-            </div>
+        {/* NEW */}
+        <Stat title="Spins (30 days)" value={String(spins30d)} />
+        <Stat title="Revenue (30 days)" value={money(revenue30d)} />
 
-            {status && <div style={{ marginTop: 10, fontWeight: 800 }}>{status}</div>}
-          </div>
-
-          <div style={{ display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
-            <Card title="Spins today" value={String(spinsToday)} sub={`Paid per spin: ${money(PAY_PER_SPIN)}`} />
-            <Card title="Revenue today" value={money(revenueToday)} sub="Revenue = issued spins × $0.70" />
-            <Card title="Spins (7 days)" value={String(spins7d)} sub="Sum of last 7 days issued" />
-            <Card title="Revenue (7 days)" value={money(revenue7d)} sub="Sum of last 7 days × $0.70" />
-            <Card
-              title="Redemption rate (7 days)"
-              value={redeemRate7d === null ? "—" : `${Math.round(redeemRate7d * 100)}%`}
-              sub="Redeemed ÷ Issued (last 7 days)"
-            />
-          </div>
-        </>
-      )}
+        <Stat title="Spins (YTD)" value={String(spinsYtd)} />
+        <Stat title="Revenue (YTD)" value={money(revenueYtd)} />
+      </div>
     </main>
   );
 }
 
-function Card(props: { title: string; value: string; sub?: string }) {
+function Stat(props: { title: string; value: string }) {
   return (
-    <div style={{ border: "1px solid #ddd", borderRadius: 14, padding: 14, background: "white" }}>
-      <div style={{ fontWeight: 900, opacity: 0.7 }}>{props.title}</div>
-      <div style={{ fontSize: 28, fontWeight: 950, marginTop: 6 }}>{props.value}</div>
-      {props.sub && <div style={{ marginTop: 6, opacity: 0.7, fontWeight: 700 }}>{props.sub}</div>}
+    <div style={{ border: "1px solid #ddd", borderRadius: 12, padding: 14 }}>
+      <div style={{ fontWeight: 800, opacity: 0.7 }}>{props.title}</div>
+      <div style={{ fontSize: 24, fontWeight: 900 }}>{props.value}</div>
     </div>
   );
 }
