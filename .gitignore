@@ -39,3 +39,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+# Secrets (NEVER COMMIT)
+secrets/
+*.json
+*.pem
+*.p12

@@ -1,11 +1,12 @@
 import WheelDealsClient from "../components/WheelDealsClient";
 
-export default function Page({
+export default async function Page({
   searchParams,
 }: {
-  searchParams?: { merchantId?: string };
+  searchParams?: Promise<{ merchantId?: string }>;
 }) {
-  const merchantId = searchParams?.merchantId;
+  const sp = (await searchParams) ?? {};
+  const merchantId = sp.merchantId;
 
   return (
     <main style={{ padding: 24, display: "grid", justifyItems: "center" }}>

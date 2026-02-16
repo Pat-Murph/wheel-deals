@@ -1,0 +1,150 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function staffPath(merchantId, uid) {
+      return /databases/$(database)/documents/merchants/$(merchantId)/staff/$(uid);
+    }
+
+    function isMerchantStaff(merchantId) {
+      return signedIn()
+        && exists(staffPath(merchantId, request.auth.uid))
+        && get(staffPath(merchantId, request.auth.uid)).data.active == true;
+    }
+
+    function isOwnerCreatingMerchant() {
+      return signedIn() && request.resource.data.ownerUid == request.auth.uid;
+    }
+
+    // USERS
+    match /users/{uid} {
+      allow read: if signedIn() && request.auth.uid == uid;
+      allow create, update: if signedIn() && request.auth.uid == uid;
+      allow delete: if false;
+    }
+
+    // DAILY LIMITS
+    match /users/{uid}/merchantLimits/{merchantId}/days/{dateKey} {
+      allow read: if signedIn() && request.auth.uid == uid;
+
+      allow create: if signedIn() && request.auth.uid == uid
+        && request.resource.data.merchantId == merchantId
+        && request.resource.data.dateKey == dateKey
+        && request.resource.data.remaining is int
+        && request.resource.data.remaining >= 0
+        && request.resource.data.remaining <= 3;
+
+      allow update: if signedIn() && request.auth.uid == uid
+        && request.resource.data.merchantId == resource.data.merchantId
+        && request.resource.data.dateKey == resource.data.dateKey
+        && request.resource.data.remaining is int
+        && request.resource.data.remaining == resource.data.remaining - 1
+        && request.resource.data.remaining >= 0;
+
+      allow delete: if false;
+    }
+
+    // MERCHANTS (public read)
+    match /merchants/{merchantId} {
+      allow read: if true;
+
+      allow create: if isOwnerCreatingMerchant()
+        && request.resource.data.active == true
+        && request.resource.data.name is string
+        && request.resource.data.category is string
+        && request.resource.data.city is string;
+
+      allow update: if isMerchantStaff(merchantId);
+      allow delete: if false;
+
+      match /staff/{uid} {
+        allow read: if signedIn() && request.auth.uid == uid;
+
+        allow create: if signedIn()
+          && request.auth.uid == uid
+          && request.resource.data.active == true
+          && (
+            (exists(/databases/$(database)/documents/merchants/$(merchantId))
+              && get(/databases/$(database)/documents/merchants/$(merchantId)).data.ownerUid == request.auth.uid)
+            ||
+            (getAfter(/databases/$(database)/documents/merchants/$(merchantId)).data.ownerUid == request.auth.uid)
+          );
+
+        allow update, delete: if false;
+      }
+
+      // wheel config doc is public-readable too
+      match /config/{docId} {
+        allow read: if true;
+        allow write: if isMerchantStaff(merchantId);
+      }
+    }
+
+    // MERCHANT STATS: allow any signed-in user to increment (+1 only)
+    match /merchantStats/{merchantId}/daily/{dateKey} {
+      allow read: if isMerchantStaff(merchantId);
+
+      allow create: if signedIn()
+        && request.resource.data.merchantId == merchantId
+        && request.resource.data.dateKey == dateKey
+        && request.resource.data.spinsCount is int
+        && request.resource.data.spinsCount == 1;
+
+      allow update: if signedIn()
+        && request.resource.data.merchantId == resource.data.merchantId
+        && request.resource.data.dateKey == resource.data.dateKey
+        && request.resource.data.spinsCount is int
+        && request.resource.data.spinsCount == resource.data.spinsCount + 1;
+
+      allow delete: if false;
+    }
+
+    // SPINS
+    match /spins/{spinId} {
+      allow read: if signedIn() &&
+        (resource.data.uid == request.auth.uid || isMerchantStaff(resource.data.merchantId));
+
+      allow create: if signedIn() && request.resource.data.uid == request.auth.uid;
+
+      allow update: if isMerchantStaff(resource.data.merchantId)
+        && resource.data.status == "issued"
+        && request.resource.data.status == "redeemed"
+        && request.time < resource.data.expiresAt
+        && request.resource.data.merchantId == resource.data.merchantId
+        && request.resource.data.uid == resource.data.uid
+        && request.resource.data.code == resource.data.code
+        && request.resource.data.prizeLabel == resource.data.prizeLabel
+        && request.resource.data.dateKey == resource.data.dateKey
+        && request.resource.data.expiresAt == resource.data.expiresAt;
+
+      allow delete: if false;
+    }
+
+    // USER MERCHANT STATS: allow signed-in user to increment (+1 only)
+    match /userMerchantStats/{pairId}/daily/{dateKey} {
+      allow read: if signedIn();
+
+      allow create: if signedIn()
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.merchantId is string
+        && pairId == (request.auth.uid + "_" + request.resource.data.merchantId)
+        && request.resource.data.dateKey == dateKey
+        && request.resource.data.spinsCount is int
+        && request.resource.data.spinsCount == 1;
+
+      allow update: if signedIn()
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.merchantId == resource.data.merchantId
+        && pairId == (request.auth.uid + "_" + resource.data.merchantId)
+        && request.resource.data.dateKey == resource.data.dateKey
+        && request.resource.data.spinsCount is int
+        && request.resource.data.spinsCount == resource.data.spinsCount + 1;
+
+      allow delete: if false;
+    }
+  }
+}

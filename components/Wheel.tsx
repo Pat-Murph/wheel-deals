@@ -10,7 +10,22 @@ export type WheelItem = {
 type Props = {
   items: WheelItem[];
   size?: number; // wheel diameter in px
-  onResult?: (label: string) => void;
+
+  /**
+   * ✅ Called when the spin finishes.
+   * label = winning slice label
+   * extra = { code, spinId } if consume succeeded
+   */
+  onResult?: (
+    label: string,
+    extra?: { code?: string | null; spinId?: string | null }
+  ) => void;
+
+  // needed for payouts + attribution
+  merchantId?: string;
+
+  // ✅ needed for Stripe spin route + entitlement checks
+  uid?: string;
 };
 
 function clamp(n: number, min: number, max: number) {
@@ -28,6 +43,9 @@ const COLORS = [
   "#22C55E",
   "#F472B6",
 ];
+
+// ✅ price shown to user (actual charge is enforced server-side)
+const SPIN_PRICE_LABEL = "$2";
 
 /** ---------------------------
  *  WebAudio (persistent + unlock)
@@ -147,7 +165,9 @@ function burstConfetti(container: HTMLElement, count = 80) {
     piece.style.background = color;
     piece.style.borderRadius = "2px";
     piece.style.opacity = "0.95";
-    piece.style.transform = `translate(-50%, -50%) rotate(${Math.random() * 360}deg)`;
+    piece.style.transform = `translate(-50%, -50%) rotate(${
+      Math.random() * 360
+    }deg)`;
 
     const dx = (Math.random() - 0.5) * rect.width * 0.9;
     const dy = -rect.height * (0.35 + Math.random() * 0.35);
@@ -158,13 +178,22 @@ function burstConfetti(container: HTMLElement, count = 80) {
     piece.animate(
       [
         { transform: `translate(-50%, -50%) rotate(0deg)`, offset: 0 },
-        { transform: `translate(${dx}px, ${dy}px) rotate(360deg)`, offset: 0.55 },
         {
-          transform: `translate(${dx + drift}px, ${rect.height + 80}px) rotate(820deg)`,
+          transform: `translate(${dx}px, ${dy}px) rotate(360deg)`,
+          offset: 0.55,
+        },
+        {
+          transform: `translate(${dx + drift}px, ${
+            rect.height + 80
+          }px) rotate(820deg)`,
           offset: 1,
         },
       ],
-      { duration: dur, easing: "cubic-bezier(.15,.85,.2,1)", fill: "forwards" }
+      {
+        duration: dur,
+        easing: "cubic-bezier(.15,.85,.2,1)",
+        fill: "forwards",
+      }
     );
 
     confettiWrap.appendChild(piece);
@@ -203,7 +232,13 @@ function getRotationDegFromElement(el: HTMLElement): number {
   return deg;
 }
 
-export default function Wheel({ items, size = 420, onResult }: Props) {
+export default function Wheel({
+  items,
+  size = 420,
+  onResult,
+  merchantId,
+  uid,
+}: Props) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
 
@@ -247,6 +282,20 @@ export default function Wheel({ items, size = 420, onResult }: Props) {
     [items]
   );
 
+  // ✅ payment gating (1 paid spin per verified Checkout session)
+  const [payBusy, setPayBusy] = useState(false);
+  const [paidSpinReady, setPaidSpinReady] = useState(false);
+  const [payStatus, setPayStatus] = useState<string | null>(null);
+
+  // ✅ store the verified sessionId so we can consume entitlement after spinning
+  const [verifiedSessionId, setVerifiedSessionId] = useState<string | null>(
+    null
+  );
+
+  // ✅ store redemption info returned from consume
+  const [redeemCode, setRedeemCode] = useState<string | null>(null);
+  const [spinId, setSpinId] = useState<string | null>(null);
+
   // Slice boundaries as degrees from TOP (0°=12 o'clock), increasing clockwise.
   const slices = useMemo(() => {
     if (!items.length || totalWeight <= 0) return [];
@@ -267,7 +316,10 @@ export default function Wheel({ items, size = 420, onResult }: Props) {
   const findSliceIndexAtPointer = (pointerDegFromTopClockwise: number) => {
     for (let i = 0; i < slices.length; i++) {
       const s = slices[i];
-      if (pointerDegFromTopClockwise >= s.start && pointerDegFromTopClockwise < s.end) {
+      if (
+        pointerDegFromTopClockwise >= s.start &&
+        pointerDegFromTopClockwise < s.end
+      ) {
         return i;
       }
     }
@@ -334,6 +386,47 @@ export default function Wheel({ items, size = 420, onResult }: Props) {
 
     shimmerRafRef.current = requestAnimationFrame(step);
   };
+
+  // ✅ After Stripe returns, verify checkout session once
+  useEffect(() => {
+    const sp = new URLSearchParams(window.location.search);
+    const sessionId = sp.get("session_id");
+    if (!sessionId) return;
+
+    (async () => {
+      setPayBusy(true);
+      setPayStatus("Verifying payment…");
+      try {
+        // IMPORTANT: verify route path must match your app/api structure
+        const res = await fetch("/api/stripe/spin/verify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sessionId }),
+        });
+
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data?.ok)
+          throw new Error(data?.error ?? "Payment not verified");
+
+        // ✅ allow exactly 1 spin after verified payment
+        setPaidSpinReady(true);
+        setVerifiedSessionId(sessionId);
+        setPayStatus("✅ Payment verified — spin now!");
+
+        // clean URL (removes session_id)
+        sp.delete("session_id");
+        const next = sp.toString();
+        const newUrl = `${window.location.pathname}${next ? `?${next}` : ""}`;
+        window.history.replaceState({}, "", newUrl);
+      } catch (e: any) {
+        setPayStatus(e?.message ?? "Payment verify failed.");
+        setPaidSpinReady(false);
+        setVerifiedSessionId(null);
+      } finally {
+        setPayBusy(false);
+      }
+    })();
+  }, []);
 
   // Draw wheel to canvas
   useEffect(() => {
@@ -484,7 +577,12 @@ export default function Wheel({ items, size = 420, onResult }: Props) {
 
         ctx.fillStyle = band;
         ctx.globalCompositeOperation = "screen";
-        ctx.fillRect(r0 - bandW, -(radius - 10), bandW * 2, (radius - 10) * 2);
+        ctx.fillRect(
+          r0 - bandW,
+          -(radius - 10),
+          bandW * 2,
+          (radius - 10) * 2
+        );
 
         // tiny sparkles
         ctx.globalCompositeOperation = "lighter";
@@ -534,15 +632,58 @@ export default function Wheel({ items, size = 420, onResult }: Props) {
     return Math.max(0, items.length - 1);
   }
 
+  // ✅ create checkout + redirect (uses your server route)
+  async function payForSpin() {
+    setPayBusy(true);
+    setPayStatus(null);
+
+    if (!merchantId) {
+      setPayBusy(false);
+      setPayStatus("Missing merchantId on wheel.");
+      return;
+    }
+    if (!uid) {
+      setPayBusy(false);
+      setPayStatus("Missing uid (sign-in required).");
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/stripe/spin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ merchantId, uid }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error ?? "Could not start checkout");
+      if (!data?.url) throw new Error("Missing checkout url");
+
+      window.location.href = data.url;
+    } catch (e: any) {
+      setPayStatus(e?.message ?? "Checkout failed.");
+    } finally {
+      setPayBusy(false);
+    }
+  }
+
   const spin = async () => {
     if (spinningRef.current) return;
     if (!slices.length) return;
+
+    // ✅ require verified entitlement
+    if (!paidSpinReady || !verifiedSessionId) {
+      setPayStatus(`Pay ${SPIN_PRICE_LABEL} to spin.`);
+      return;
+    }
 
     try {
       await unlockAudio(audioCtxRef, audioUnlockedRef);
     } catch {}
 
     setWinnerText("");
+    setRedeemCode(null);
+    setSpinId(null);
     setWinnerIdx(null);
 
     setSpinning(true);
@@ -573,36 +714,75 @@ export default function Wheel({ items, size = 420, onResult }: Props) {
     });
   };
 
-  const onSpinEnd = () => {
+  const onSpinEnd = async () => {
     if (!spinningRef.current) return;
 
     setSpinning(false);
     spinningRef.current = false;
     stopTickRAF();
 
-    const res = pendingWinnerRef.current;
+    const resLabel = pendingWinnerRef.current;
     const idx = pendingWinnerIdxRef.current;
 
     pendingWinnerRef.current = null;
     pendingWinnerIdxRef.current = null;
 
-    if (res) {
-      setWinnerText(`🎉 You won: ${res}`);
-      onResult?.(res);
+    if (!resLabel) return;
 
-      try {
-        const ctx = getAudioContext(audioCtxRef);
-        if (ctx.state === "running") playWin(ctx);
-      } catch {}
+    setWinnerText(`🎉 You won: ${resLabel}`);
 
-      if (wrapRef.current) burstConfetti(wrapRef.current, 90);
+    // play win sound
+    try {
+      const ctx = getAudioContext(audioCtxRef);
+      if (ctx.state === "running") playWin(ctx);
+    } catch {}
 
-      if (typeof idx === "number") setWinnerIdx(idx);
+    // visuals
+    if (wrapRef.current) burstConfetti(wrapRef.current, 90);
+    if (typeof idx === "number") setWinnerIdx(idx);
 
-      setWinAnimKey((k) => k + 1);
+    setWinAnimKey((k) => k + 1);
+    shimmerStartRef.current = performance.now();
+    startShimmer();
 
-      shimmerStartRef.current = performance.now();
-      startShimmer();
+    // ✅ consume entitlement on server + create spin record + code
+    // lock out additional spins immediately (one entitlement = one spin)
+    setPaidSpinReady(false);
+
+    try {
+      if (!merchantId) throw new Error("Missing merchantId");
+      if (!uid) throw new Error("Missing uid");
+      if (!verifiedSessionId) throw new Error("Missing sessionId");
+
+      const consumeRes = await fetch("/api/spins/consume", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sessionId: verifiedSessionId,
+          merchantId,
+          uid,
+          prizeLabel: resLabel,
+        }),
+      });
+
+      const consumeData = await consumeRes.json().catch(() => ({}));
+      if (!consumeRes.ok)
+        throw new Error(consumeData?.error ?? "Failed to finalize spin");
+
+      const nextSpinId = consumeData?.spinId ?? null;
+      const nextCode = consumeData?.code ?? null;
+
+      setSpinId(nextSpinId);
+      setRedeemCode(nextCode);
+      setPayStatus("✅ Spin saved. Show your code to redeem!");
+      setVerifiedSessionId(null); // prevent reuse
+
+      // ✅ notify parent so you can show ONE unified code + QR in WheelDealsClient
+      onResult?.(resLabel, { code: nextCode, spinId: nextSpinId });
+    } catch (e: any) {
+      setPayStatus(
+        e?.message ?? "Spin finalize failed. Please contact support."
+      );
     }
   };
 
@@ -611,6 +791,7 @@ export default function Wheel({ items, size = 420, onResult }: Props) {
       stopTickRAF();
       stopShimmer();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fancyContainerStyle: React.CSSProperties = {
@@ -649,6 +830,7 @@ export default function Wheel({ items, size = 420, onResult }: Props) {
         >
           WHEEL DEALS
         </div>
+
         <div
           style={{
             minHeight: 22,
@@ -659,6 +841,24 @@ export default function Wheel({ items, size = 420, onResult }: Props) {
         >
           {winnerText || (spinning ? "Spinning..." : "Spin to win a deal")}
         </div>
+
+        {redeemCode && (
+          <div style={{ marginTop: 8, fontWeight: 900, letterSpacing: 1 }}>
+            Code: <span style={{ userSelect: "all" }}>{redeemCode}</span>
+          </div>
+        )}
+
+        {payStatus && (
+          <div style={{ marginTop: 8, fontWeight: 800, opacity: 0.85 }}>
+            {payStatus}
+          </div>
+        )}
+
+        {spinId && (
+          <div style={{ marginTop: 6, fontSize: 12, opacity: 0.6 }}>
+            Spin ID: {spinId}
+          </div>
+        )}
       </div>
 
       {/* Wheel + pointer */}
@@ -730,28 +930,61 @@ export default function Wheel({ items, size = 420, onResult }: Props) {
         </div>
       </div>
 
-      {/* Button */}
-      <button
-        onClick={spin}
-        disabled={spinning || !slices.length}
+      {/* Buttons */}
+      <div
         style={{
-          padding: "12px 18px",
-          borderRadius: 14,
-          border: "1px solid rgba(0,0,0,0.12)",
-          background: spinning
-            ? "linear-gradient(180deg, #f3f4f6, #fff)"
-            : "linear-gradient(180deg, rgba(255,217,61,0.95), rgba(255,155,61,0.95))",
-          cursor: spinning ? "not-allowed" : "pointer",
-          fontWeight: 900,
-          letterSpacing: 0.2,
-          color: "#111",
-          boxShadow: spinning
-            ? "none"
-            : "0 12px 30px rgba(0,0,0,0.12), 0 0 20px rgba(255,217,61,0.22)",
+          display: "flex",
+          gap: 10,
+          flexWrap: "wrap",
+          justifyContent: "center",
         }}
       >
-        {spinning ? "Spinning..." : "Spin ($1)"}
-      </button>
+        {!paidSpinReady ? (
+          <button
+            onClick={payForSpin}
+            disabled={payBusy}
+            style={{
+              padding: "12px 18px",
+              borderRadius: 14,
+              border: "1px solid rgba(0,0,0,0.12)",
+              background: payBusy
+                ? "linear-gradient(180deg, #f3f4f6, #fff)"
+                : "linear-gradient(180deg, rgba(255,217,61,0.95), rgba(255,155,61,0.95))",
+              cursor: payBusy ? "not-allowed" : "pointer",
+              fontWeight: 900,
+              letterSpacing: 0.2,
+              color: "#111",
+              boxShadow: payBusy
+                ? "none"
+                : "0 12px 30px rgba(0,0,0,0.12), 0 0 20px rgba(255,217,61,0.22)",
+            }}
+          >
+            {payBusy ? "Opening checkout…" : `Pay ${SPIN_PRICE_LABEL} to spin`}
+          </button>
+        ) : (
+          <button
+            onClick={spin}
+            disabled={spinning || !slices.length}
+            style={{
+              padding: "12px 18px",
+              borderRadius: 14,
+              border: "1px solid rgba(0,0,0,0.12)",
+              background: spinning
+                ? "linear-gradient(180deg, #f3f4f6, #fff)"
+                : "linear-gradient(180deg, rgba(255,217,61,0.95), rgba(255,155,61,0.95))",
+              cursor: spinning ? "not-allowed" : "pointer",
+              fontWeight: 900,
+              letterSpacing: 0.2,
+              color: "#111",
+              boxShadow: spinning
+                ? "none"
+                : "0 12px 30px rgba(0,0,0,0.12), 0 0 20px rgba(255,217,61,0.22)",
+            }}
+          >
+            {spinning ? "Spinning..." : `Spin (${SPIN_PRICE_LABEL})`}
+          </button>
+        )}
+      </div>
 
       <style>{`
         @keyframes wdPulse {

@@ -1,0 +1,47 @@
+# =========================
+# Secrets / credentials (DO NOT COMMIT)
+# =========================
+secrets/
+firebase-adminsdk*.json
+*.pem
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+*.local
+
+# =========================
+# Firebase
+# =========================
+.firebaserc
+.firebase/
+
+# =========================
+# Compiled JavaScript files
+# =========================
+lib/**/*.js
+lib/**/*.js.map
+
+# =========================
+# TypeScript declaration files
+# =========================
+typings/
+
+# =========================
+# Node.js dependencies
+# =========================
+node_modules/
+
+# =========================
+# Next.js / build output
+# =========================
+.next/
+out/
+dist/
+
+# =========================
+# OS / Editor junk
+# =========================
+.DS_Store
+.vscode/

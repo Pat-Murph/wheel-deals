@@ -1,0 +1,39 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function signedIn() { 
+      return request.auth != null; 
+    }
+
+    // ===============================
+    // Merchant uploads
+    // ===============================
+    match /merchant_photos/{uid}/{fileName} {
+
+      // ✅ Public read (customers can see photos)
+      allow read: if true;
+
+      // ✅ Only merchant user can upload their own photos
+      allow write: if signedIn()
+        && request.auth.uid == uid
+        && request.resource.size < 8 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+    }
+
+    // ===============================
+    // Future processed images (optional)
+    // ===============================
+    match /merchant_photos_processed/{uid}/{fileName} {
+      allow read: if true;
+      allow write: if false; // server only
+    }
+
+    // ===============================
+    // Default deny
+    // ===============================
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

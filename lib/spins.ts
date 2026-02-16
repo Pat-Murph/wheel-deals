@@ -1,8 +1,8 @@
+// lib/spins.ts
 import {
   collection,
   doc,
   getDocs,
-  increment,
   limit,
   query,
   runTransaction,
@@ -10,9 +10,11 @@ import {
   Timestamp,
   updateDoc,
   where,
+  setDoc,
+  getDoc,
 } from "firebase/firestore";
 import { db } from "./firebase";
-import { ensureAnonAuth } from "./auth";
+import { ensureCustomerAnonAuth } from "./auth";
 
 export type SpinStatus = "issued" | "redeemed";
 
@@ -23,53 +25,39 @@ export type SpinDoc = {
   code: string;
   status: SpinStatus;
 
-  // YYYY-MM-DD (local day). Used for daily limit + reporting.
   dateKey: string;
 
-  // created by server
   createdAt: any;
-
-  // redemption fields
   redeemedAt?: any;
 
-  // expires 7 days after issue
   expiresAt: Timestamp;
 };
 
-export function generateCode() {
-  const part = Math.random().toString(36).slice(2, 8).toUpperCase();
-  return `WD-${part}`;
-}
-
 function todayKeyLocal() {
   const d = new Date();
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
-  return `${yyyy}-${mm}-${dd}`;
+  return d.toISOString().slice(0, 10);
 }
 
 function expiresAtInDays(days: number) {
-  const ms = Date.now() + days * 24 * 60 * 60 * 1000;
-  return Timestamp.fromDate(new Date(ms));
+  return Timestamp.fromDate(new Date(Date.now() + days * 24 * 60 * 60 * 1000));
+}
+
+function generateCode() {
+  return `WD-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
 }
 
 /**
- * Per-merchant daily limit:
- * users/{uid}/merchantLimits/{merchantId}/days/{dateKey}
- *   { merchantId, dateKey, remaining }
- *
- * Also writes:
- * spins/{spinId} (issued)
- * merchantStats/{merchantId}/daily/{dateKey} { spinsCount }
- * userMerchantStats/{uid}_{merchantId}/daily/{dateKey} { spinsCount }
+ * Customer-paid spin creation
+ * SAFE Firestore transaction:
+ * - all reads first
+ * - all writes second
  */
 export async function createSpin(params: {
   merchantId: string;
   prizeLabel: string;
-  dailyLimit?: number; // default 3
+  dailyLimit?: number;
 }) {
-  const user = await ensureAnonAuth();
+  const user = await ensureCustomerAnonAuth();
   const uid = user.uid;
 
   const dateKey = todayKeyLocal();
@@ -88,130 +76,123 @@ export async function createSpin(params: {
     dateKey
   );
 
-  const spinRef = doc(collection(db, "spins")); // pre-generate id
+  const spinRef = doc(collection(db, "spins"));
 
-  const merchantDailyRef = doc(db, "merchantStats", params.merchantId, "daily", dateKey);
-
-  const userMerchantDailyRef = doc(
-    db,
-    "userMerchantStats",
-    `${uid}_${params.merchantId}`,
-    "daily",
-    dateKey
-  );
-
-  const res = await runTransaction(db, async (tx) => {
+  const txResult = await runTransaction(db, async (tx) => {
+    // ✅ READS FIRST
     const limitSnap = await tx.get(limitRef);
 
     let remaining: number;
 
     if (!limitSnap.exists()) {
-      // first spin today for this merchant => initialize at dailyLimit
       remaining = dailyLimit;
-
-      tx.set(limitRef, {
-        merchantId: params.merchantId,
-        dateKey,
-        remaining: dailyLimit,
-        updatedAt: serverTimestamp(),
-      });
     } else {
-      const data = limitSnap.data() as any;
-      remaining = Number(data.remaining ?? 0);
+      remaining = Number(limitSnap.data()?.remaining ?? 0);
     }
 
     if (remaining <= 0) {
       throw new Error("Daily limit reached for this merchant.");
     }
 
-    // decrement by 1
-    tx.update(limitRef, {
-      remaining: remaining - 1,
-      updatedAt: serverTimestamp(),
-    });
-
-    // create issued spin
-    tx.set(spinRef, {
-      uid,
-      merchantId: params.merchantId,
-      prizeLabel: params.prizeLabel,
-      code,
-      status: "issued",
-      dateKey,
-      createdAt: serverTimestamp(),
-      expiresAt,
-    } satisfies SpinDoc);
-
-    // payout-ready daily counts (issued spins)
+    // ✅ WRITES SECOND
     tx.set(
-      merchantDailyRef,
+      limitRef,
       {
         merchantId: params.merchantId,
         dateKey,
-        spinsCount: increment(1),
+        remaining: remaining - 1,
         updatedAt: serverTimestamp(),
       },
       { merge: true }
     );
 
     tx.set(
-      userMerchantDailyRef,
+      spinRef,
       {
         uid,
         merchantId: params.merchantId,
+        prizeLabel: params.prizeLabel,
+        code,
+        status: "issued",
         dateKey,
-        spinsCount: increment(1),
-        updatedAt: serverTimestamp(),
-      },
-      { merge: true }
+        createdAt: serverTimestamp(),
+        expiresAt,
+      } satisfies SpinDoc
     );
 
-    return { id: spinRef.id, code, remainingAfter: remaining - 1, expiresAt };
+    return {
+      spinId: spinRef.id,
+      code,
+      remainingAfter: remaining - 1,
+    };
   });
 
-  return res;
+  // Stats update OUTSIDE transaction (never block issuing the code)
+  incrementMerchantStats(params.merchantId, dateKey).catch((e) => {
+    console.warn("incrementMerchantStats failed (non-blocking):", e);
+  });
+
+  return txResult;
 }
 
 /**
- * Redeem a spin by code (one-time).
- * Returns:
- * - not_found
- * - already_redeemed
- * - expired
- * - ok
+ * Merchant stats (non-transactional)
+ * NOTE: This path MUST match what your dashboard reads:
+ * merchantStats/{merchantId}/daily/{dateKey}
+ */
+async function incrementMerchantStats(merchantId: string, dateKey: string) {
+  const ref = doc(db, "merchantStats", merchantId, "daily", dateKey);
+  const snap = await getDoc(ref);
+
+  if (!snap.exists()) {
+    await setDoc(ref, {
+      merchantId,
+      dateKey,
+      spinsCount: 1,
+      revenueCents: 70,
+      updatedAt: serverTimestamp(),
+    });
+  } else {
+    const data = snap.data() as any;
+    await updateDoc(ref, {
+      spinsCount: Number(data.spinsCount ?? 0) + 1,
+      revenueCents: Number(data.revenueCents ?? 0) + 70,
+      updatedAt: serverTimestamp(),
+    });
+  }
+}
+
+/**
+ * Redeem a spin by code (merchant-only via rules)
  */
 export async function redeemSpinByCode(code: string) {
-  const cleaned = (code || "").trim().toUpperCase();
+  const cleaned = code.trim().toUpperCase();
 
   const q = query(collection(db, "spins"), where("code", "==", cleaned), limit(1));
-  const snap = await getDocs(q);
 
+  const snap = await getDocs(q);
   if (snap.empty) return { ok: false as const, reason: "not_found" as const };
 
-  const d = snap.docs[0];
-  const data = d.data() as any;
+  const docSnap = snap.docs[0];
+  const data = docSnap.data() as any;
 
   if (data.status === "redeemed") {
     return { ok: false as const, reason: "already_redeemed" as const };
   }
 
-  // Expiration check
-  const exp: any = data.expiresAt;
-  const expMs =
-    exp?.toMillis?.() ?? (exp?.seconds ? exp.seconds * 1000 : null);
-
+  const expMs = data.expiresAt?.toMillis?.();
   if (expMs && Date.now() > expMs) {
     return { ok: false as const, reason: "expired" as const };
   }
 
-  await updateDoc(doc(db, "spins", d.id), {
+  await updateDoc(doc(db, "spins", docSnap.id), {
     status: "redeemed",
     redeemedAt: serverTimestamp(),
   });
 
   return {
     ok: true as const,
-    prizeLabel: data.prizeLabel as string,
-    merchantId: data.merchantId as string,
+    prizeLabel: data.prizeLabel,
+    merchantId: data.merchantId,
   };
 }

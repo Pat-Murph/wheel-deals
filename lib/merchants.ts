@@ -5,9 +5,15 @@ import { db } from "./firebase";
 export type Merchant = {
   id: string;
   name: string;
+
   category?: string;
   city?: string;
   address?: string;
+  about?: string;
+
+  // photos
+  photoUrls?: string[];
+  photoProcessedUrls?: string[];
 
   // geo
   lat?: number;
@@ -149,18 +155,27 @@ export function parseDiscoverQuery(raw: string): {
   return { text, category, city };
 }
 
+function safeArray<T>(v: any): T[] {
+  return Array.isArray(v) ? v : [];
+}
+
 export async function getActiveMerchants(): Promise<Merchant[]> {
   const q = query(collection(db, "merchants"), where("active", "==", true));
   const snap = await getDocs(q);
 
   return snap.docs.map((d) => {
     const data = d.data() as any;
+
     return {
       id: d.id,
       name: data.name ?? "Unnamed merchant",
       category: data.category,
       city: data.city,
       address: data.address,
+      about: data.about,
+
+      photoUrls: safeArray<string>(data.photoUrls),
+      photoProcessedUrls: safeArray<string>(data.photoProcessedUrls),
 
       lat: typeof data.lat === "number" ? data.lat : undefined,
       lng: typeof data.lng === "number" ? data.lng : undefined,
@@ -169,7 +184,7 @@ export async function getActiveMerchants(): Promise<Merchant[]> {
       categoryLower: data.categoryLower,
       cityLower: data.cityLower,
 
-      wheel: data.wheel,
+      wheel: safeArray<any>(data.wheel),
       active: data.active,
     } satisfies Merchant;
   });
@@ -181,9 +196,8 @@ export type SearchMerchantsParams = {
   category?: string;
   city?: string;
 
-  // near-me
   near?: { lat: number; lng: number } | null;
-  radiusMiles?: number | null; // optional filter (ex: 5, 10, 25)
+  radiusMiles?: number | null;
 };
 
 export type MerchantResult = Merchant & {
@@ -214,15 +228,14 @@ export async function searchMerchants(params: SearchMerchantsParams): Promise<Me
     return true;
   });
 
-  // Near-me: compute distances + optional radius + sort
   if (params.near?.lat != null && params.near?.lng != null) {
     const near = params.near;
     const radius = params.radiusMiles ?? null;
 
     const withDist: MerchantResult[] = filtered.map((m) => {
       if (typeof m.lat === "number" && typeof m.lng === "number") {
-        const d = distanceMiles(near.lat, near.lng, m.lat, m.lng);
-        return { ...m, distanceMiles: d };
+        const dist = distanceMiles(near.lat, near.lng, m.lat, m.lng);
+        return { ...m, distanceMiles: dist };
       }
       return { ...m, distanceMiles: undefined };
     });
@@ -230,14 +243,13 @@ export async function searchMerchants(params: SearchMerchantsParams): Promise<Me
     filtered = withDist
       .filter((m) => {
         if (!radius) return true;
-        if (m.distanceMiles == null) return false; // no coords -> exclude if radius filter is on
+        if (m.distanceMiles == null) return false;
         return m.distanceMiles <= radius;
       })
       .sort((a, b) => {
         const da = a.distanceMiles;
         const db = b.distanceMiles;
 
-        // merchants with distance come first
         if (da == null && db == null) return 0;
         if (da == null) return 1;
         if (db == null) return -1;
@@ -251,13 +263,16 @@ export async function searchMerchants(params: SearchMerchantsParams): Promise<Me
 
 // Haversine
 function distanceMiles(lat1: number, lon1: number, lat2: number, lon2: number) {
-  const R = 3958.8; // miles
+  const R = 3958.8;
   const dLat = deg2rad(lat2 - lat1);
   const dLon = deg2rad(lon2 - lon1);
 
   const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    Math.cos(deg2rad(lat1)) *
+      Math.cos(deg2rad(lat2)) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
 
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;
