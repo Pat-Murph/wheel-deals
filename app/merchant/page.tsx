@@ -33,8 +33,8 @@ import {
   type MerchantDailyStat,
 } from "../../lib/merchantStats";
 
-const REVENUE_CENTS_PER_SPIN = 70; // ✅ keep merchant revenue at $0.70 per spin
-const DAILY_LIMIT = 3;
+const REVENUE_CENTS_PER_SPIN = 70; // ✅ merchant payout: $0.70 per spin (customer pays $1.35)
+const DAILY_LIMIT = 8;
 
 type MerchantDoc = {
   name?: string;

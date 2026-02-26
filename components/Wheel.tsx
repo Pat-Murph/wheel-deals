@@ -45,7 +45,7 @@ const COLORS = [
 ];
 
 // ✅ price shown to user (actual charge is enforced server-side)
-const SPIN_PRICE_LABEL = "$2";
+const SPIN_PRICE_LABEL = "$1.35";
 
 // ✅ Background music (put the mp3 at: public/audio/renaissance.mp3)
 const BG_MUSIC_SRC = "/audio/renaissance.mp3";
