@@ -1,11 +1,12 @@
 // lib/onboarding.ts
 import { db } from "./firebase";
-import { collection, doc, runTransaction, serverTimestamp } from "firebase/firestore";
+import { doc, runTransaction, serverTimestamp } from "firebase/firestore";
 
 type WheelRow = { label: string; weight: number };
 
-type CreateMerchantArgs = {
+type UpdateMerchantArgs = {
   uid: string;
+  merchantId: string;
   name: string;
   category: string;
   city: string;
@@ -17,9 +18,10 @@ type CreateMerchantArgs = {
   photoUrls?: string[];
 };
 
-export async function createMerchantForUser(args: CreateMerchantArgs) {
+export async function updateMerchantForUser(args: UpdateMerchantArgs) {
   const {
     uid,
+    merchantId,
     name,
     category,
     city,
@@ -32,29 +34,24 @@ export async function createMerchantForUser(args: CreateMerchantArgs) {
   } = args;
 
   if (!uid) throw new Error("Missing uid.");
+  if (!merchantId) throw new Error("Missing merchantId.");
   if (!name.trim()) throw new Error("Business name is required.");
   if (!category.trim()) throw new Error("Category is required.");
   if (!city.trim()) throw new Error("City is required.");
   if (!Array.isArray(wheel) || wheel.length < 1) throw new Error("Wheel must have at least 1 prize.");
 
-  const cleanedWheel = wheel
-    .map((w) => ({
-      label: String(w.label ?? "").trim(),
-      weight: Number(w.weight ?? 0),
-    }))
-    .filter((w) => w.label && w.weight > 0);
-
-  if (!cleanedWheel.length) throw new Error("Wheel must have at least 1 prize with weight > 0.");
-
-  const merchantRef = doc(collection(db, "merchants"));
-  const staffRef = doc(db, "merchants", merchantRef.id, "staff", uid);
-  const userRef = doc(db, "users", uid);
-  const wheelRef = doc(db, "merchants", merchantRef.id, "config", "wheel");
+  const merchantRef = doc(db, "merchants", merchantId);
+  const staffRef = doc(db, "merchants", merchantId, "staff", uid);
+  const wheelRef = doc(db, "merchants", merchantId, "config", "wheel");
 
   await runTransaction(db, async (tx) => {
-    tx.set(merchantRef, {
-      active: true,
-      ownerUid: uid,
+    // Ensure caller is staff (rules also enforce, but this gives clearer errors)
+    const staffSnap = await tx.get(staffRef);
+    if (!staffSnap.exists() || staffSnap.data()?.active !== true) {
+      throw new Error("You do not have permission to edit this merchant (staff missing/inactive).");
+    }
+
+    tx.update(merchantRef, {
       name: name.trim(),
       nameLower: name.trim().toLowerCase(),
       category: category.trim(),
@@ -66,32 +63,21 @@ export async function createMerchantForUser(args: CreateMerchantArgs) {
       lat: typeof lat === "number" ? lat : null,
       lng: typeof lng === "number" ? lng : null,
       photoUrls: photoUrls.slice(0, 12),
-
-      // ✅ ADD THIS so customer pages see the correct wheel
-      wheel: cleanedWheel,
-
-      createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
-    });
-
-    tx.set(staffRef, {
-      active: true,
-      role: "owner",
-      createdAt: serverTimestamp(),
     });
 
     tx.set(
-      userRef,
-      { merchantId: merchantRef.id, updatedAt: serverTimestamp() },
+      wheelRef,
+      {
+        items: wheel.map((w) => ({
+          label: String(w.label ?? "").trim(),
+          weight: Number(w.weight ?? 0),
+        })),
+        updatedAt: serverTimestamp(),
+      },
       { merge: true }
     );
-
-    // keep your config doc too
-    tx.set(wheelRef, {
-      items: cleanedWheel,
-      updatedAt: serverTimestamp(),
-    });
   });
 
-  return { merchantId: merchantRef.id };
+  return { merchantId };
 }

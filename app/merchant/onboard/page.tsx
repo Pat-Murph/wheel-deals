@@ -18,6 +18,7 @@ import {
   getDoc,
   runTransaction,
   serverTimestamp,
+  setDoc, // ✅ ADDED
 } from "firebase/firestore";
 
 type WheelRow = { label: string; weight: number };
@@ -124,6 +125,7 @@ function linkGray(): React.CSSProperties {
 }
 
 // -------------------- Firestore save (create OR update) --------------------
+// ✅ CHANGED ONLY: remove config/wheel write from transaction and write it after
 async function saveMerchantForUser(args: {
   uid: string;
   merchantId?: string | null;
@@ -140,6 +142,9 @@ async function saveMerchantForUser(args: {
 
   wheel: WheelRow[];
   photoUrls: string[];
+
+  // ✅ NEW: terms acceptance
+  termsAccepted: boolean;
 }) {
   const {
     uid,
@@ -154,6 +159,7 @@ async function saveMerchantForUser(args: {
     lng,
     wheel,
     photoUrls,
+    termsAccepted,
   } = args;
 
   const wheelItems = (Array.isArray(wheel) ? wheel : [])
@@ -163,7 +169,8 @@ async function saveMerchantForUser(args: {
     }))
     .filter((r) => r.label && Number.isFinite(r.weight) && r.weight > 0);
 
-  if (!wheelItems.length) throw new Error("Add at least 1 wheel prize with a weight > 0.");
+  if (!wheelItems.length)
+    throw new Error("Add at least 1 wheel prize with a weight > 0.");
 
   const merchantRef = merchantId
     ? doc(db, "merchants", merchantId)
@@ -171,6 +178,8 @@ async function saveMerchantForUser(args: {
 
   const staffRef = doc(db, "merchants", merchantRef.id, "staff", uid);
   const userRef = doc(db, "users", uid);
+
+  // keep your config wheel doc too (optional)
   const wheelRef = doc(db, "merchants", merchantRef.id, "config", "wheel");
 
   await runTransaction(db, async (tx) => {
@@ -178,7 +187,7 @@ async function saveMerchantForUser(args: {
       merchantRef,
       {
         active: true,
-        ownerUid: uid,
+        ...(merchantId ? {} : { ownerUid: uid }),
 
         name: name.trim(),
         nameLower: name.trim().toLowerCase(),
@@ -204,6 +213,11 @@ async function saveMerchantForUser(args: {
         // ✅ CRITICAL FIX: customer wheel reads this field
         wheel: wheelItems,
 
+        // ✅ NEW: merchant terms acceptance
+        termsAccepted: !!termsAccepted,
+        termsAcceptedVersion: 1,
+        termsAcceptedAt: serverTimestamp(),
+
         updatedAt: serverTimestamp(),
         ...(merchantId ? {} : { createdAt: serverTimestamp() }),
       },
@@ -212,7 +226,11 @@ async function saveMerchantForUser(args: {
 
     tx.set(
       staffRef,
-      { active: true, role: "owner", createdAt: serverTimestamp() },
+      {
+        active: true,
+        role: "owner",
+        ...(merchantId ? {} : { createdAt: serverTimestamp() }),
+      },
       { merge: true }
     );
 
@@ -222,13 +240,15 @@ async function saveMerchantForUser(args: {
       { merge: true }
     );
 
-    // keep your config wheel doc too (optional)
-    tx.set(
-      wheelRef,
-      { items: wheelItems, updatedAt: serverTimestamp() },
-      { merge: true }
-    );
+    // ❌ REMOVED: wheelRef set from transaction (was causing permissions failure)
   });
+
+  // ✅ Write config wheel AFTER transaction (rules can now see staff doc reliably)
+  await setDoc(
+    wheelRef,
+    { items: wheelItems, updatedAt: serverTimestamp() },
+    { merge: true }
+  );
 
   return { merchantId: merchantRef.id };
 }
@@ -250,6 +270,11 @@ type MerchantDoc = {
   lng?: number | null;
   wheel?: Array<{ label: string; weight: number }>;
   photoUrls?: string[];
+
+  // ✅ NEW: terms acceptance (read for edit mode)
+  termsAccepted?: boolean;
+  termsAcceptedVersion?: number;
+  termsAcceptedAt?: any;
 };
 
 export default function MerchantOnboardPage() {
@@ -286,6 +311,9 @@ export default function MerchantOnboardPage() {
 
   // ✅ now represents existing merchant too (not only "created")
   const [merchantId, setMerchantId] = useState<string | null>(null);
+
+  // ✅ NEW: Merchant must accept terms
+  const [acceptMerchantTerms, setAcceptMerchantTerms] = useState(false);
 
   useEffect(() => {
     return onAuthStateChanged(auth, (u) => {
@@ -332,6 +360,9 @@ export default function MerchantOnboardPage() {
             }))
           );
         }
+
+        // ✅ NEW: if they already accepted before, keep it checked
+        if (m.termsAccepted === true) setAcceptMerchantTerms(true);
       } catch (e: any) {
         console.error(e);
         setStatus(e?.message ?? "❌ Could not load merchant.");
@@ -385,6 +416,7 @@ export default function MerchantOnboardPage() {
     setStatus(null);
     setUploadedPhotoUrls([]);
     setPhotoFiles([]);
+    setAcceptMerchantTerms(false); // ✅ reset on signout
   }
 
   async function signOutCustomerSession() {
@@ -511,6 +543,12 @@ export default function MerchantOnboardPage() {
       return;
     }
 
+    // ✅ NEW: enforce merchant terms acceptance
+    if (!acceptMerchantTerms) {
+      setStatus("❌ Please agree to the merchant terms to continue.");
+      return;
+    }
+
     setBusy(true);
     setStatus(null);
 
@@ -561,10 +599,15 @@ export default function MerchantOnboardPage() {
         lng: lngNum,
         wheel: cleanedWheel,
         photoUrls: urls,
+
+        // ✅ NEW
+        termsAccepted: true,
       });
 
       setMerchantId(res.merchantId);
-      setStatus(merchantId ? "✅ Saved! Changes live now." : "✅ Merchant created! You’re the owner.");
+      setStatus(
+        merchantId ? "✅ Saved! Changes live now." : "✅ Merchant created! You’re the owner."
+      );
     } catch (e: any) {
       console.error(e);
       setStatus(e?.message ?? "❌ Could not save merchant.");
@@ -575,6 +618,9 @@ export default function MerchantOnboardPage() {
 
   const locked = !user;
   const isEdit = !!merchantId;
+
+  // ✅ NEW: submit is disabled if merchant terms not accepted
+  const submitDisabled = !user || busy || !acceptMerchantTerms;
 
   return (
     <main
@@ -595,9 +641,7 @@ export default function MerchantOnboardPage() {
         }}
       >
         <div>
-          <h1 style={{ margin: 0, fontSize: 34, fontWeight: 950 }}>
-            Merchant Onboarding
-          </h1>
+          <h1 style={{ margin: 0, fontSize: 34, fontWeight: 950 }}>Merchant Onboarding</h1>
           <div style={{ opacity: 0.75, fontWeight: 800, marginTop: 6 }}>
             {isEdit ? "Edit your merchant profile + wheel." : "Create your merchant profile + wheel in a couple minutes."}
           </div>
@@ -640,8 +684,19 @@ export default function MerchantOnboardPage() {
                 }}
               >
                 You’re currently signed in as a <b>customer (anonymous)</b>, so onboarding is locked.
-                <div style={{ marginTop: 10, display: "flex", gap: 10, flexWrap: "wrap" }}>
-                  <button onClick={signOutCustomerSession} disabled={busy} style={btnGray(busy)}>
+                <div
+                  style={{
+                    marginTop: 10,
+                    display: "flex",
+                    gap: 10,
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <button
+                    onClick={signOutCustomerSession}
+                    disabled={busy}
+                    style={btnGray(busy)}
+                  >
                     Sign out customer session
                   </button>
                 </div>
@@ -671,7 +726,14 @@ export default function MerchantOnboardPage() {
               />
             </div>
 
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 12 }}>
+            <div
+              style={{
+                display: "flex",
+                gap: 10,
+                flexWrap: "wrap",
+                marginTop: 12,
+              }}
+            >
               <button
                 onClick={doSignIn}
                 disabled={busy || !email.trim() || password.length < 6}
@@ -690,16 +752,25 @@ export default function MerchantOnboardPage() {
             </div>
           </>
         ) : (
-          <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              gap: 10,
+              alignItems: "center",
+            }}
+          >
             <div>
               <div style={{ fontWeight: 950 }}>Signed in</div>
-              <div style={{ opacity: 0.75, fontWeight: 800 }}>
-                {user.email ?? user.uid}
-              </div>
+              <div style={{ opacity: 0.75, fontWeight: 800 }}>{user.email ?? user.uid}</div>
               {isEdit && (
                 <div style={{ marginTop: 6, fontWeight: 900, opacity: 0.7 }}>
                   Editing Merchant ID:{" "}
-                  <span style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}>
+                  <span
+                    style={{
+                      fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+                    }}
+                  >
                     {merchantId}
                   </span>
                 </div>
@@ -776,7 +847,14 @@ export default function MerchantOnboardPage() {
         </div>
 
         {/* ✅ optional state */}
-        <div style={{ marginTop: 10, display: "grid", gap: 10, gridTemplateColumns: "1fr 1fr" }}>
+        <div
+          style={{
+            marginTop: 10,
+            display: "grid",
+            gap: 10,
+            gridTemplateColumns: "1fr 1fr",
+          }}
+        >
           <input
             value={stateName}
             onChange={(e) => setStateName(e.target.value)}
@@ -804,10 +882,21 @@ export default function MerchantOnboardPage() {
           />
           <div style={{ fontWeight: 800, opacity: 0.7 }}>{about.length}/1200</div>
 
-          <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              gap: 10,
+              flexWrap: "wrap",
+            }}
+          >
             <div style={{ fontWeight: 950 }}>Business photos (up to 6)</div>
             {photoFiles.length > 0 && (
-              <button onClick={resetSelectedPhotos} disabled={!user || busy} style={btnGray(!user || busy)}>
+              <button
+                onClick={resetSelectedPhotos}
+                disabled={!user || busy}
+                style={btnGray(!user || busy)}
+              >
                 Clear selected photos
               </button>
             )}
@@ -822,11 +911,38 @@ export default function MerchantOnboardPage() {
           />
 
           {photoPreviewUrls.length > 0 && (
-            <div style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))" }}>
+            <div
+              style={{
+                display: "grid",
+                gap: 10,
+                gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
+              }}
+            >
               {photoPreviewUrls.map((src, i) => (
-                <div key={i} style={{ border: "1px solid #e5e7eb", borderRadius: 14, overflow: "hidden", background: "#fff" }}>
-                  <img src={src} alt={`preview-${i}`} style={{ width: "100%", height: 120, objectFit: "cover" }} />
-                  <div style={{ padding: 10, fontWeight: 900, fontSize: 12, opacity: 0.7 }}>New Photo {i + 1}</div>
+                <div
+                  key={i}
+                  style={{
+                    border: "1px solid #e5e7eb",
+                    borderRadius: 14,
+                    overflow: "hidden",
+                    background: "#fff",
+                  }}
+                >
+                  <img
+                    src={src}
+                    alt={`preview-${i}`}
+                    style={{ width: "100%", height: 120, objectFit: "cover" }}
+                  />
+                  <div
+                    style={{
+                      padding: 10,
+                      fontWeight: 900,
+                      fontSize: 12,
+                      opacity: 0.7,
+                    }}
+                  >
+                    New Photo {i + 1}
+                  </div>
                 </div>
               ))}
             </div>
@@ -840,9 +956,28 @@ export default function MerchantOnboardPage() {
           )}
         </div>
 
-        <div style={{ display: "grid", gap: 10, marginTop: 10, gridTemplateColumns: "1fr 1fr auto" }}>
-          <input value={lat} onChange={(e) => setLat(e.target.value)} placeholder="Latitude" style={inputStyle()} disabled={!user || busy} />
-          <input value={lng} onChange={(e) => setLng(e.target.value)} placeholder="Longitude" style={inputStyle()} disabled={!user || busy} />
+        <div
+          style={{
+            display: "grid",
+            gap: 10,
+            marginTop: 10,
+            gridTemplateColumns: "1fr 1fr auto",
+          }}
+        >
+          <input
+            value={lat}
+            onChange={(e) => setLat(e.target.value)}
+            placeholder="Latitude"
+            style={inputStyle()}
+            disabled={!user || busy}
+          />
+          <input
+            value={lng}
+            onChange={(e) => setLng(e.target.value)}
+            placeholder="Longitude"
+            style={inputStyle()}
+            disabled={!user || busy}
+          />
           <button onClick={useMyLocation} disabled={!user || busy} style={btnGray(!user || busy)}>
             Use my location
           </button>
@@ -858,7 +993,15 @@ export default function MerchantOnboardPage() {
 
         <div style={{ display: "grid", gap: 10, marginTop: 12 }}>
           {wheel.map((row, i) => (
-            <div key={i} style={{ display: "grid", gap: 10, gridTemplateColumns: "1fr 160px auto", alignItems: "center" }}>
+            <div
+              key={i}
+              style={{
+                display: "grid",
+                gap: 10,
+                gridTemplateColumns: "1fr 160px auto",
+                alignItems: "center",
+              }}
+            >
               <input
                 value={row.label}
                 onChange={(e) => updateWheel(i, { label: e.target.value })}
@@ -891,9 +1034,46 @@ export default function MerchantOnboardPage() {
         </div>
       </div>
 
+      {/* ✅ NEW: Merchant Terms */}
+      <div style={{ ...card(), opacity: locked ? 0.6 : 1 }}>
+        <div style={{ fontWeight: 950, fontSize: 18 }}>Step 4 — Merchant terms</div>
+        <div style={{ opacity: 0.7, fontWeight: 800, marginTop: 8 }}>
+          Required to publish a wheel.
+        </div>
+
+        <label
+          style={{
+            marginTop: 12,
+            display: "flex",
+            gap: 10,
+            alignItems: "flex-start",
+            fontWeight: 850,
+            lineHeight: 1.35,
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={acceptMerchantTerms}
+            onChange={(e) => setAcceptMerchantTerms(e.target.checked)}
+            disabled={!user || busy}
+            style={{ marginTop: 4 }}
+          />
+          <span>
+            I agree that my Wheel Deals prizes are <b>not cash</b>, a <b>prize is always awarded</b> on every spin,
+            and my business will <b>handle any customer disputes</b> related to redemption.
+          </span>
+        </label>
+
+        {!acceptMerchantTerms && user && (
+          <div style={{ marginTop: 10, fontWeight: 900, color: "#b91c1c" }}>
+            Please check the box to continue.
+          </div>
+        )}
+      </div>
+
       {/* Submit */}
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
-        <button onClick={submit} disabled={!user || busy} style={btnGold(!user || busy)}>
+        <button onClick={submit} disabled={submitDisabled} style={btnGold(submitDisabled)}>
           {busy ? (isEdit ? "Saving…" : "Creating…") : isEdit ? "Save changes" : "Create merchant"}
         </button>
 

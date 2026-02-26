@@ -12,6 +12,7 @@
     "canvas-confetti": "^1.9.4",
     "firebase": "^12.8.0",
     "firebase-admin": "^13.6.0",
+    "html5-qrcode": "^2.3.8",
     "leaflet": "^1.9.4",
     "next": "16.1.2",
     "qrcode.react": "^4.2.0",

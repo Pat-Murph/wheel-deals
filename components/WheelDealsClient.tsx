@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 import Wheel, { WheelItem } from "./Wheel";
 import { QRCodeCanvas } from "qrcode.react";
 import { getActiveMerchants, type Merchant } from "../lib/merchants";
@@ -116,8 +115,6 @@ function btnGoldLink(): React.CSSProperties {
 }
 
 export default function WheelDealsClient({ initialMerchantId }: Props) {
-  const router = useRouter();
-
   // ✅ store uid for Stripe + spin attribution
   const [uid, setUid] = useState<string | null>(null);
 
@@ -183,24 +180,18 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
     };
   }, []);
 
-  // Default selection + URL selection
+  // ✅ Choose merchant by URL param if present (NO dropdown)
   useEffect(() => {
     if (!merchants.length) return;
 
-    if (initialMerchantId) {
-      const found = merchants.find((m) => m.id === initialMerchantId);
-      if (found) {
-        setSelectedMerchantId(found.id);
-        setIssuedCode("");
-        setLastPrize(null);
-        setSpinError(null);
-        setActivePhotoIdx(0);
-        return;
-      }
-    }
+    const found =
+      (initialMerchantId && merchants.find((m) => m.id === initialMerchantId)) ||
+      null;
 
-    if (!selectedMerchantId || !merchants.some((m) => m.id === selectedMerchantId)) {
-      setSelectedMerchantId(merchants[0].id);
+    const next = found?.id ?? merchants[0].id;
+
+    if (!selectedMerchantId) {
+      setSelectedMerchantId(next);
       setIssuedCode("");
       setLastPrize(null);
       setSpinError(null);
@@ -212,7 +203,25 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
   const selectedMerchant = useMemo(() => {
     if (!merchants.length) return null;
     return merchants.find((m) => m.id === selectedMerchantId) ?? merchants[0];
-  }, [merchants, selectedMerchantId]);
+  }, [merchants, selectedMerchantId, merchants.length]);
+
+  // If URL param changes while staying on page, update selection safely
+  useEffect(() => {
+    if (!merchants.length) return;
+    if (!initialMerchantId) return;
+
+    const found = merchants.find((m) => m.id === initialMerchantId);
+    if (!found) return;
+
+    if (found.id !== selectedMerchantId) {
+      setSelectedMerchantId(found.id);
+      setIssuedCode("");
+      setLastPrize(null);
+      setSpinError(null);
+      setActivePhotoIdx(0);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialMerchantId, merchants]);
 
   const merchantPhotos = useMemo(() => {
     if (!selectedMerchant) return [];
@@ -244,10 +253,26 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
     ];
   }, [selectedMerchant]);
 
+  // ✅ Report button mailto (change address later)
+  const reportHref = useMemo(() => {
+    const mid = selectedMerchant?.id ?? "";
+    const name = selectedMerchant?.name ?? "";
+    const subject = encodeURIComponent("Wheel Deals — Report a merchant");
+    const body = encodeURIComponent(
+      `Please describe the issue.\n\nMerchant Name: ${name}\nMerchant ID: ${mid}\n\nWhat happened:\n`
+    );
+
+    // TODO: swap to your real support email when ready
+    return `mailto:support@wheeldeals.app?subject=${subject}&body=${body}`;
+  }, [selectedMerchant?.id, selectedMerchant?.name]);
+
   if (loadingMerchants) {
     return (
       <div style={{ width: "100%", display: "grid", justifyItems: "center", gap: 10, padding: 24 }}>
-        <div style={{ fontSize: 30, fontWeight: 950 }}>Wheel Deals</div>
+        <div style={{ fontSize: 34, fontWeight: 950, letterSpacing: 0.2 }}>
+          <span style={{ color: "#F4B400" }}>Wheel</span>{" "}
+          <span style={{ color: "#2563EB" }}>Deals</span>
+        </div>
         <div style={{ fontWeight: 800, opacity: 0.8 }}>Loading merchants…</div>
       </div>
     );
@@ -256,7 +281,10 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
   if (merchantLoadError) {
     return (
       <div style={{ width: "100%", display: "grid", justifyItems: "center", gap: 10, padding: 24 }}>
-        <div style={{ fontSize: 30, fontWeight: 950 }}>Wheel Deals</div>
+        <div style={{ fontSize: 34, fontWeight: 950, letterSpacing: 0.2 }}>
+          <span style={{ color: "#F4B400" }}>Wheel</span>{" "}
+          <span style={{ color: "#2563EB" }}>Deals</span>
+        </div>
         <div
           style={{
             maxWidth: 640,
@@ -272,6 +300,9 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
         <div style={{ opacity: 0.75, fontWeight: 700 }}>
           If this says “Missing or insufficient permissions”, it’s Firestore rules blocking reads.
         </div>
+        <a href="/discover" style={btnLinkGray()}>
+          Go to discovery →
+        </a>
       </div>
     );
   }
@@ -279,7 +310,10 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
   if (!merchants.length || !selectedMerchant) {
     return (
       <div style={{ width: "100%", display: "grid", justifyItems: "center", gap: 10, padding: 24 }}>
-        <div style={{ fontSize: 30, fontWeight: 950 }}>Wheel Deals</div>
+        <div style={{ fontSize: 34, fontWeight: 950, letterSpacing: 0.2 }}>
+          <span style={{ color: "#F4B400" }}>Wheel</span>{" "}
+          <span style={{ color: "#2563EB" }}>Deals</span>
+        </div>
         <div style={{ fontWeight: 900 }}>No active merchants found.</div>
         <div style={{ opacity: 0.75, fontWeight: 700 }}>
           Add a merchant doc in Firestore: merchants/{`{id}`} with <b>active: true</b>.
@@ -295,35 +329,29 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
     <div style={{ display: "grid", gap: 16, justifyItems: "center", width: "100%", padding: "18px 12px" }}>
       {/* Header */}
       <div style={{ display: "grid", gap: 8, justifyItems: "center" }}>
-        <div style={{ fontSize: 34, fontWeight: 950, letterSpacing: 0.2 }}>Wheel Deals</div>
+        <div style={{ fontSize: 34, fontWeight: 950, letterSpacing: 0.2 }}>
+          <span style={{ color: "#F4B400" }}>Wheel</span>{" "}
+          <span style={{ color: "#2563EB" }}>Deals</span>
+        </div>
 
+        {/* ✅ No dropdown now */}
         <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", justifyContent: "center" }}>
           <span style={{ fontWeight: 800, opacity: 0.8 }}>Merchant:</span>
+          <span style={{ fontWeight: 950 }}>{selectedMerchant.name}</span>
 
-          <select
-            value={selectedMerchantId}
-            onChange={(e) => {
-              const nextId = e.target.value;
-
-              setSelectedMerchantId(nextId);
-              router.replace(`/?merchantId=${encodeURIComponent(nextId)}`);
-
-              // clear UI
-              setIssuedCode("");
-              setLastPrize(null);
-              setSpinError(null);
+          <a
+            href="/discover"
+            style={{
+              ...btnLinkGray(),
+              color: "#DC2626", // ✅ Discover in red
+              fontWeight: 950,
             }}
-            style={{ padding: 10, borderRadius: 12, fontWeight: 800 }}
           >
-            {merchants.map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.name}
-              </option>
-            ))}
-          </select>
-
-          <a href="/discover" style={btnLinkGray()}>
             Discover →
+          </a>
+
+          <a href={reportHref} style={btnLinkGray()} title="Report this merchant">
+            Report
           </a>
         </div>
 
@@ -489,7 +517,9 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
 
             <div style={{ fontSize: 28, fontWeight: 950, marginTop: 10, letterSpacing: 1 }}>{issuedCode}</div>
 
-            <div style={{ opacity: 0.75, marginTop: 6 }}>Show this code (or QR) to the merchant to redeem (one-time).</div>
+            <div style={{ opacity: 0.75, marginTop: 6 }}>
+              Show this code (or QR) to the merchant to redeem (one-time).
+            </div>
 
             <div style={{ marginTop: 14, display: "grid", gap: 10, justifyItems: "center" }}>
               <QRCodeCanvas value={issuedCode} size={200} />

@@ -47,6 +47,9 @@ const COLORS = [
 // ✅ price shown to user (actual charge is enforced server-side)
 const SPIN_PRICE_LABEL = "$2";
 
+// ✅ Background music (put the mp3 at: public/audio/renaissance.mp3)
+const BG_MUSIC_SRC = "/audio/renaissance.mp3";
+
 /** ---------------------------
  *  WebAudio (persistent + unlock)
  *  --------------------------- */
@@ -295,6 +298,52 @@ export default function Wheel({
   // ✅ store redemption info returned from consume
   const [redeemCode, setRedeemCode] = useState<string | null>(null);
   const [spinId, setSpinId] = useState<string | null>(null);
+
+  // ✅ Background music refs/state (plays only on this component/screen)
+  const bgAudioRef = useRef<HTMLAudioElement | null>(null);
+  const [musicOn, setMusicOn] = useState(true);
+
+  const startBgMusic = async () => {
+    try {
+      if (!musicOn) return;
+
+      if (!bgAudioRef.current) {
+        const a = new Audio(BG_MUSIC_SRC);
+        a.loop = true;
+        a.preload = "auto";
+        a.volume = 0.18; // subtle
+        bgAudioRef.current = a;
+      }
+
+      const a = bgAudioRef.current;
+
+      // ensure correct volume/mute based on current state
+      a.muted = !musicOn;
+      a.volume = 0.18;
+
+      // play may be blocked unless called from a user gesture (we call this from button handlers)
+      await a.play();
+    } catch {
+      // ignore autoplay blocks; user can try again by clicking buttons
+    }
+  };
+
+  const stopBgMusic = () => {
+    try {
+      const a = bgAudioRef.current;
+      if (!a) return;
+      a.pause();
+      a.currentTime = 0;
+    } catch {}
+  };
+
+  // stop music when leaving wheel screen
+  useEffect(() => {
+    return () => {
+      stopBgMusic();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Slice boundaries as degrees from TOP (0°=12 o'clock), increasing clockwise.
   const slices = useMemo(() => {
@@ -634,6 +683,9 @@ export default function Wheel({
 
   // ✅ create checkout + redirect (uses your server route)
   async function payForSpin() {
+    // ✅ start background music on user gesture
+    await startBgMusic();
+
     setPayBusy(true);
     setPayStatus(null);
 
@@ -668,6 +720,9 @@ export default function Wheel({
   }
 
   const spin = async () => {
+    // ✅ start background music on user gesture (if not already playing)
+    await startBgMusic();
+
     if (spinningRef.current) return;
     if (!slices.length) return;
 
@@ -819,22 +874,51 @@ export default function Wheel({
     >
       {/* Title / winner */}
       <div style={{ textAlign: "center" }}>
+        {/* Colored title + glow */}
         <div
           style={{
-            fontWeight: 900,
-            letterSpacing: 0.3,
-            fontSize: 16,
-            textTransform: "uppercase",
-            color: "#111",
+            position: "relative",
+            display: "inline-block",
+            padding: "6px 12px",
+            borderRadius: 14,
           }}
         >
-          WHEEL DEALS
+          {/* glow behind */}
+          <div
+            aria-hidden
+            style={{
+              position: "absolute",
+              inset: -10,
+              borderRadius: 18,
+              background:
+                "radial-gradient(circle at 35% 40%, rgba(255,217,61,0.28), transparent 55%), radial-gradient(circle at 70% 55%, rgba(37,99,235,0.22), transparent 58%)",
+              filter: "blur(10px)",
+              opacity: 0.95,
+              zIndex: 0,
+            }}
+          />
+          <div
+            style={{
+              position: "relative",
+              zIndex: 1,
+              fontWeight: 1000,
+              letterSpacing: 0.4,
+              fontSize: 16,
+              textTransform: "uppercase",
+              lineHeight: 1,
+              textShadow:
+                "0 10px 30px rgba(0,0,0,0.10), 0 0 18px rgba(255,217,61,0.18), 0 0 18px rgba(37,99,235,0.14)",
+            }}
+          >
+            <span style={{ color: "rgb(234,179,8)" }}>Wheel</span>{" "}
+            <span style={{ color: "rgb(37,99,235)" }}>Deals</span>
+          </div>
         </div>
 
         <div
           style={{
             minHeight: 22,
-            marginTop: 6,
+            marginTop: 8,
             fontWeight: 800,
             color: winnerText ? "#111" : "rgba(17,17,17,0.55)",
           }}
@@ -937,6 +1021,7 @@ export default function Wheel({
           gap: 10,
           flexWrap: "wrap",
           justifyContent: "center",
+          alignItems: "center",
         }}
       >
         {!paidSpinReady ? (
@@ -984,6 +1069,49 @@ export default function Wheel({
             {spinning ? "Spinning..." : `Spin (${SPIN_PRICE_LABEL})`}
           </button>
         )}
+
+        {/* ✅ Music toggle */}
+        <button
+          onClick={async () => {
+            const next = !musicOn;
+            setMusicOn(next);
+
+            try {
+              // if turning ON, start music (user gesture)
+              if (next) {
+                await startBgMusic();
+              } else {
+                stopBgMusic();
+              }
+            } catch {}
+          }}
+          style={{
+            padding: "12px 14px",
+            borderRadius: 14,
+            border: "1px solid rgba(0,0,0,0.12)",
+            background: "linear-gradient(180deg, #f3f4f6, #fff)",
+            cursor: "pointer",
+            fontWeight: 900,
+            opacity: 0.95,
+          }}
+        >
+          {musicOn ? "🔊 Music on" : "🔇 Music off"}
+        </button>
+      </div>
+
+      {/* Disclaimer line (replaces checkbox gating) */}
+      <div
+        style={{
+          marginTop: 6,
+          fontSize: 12,
+          fontWeight: 800,
+          opacity: 0.7,
+          textAlign: "center",
+          maxWidth: 520,
+          lineHeight: 1.35,
+        }}
+      >
+        By spinning, you agree all spins are final. No cash value. Must be 18+.
       </div>
 
       <style>{`

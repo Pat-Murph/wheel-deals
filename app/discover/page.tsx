@@ -218,7 +218,9 @@ export default function DiscoverPage() {
                 lineHeight: 1.02,
               }}
             >
-              Discover Wheel Deals
+              <span style={{ color: "#EF4444" }}>Discover</span>{" "}
+  <span style={{ color: "#F6C453" }}>Wheel</span>{" "}
+  <span style={{ color: "#2563EB" }}>Deals</span>
             </div>
 
             <div style={{ fontSize: 18, fontWeight: 850, opacity: 0.86 }}>
@@ -326,24 +328,48 @@ export default function DiscoverPage() {
                 Set up in minutes • Control your wheel
               </div>
 
-              <a
-                href="/merchant/onboard"
+              {/* CTA buttons */}
+              <div
                 style={{
                   marginTop: 6,
-                  padding: "12px 14px",
-                  borderRadius: 14,
-                  border: "1px solid rgba(0,0,0,0.12)",
-                  fontWeight: 1000,
-                  textDecoration: "none",
-                  color: "#111",
-                  background:
-                    "linear-gradient(180deg, rgba(255,217,61,0.95), rgba(255,155,61,0.95))",
-                  width: "fit-content",
-                  boxShadow: "0 14px 34px rgba(0,0,0,0.12)",
+                  display: "flex",
+                  gap: 10,
+                  flexWrap: "wrap",
+                  alignItems: "center",
                 }}
               >
-                Become a merchant →
-              </a>
+                <a
+                  href="/merchant/onboard"
+                  style={{
+                    padding: "12px 14px",
+                    borderRadius: 14,
+                    border: "1px solid rgba(0,0,0,0.12)",
+                    fontWeight: 1000,
+                    textDecoration: "none",
+                    color: "#111",
+                    background:
+                      "linear-gradient(180deg, rgba(255,217,61,0.95), rgba(255,155,61,0.95))",
+                    boxShadow: "0 14px 34px rgba(0,0,0,0.12)",
+                  }}
+                >
+                  Become a merchant →
+                </a>
+
+                <a
+                  href="/merchant"
+                  style={{
+                    padding: "12px 14px",
+                    borderRadius: 14,
+                    border: "1px solid rgba(0,0,0,0.12)",
+                    fontWeight: 1000,
+                    textDecoration: "none",
+                    color: "#111",
+                    background: "linear-gradient(180deg, #f3f4f6, #fff)",
+                  }}
+                >
+                  Merchant login →
+                </a>
+              </div>
             </div>
           </div>
 
