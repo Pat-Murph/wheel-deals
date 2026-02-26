@@ -29,26 +29,16 @@ export type Merchant = {
 };
 
 export const DISCOVER_CATEGORIES = [
-  "pizza",
-  "italian",
-  "mexican",
-  "chinese",
-  "japanese",
-  "korean",
-  "thai",
-  "filipino",
-  "vietnamese",
-  "burgers",
-  "fried chicken",
-  "coffee",
-  "dessert",
-  "bars",
-  "tacos",
+  "food and beverage",
+  "health and wellness",
+  "tickets and events",
   "things to do",
-  "other",
+  "beauty and hair",
 ] as const;
 
-export const DISCOVER_CITIES = ["las vegas", "henderson", "summerlin"] as const;
+// Cities are dynamic — populated from active merchant profiles.
+// This list serves as a fallback / seed for the discover filters.
+export const DISCOVER_CITIES: readonly string[] = [];
 
 function normalize(s: string) {
   return (s || "").trim().toLowerCase();
@@ -59,49 +49,54 @@ function uniq(arr: string[]) {
 }
 
 const CATEGORY_ALIASES: Record<string, string> = {
-  pizza: "pizza",
-  pizzeria: "pizza",
-  italian: "italian",
-  "italian/pizza": "pizza",
+  // Food & Beverage
+  "food and beverage": "food and beverage",
+  food: "food and beverage",
+  beverage: "food and beverage",
+  restaurant: "food and beverage",
+  pizza: "food and beverage",
+  coffee: "food and beverage",
+  cafe: "food and beverage",
+  bar: "food and beverage",
+  bars: "food and beverage",
+  sushi: "food and beverage",
+  tacos: "food and beverage",
+  burgers: "food and beverage",
 
-  mexican: "mexican",
-  tacos: "tacos",
-  taco: "tacos",
-  burrito: "mexican",
-  burritos: "mexican",
+  // Health & Wellness
+  "health and wellness": "health and wellness",
+  health: "health and wellness",
+  wellness: "health and wellness",
+  gym: "health and wellness",
+  yoga: "health and wellness",
+  spa: "health and wellness",
+  fitness: "health and wellness",
+  massage: "health and wellness",
 
-  chinese: "chinese",
-  japanese: "japanese",
-  sushi: "japanese",
-  ramen: "japanese",
-  korean: "korean",
-  kbbq: "korean",
-  "k-bbq": "korean",
-  thai: "thai",
-  filipino: "filipino",
-  philipino: "filipino",
-  vietnamese: "vietnamese",
-  pho: "vietnamese",
-  banhmi: "vietnamese",
-  "banh mi": "vietnamese",
+  // Tickets & Events
+  "tickets and events": "tickets and events",
+  tickets: "tickets and events",
+  events: "tickets and events",
+  event: "tickets and events",
+  concert: "tickets and events",
+  show: "tickets and events",
 
-  burgers: "burgers",
-  burger: "burgers",
-  "fried chicken": "fried chicken",
-  chicken: "fried chicken",
-  wings: "fried chicken",
-
-  coffee: "coffee",
-  cafe: "coffee",
-  dessert: "dessert",
-  sweets: "dessert",
-  bars: "bars",
-  bar: "bars",
-
+  // Things To Do
   "things to do": "things to do",
   "things-to-do": "things to do",
   activity: "things to do",
   activities: "things to do",
+  entertainment: "things to do",
+  fun: "things to do",
+
+  // Beauty & Hair
+  "beauty and hair": "beauty and hair",
+  beauty: "beauty and hair",
+  hair: "beauty and hair",
+  salon: "beauty and hair",
+  nails: "beauty and hair",
+  barber: "beauty and hair",
+  makeup: "beauty and hair",
 };
 
 const CITY_ALIASES: Record<string, string> = {
@@ -157,6 +152,18 @@ export function parseDiscoverQuery(raw: string): {
 
 function safeArray<T>(v: any): T[] {
   return Array.isArray(v) ? v : [];
+}
+
+/**
+ * Returns a sorted, deduplicated list of cities from all active merchants.
+ * Used to dynamically populate the city filter on the Discover page.
+ */
+export async function getDynamicCities(merchants?: Merchant[]): Promise<string[]> {
+  const list = merchants ?? await getActiveMerchants();
+  const cities = list
+    .map((m) => (m.cityLower ?? m.city ?? "").trim().toLowerCase())
+    .filter(Boolean);
+  return Array.from(new Set(cities)).sort();
 }
 
 export async function getActiveMerchants(): Promise<Merchant[]> {

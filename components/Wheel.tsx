@@ -337,6 +337,31 @@ export default function Wheel({
     } catch {}
   };
 
+  // ✅ Auto-start music on first user interaction with the page
+  useEffect(() => {
+    let started = false;
+
+    const tryStart = async () => {
+      if (started) return;
+      started = true;
+      await startBgMusic();
+      document.removeEventListener("click", tryStart);
+      document.removeEventListener("touchstart", tryStart);
+      document.removeEventListener("keydown", tryStart);
+    };
+
+    document.addEventListener("click", tryStart, { once: true });
+    document.addEventListener("touchstart", tryStart, { once: true });
+    document.addEventListener("keydown", tryStart, { once: true });
+
+    return () => {
+      document.removeEventListener("click", tryStart);
+      document.removeEventListener("touchstart", tryStart);
+      document.removeEventListener("keydown", tryStart);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [musicOn]);
+
   // stop music when leaving wheel screen
   useEffect(() => {
     return () => {

@@ -8,10 +8,10 @@ const DiscoverMap = dynamic(() => import("../../components/DiscoverMap"), {
 import { useEffect, useMemo, useState } from "react";
 import {
   searchMerchants,
+  getDynamicCities,
   type MerchantResult,
   parseDiscoverQuery,
   DISCOVER_CATEGORIES,
-  DISCOVER_CITIES,
 } from "../../lib/merchants";
 
 function titleCase(s: string) {
@@ -104,6 +104,7 @@ export default function DiscoverPage() {
   const [busy, setBusy] = useState(false);
   const [items, setItems] = useState<MerchantResult[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [dynamicCities, setDynamicCities] = useState<string[]>([]);
 
   const queryLabel = useMemo(() => {
     const parts = [q.trim(), category, city].filter(Boolean);
@@ -162,6 +163,16 @@ export default function DiscoverPage() {
       });
 
       setItems(res);
+
+      // Populate city filter dynamically from all active merchants (not just filtered)
+      if (dynamicCities.length === 0) {
+        try {
+          const cities = await getDynamicCities();
+          setDynamicCities(cities);
+        } catch {
+          // non-critical — city filter just stays empty
+        }
+      }
     } catch (e: any) {
       console.error(e);
       setError(e?.message ?? "Search failed.");
@@ -454,7 +465,7 @@ export default function DiscoverPage() {
             }}
           >
             <option value="">All cities</option>
-            {DISCOVER_CITIES.map((c) => (
+            {dynamicCities.map((c) => (
               <option key={c} value={c}>
                 {titleCase(c)}
               </option>

@@ -10,7 +10,7 @@ import {
   User,
 } from "firebase/auth";
 import { app, storage, db } from "../../../lib/firebase";
-import { DISCOVER_CATEGORIES, DISCOVER_CITIES } from "../../../lib/merchants";
+import { DISCOVER_CATEGORIES } from "../../../lib/merchants";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import {
   collection,
@@ -403,6 +403,36 @@ export default function MerchantOnboardPage() {
     try {
       await createUserWithEmailAndPassword(auth, email.trim(), password);
       setStatus("✅ Account created + signed in.");
+
+      // Auto-fill city from geolocation on new account creation
+      try {
+        if (navigator.geolocation && !city) {
+          const p = await new Promise<GeolocationPosition>((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(resolve, reject, {
+              enableHighAccuracy: true,
+              timeout: 8000,
+            });
+          });
+          const latNum = p.coords.latitude;
+          const lngNum = p.coords.longitude;
+          setLat(String(latNum));
+          setLng(String(lngNum));
+
+          const res = await fetch("/api/geocode/reverse", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ lat: latNum, lng: lngNum }),
+          });
+          const data = await res.json();
+          if (res.ok && data?.ok) {
+            if (data.city) setCity(String(data.city));
+            if (data.state) setStateName(String(data.state));
+            setStatus("✅ Account created + location auto-filled!");
+          }
+        }
+      } catch {
+        // location permission denied or unavailable — that's fine
+      }
     } catch (e: any) {
       setStatus(e?.message ?? "❌ Create account failed.");
     } finally {
@@ -831,19 +861,13 @@ export default function MerchantOnboardPage() {
             ))}
           </select>
 
-          <select
+          <input
             value={city}
             onChange={(e) => setCity(e.target.value)}
+            placeholder="City (auto-fills from location)"
             style={inputStyle()}
             disabled={!user || busy}
-          >
-            <option value="">Select city</option>
-            {DISCOVER_CITIES.map((c) => (
-              <option key={c} value={c}>
-                {titleCase(c)}
-              </option>
-            ))}
-          </select>
+          />
         </div>
 
         {/* ✅ optional state */}

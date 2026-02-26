@@ -150,6 +150,32 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
   const [lastPrize, setLastPrize] = useState<string | null>(null);
   const [spinError, setSpinError] = useState<string | null>(null);
 
+  // ✅ Email code feature
+  const [emailInput, setEmailInput] = useState("");
+  const [emailSending, setEmailSending] = useState(false);
+  const [emailStatus, setEmailStatus] = useState<string | null>(null);
+
+  async function sendCodeByEmail() {
+    if (!emailInput.trim() || !issuedCode) return;
+    setEmailSending(true);
+    setEmailStatus(null);
+
+    try {
+      // Build a mailto link as primary method (no backend email service needed yet)
+      const subject = encodeURIComponent(`Your Wheel Deals Prize Code — ${lastPrize ?? "Prize"}`);
+      const body = encodeURIComponent(
+        `Hi!\n\nYou won: ${lastPrize ?? "a prize"} at ${selectedMerchant?.name ?? "Wheel Deals"}!\n\nYour redemption code: ${issuedCode}\n\nShow this code (or the QR) to the merchant to redeem. One-time use only.\n\n— Wheel Deals`
+      );
+      const mailtoLink = `mailto:${emailInput.trim()}?subject=${subject}&body=${body}`;
+      window.open(mailtoLink, "_blank");
+      setEmailStatus("✅ Your email app opened with the code ready to send!");
+    } catch {
+      setEmailStatus("❌ Could not open email app. Please copy the code manually.");
+    } finally {
+      setEmailSending(false);
+    }
+  }
+
   const [activePhotoIdx, setActivePhotoIdx] = useState(0);
   const [photoBroken, setPhotoBroken] = useState<Record<string, boolean>>({});
 
@@ -356,7 +382,7 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
         </div>
 
         <div style={{ fontSize: 13, opacity: 0.7, textAlign: "center", fontWeight: 700 }}>
-          Limit: <b>3 spins/day</b> per merchant
+          Limit: <b>8 spins/day</b> per merchant
         </div>
 
         <div style={{ fontSize: 12, opacity: 0.65, fontWeight: 800 }}>
@@ -483,6 +509,8 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
         onResult={(label, extra) => {
           setLastPrize(label);
           setSpinError(null);
+          setEmailInput("");
+          setEmailStatus(null);
 
           // ✅ ONLY use code returned from consume()
           if (extra?.code) setIssuedCode(extra.code);
@@ -536,6 +564,60 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
               <a href="/redeem" style={btnGoldLink()}>
                 Go to merchant redeem page →
               </a>
+            </div>
+
+            {/* ✅ Email code section */}
+            <div
+              style={{
+                marginTop: 16,
+                padding: "12px 14px",
+                borderRadius: 12,
+                border: "1px solid rgba(0,0,0,0.10)",
+                background: "rgba(246,196,83,0.08)",
+                display: "grid",
+                gap: 8,
+              }}
+            >
+              <div style={{ fontWeight: 950, fontSize: 14 }}>Email this code to yourself</div>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <input
+                  type="email"
+                  value={emailInput}
+                  onChange={(e) => setEmailInput(e.target.value)}
+                  placeholder="your@email.com"
+                  style={{
+                    flex: 1,
+                    minWidth: 180,
+                    padding: "10px 12px",
+                    borderRadius: 10,
+                    border: "1px solid #ddd",
+                    fontSize: 15,
+                    fontWeight: 800,
+                  }}
+                />
+                <button
+                  onClick={sendCodeByEmail}
+                  disabled={emailSending || !emailInput.trim()}
+                  style={{
+                    padding: "10px 14px",
+                    borderRadius: 10,
+                    border: "1px solid rgba(0,0,0,0.12)",
+                    fontWeight: 950,
+                    cursor: emailSending || !emailInput.trim() ? "not-allowed" : "pointer",
+                    background:
+                      emailSending || !emailInput.trim()
+                        ? "linear-gradient(180deg, #f3f4f6, #fff)"
+                        : "linear-gradient(180deg, rgba(255,217,61,0.95), rgba(255,155,61,0.95))",
+                    opacity: emailSending || !emailInput.trim() ? 0.7 : 1,
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {emailSending ? "Sending…" : "✉️ Send"}
+                </button>
+              </div>
+              {emailStatus && (
+                <div style={{ fontWeight: 800, fontSize: 13, opacity: 0.85 }}>{emailStatus}</div>
+              )}
             </div>
           </div>
         )}

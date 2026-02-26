@@ -61,7 +61,7 @@ export async function createSpin(params: {
   const uid = user.uid;
 
   const dateKey = todayKeyLocal();
-  const dailyLimit = params.dailyLimit ?? 3;
+  const dailyLimit = params.dailyLimit ?? 8;
 
   const code = generateCode();
   const expiresAt = expiresAtInDays(7);
