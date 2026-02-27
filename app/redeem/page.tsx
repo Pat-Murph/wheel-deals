@@ -202,8 +202,8 @@ export default function RedeemPage() {
         </div>
       )}
 
-      <a href="/" style={{ fontWeight: 900, textDecoration: "none", color: "#111" }}>
-        ← Back to Wheel
+      <a href="/discover" style={{ fontWeight: 900, textDecoration: "none", color: "#111" }}>
+        ← Back to Discover
       </a>
     </main>
   );

@@ -36,7 +36,7 @@ service cloud.firestore {
         && request.resource.data.dateKey == dateKey
         && request.resource.data.remaining is int
         && request.resource.data.remaining >= 0
-        && request.resource.data.remaining <= 3;
+        && request.resource.data.remaining <= 8;
 
       allow update: if signedIn() && request.auth.uid == uid
         && request.resource.data.merchantId == resource.data.merchantId

@@ -163,36 +163,59 @@ async function incrementMerchantStats(merchantId: string, dateKey: string) {
 }
 
 /**
- * Redeem a spin by code (merchant-only via rules)
+ * Redeem a spin by code (merchant-only via rules).
+ * Uses a Firestore transaction to guarantee atomic one-time-use:
+ * no race condition can allow the same code to be redeemed twice.
  */
 export async function redeemSpinByCode(code: string) {
   const cleaned = code.trim().toUpperCase();
 
+  // First find the spin document by code
   const q = query(collection(db, "spins"), where("code", "==", cleaned), limit(1));
-
   const snap = await getDocs(q);
   if (snap.empty) return { ok: false as const, reason: "not_found" as const };
 
-  const docSnap = snap.docs[0];
-  const data = docSnap.data() as any;
+  const spinDocRef = doc(db, "spins", snap.docs[0].id);
 
-  if (data.status === "redeemed") {
-    return { ok: false as const, reason: "already_redeemed" as const };
-  }
+  // Run inside a transaction so two simultaneous redemption attempts
+  // cannot both pass the status check — only the first write wins.
+  type TxResult =
+    | { ok: true; prizeLabel: string; merchantId: string }
+    | { ok: false; reason: "already_redeemed" | "expired" | "not_found" };
 
-  const expMs = data.expiresAt?.toMillis?.();
-  if (expMs && Date.now() > expMs) {
-    return { ok: false as const, reason: "expired" as const };
-  }
+  const result: TxResult = await runTransaction(db, async (tx) => {
+    const spinSnap = await tx.get(spinDocRef);
 
-  await updateDoc(doc(db, "spins", docSnap.id), {
-    status: "redeemed",
-    redeemedAt: serverTimestamp(),
+    if (!spinSnap.exists()) {
+      return { ok: false, reason: "not_found" } as const;
+    }
+
+    const data = spinSnap.data() as any;
+
+    // ✅ Hard block: already redeemed
+    if (data.status === "redeemed") {
+      return { ok: false, reason: "already_redeemed" } as const;
+    }
+
+    // ✅ Hard block: expired
+    const expMs = data.expiresAt?.toMillis?.();
+    if (expMs && Date.now() > expMs) {
+      return { ok: false, reason: "expired" } as const;
+    }
+
+    // ✅ Atomically mark as redeemed — Firestore rules also enforce
+    // status must be "issued" → "redeemed" and no other fields change.
+    tx.update(spinDocRef, {
+      status: "redeemed",
+      redeemedAt: serverTimestamp(),
+    });
+
+    return {
+      ok: true,
+      prizeLabel: data.prizeLabel as string,
+      merchantId: data.merchantId as string,
+    } as const;
   });
 
-  return {
-    ok: true as const,
-    prizeLabel: data.prizeLabel,
-    merchantId: data.merchantId,
-  };
+  return result;
 }
