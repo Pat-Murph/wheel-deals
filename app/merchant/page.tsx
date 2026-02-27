@@ -644,6 +644,18 @@ export default function MerchantDashboardPage() {
             {busy && <span style={{ opacity: 0.7, fontWeight: 800 }}>Loading…</span>}
           </div>
         </div>
+
+        <a
+          href="/discover"
+          style={{
+            fontWeight: 950,
+            textDecoration: "none",
+            color: "#111",
+            alignSelf: "center",
+          }}
+        >
+          ← Back to Discover
+        </a>
       </div>
 
       {status && (

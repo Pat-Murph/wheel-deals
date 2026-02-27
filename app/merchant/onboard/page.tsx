@@ -678,7 +678,7 @@ export default function MerchantOnboardPage() {
         </div>
 
         <a
-          href="/"
+          href="/discover"
           style={{
             fontWeight: 950,
             textDecoration: "none",
@@ -686,7 +686,7 @@ export default function MerchantOnboardPage() {
             alignSelf: "center",
           }}
         >
-          ← Back to Wheel
+          ← Back to Discover
         </a>
       </div>
 
