@@ -207,14 +207,11 @@ async function saveMerchantForUser(args: {
 
   if (isEdit) {
     // ── EDIT PATH ──────────────────────────────────────────────────────────
-    // Use tx.update() so Firestore rules evaluate this as an UPDATE (not create).
-    // The merchant update rule allows: isMerchantStaff OR ownerUid == auth.uid.
+    // Only update the merchant doc. Staff and user docs do not need to change
+    // on edit — and their rules explicitly block updates (staff: update=false,
+    // user: only the owner can update their own doc which is fine but unnecessary).
     await runTransaction(db, async (tx) => {
       tx.update(merchantRef, sharedFields);
-      // Staff doc already exists — just ensure active flag is set
-      tx.update(staffRef, { active: true, updatedAt: serverTimestamp() });
-      // User doc already has merchantId — just touch updatedAt
-      tx.update(userRef, { updatedAt: serverTimestamp() });
     });
   } else {
     // ── CREATE PATH ────────────────────────────────────────────────────────
