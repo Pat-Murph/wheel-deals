@@ -1,6 +1,6 @@
 // lib/onboarding.ts
 import { db } from "./firebase";
-import { doc, runTransaction, serverTimestamp } from "firebase/firestore";
+import { doc, runTransaction, setDoc, serverTimestamp } from "firebase/firestore";
 
 type WheelRow = { label: string; weight: number };
 
@@ -38,17 +38,24 @@ export async function updateMerchantForUser(args: UpdateMerchantArgs) {
   if (!name.trim()) throw new Error("Business name is required.");
   if (!category.trim()) throw new Error("Category is required.");
   if (!city.trim()) throw new Error("City is required.");
-  if (!Array.isArray(wheel) || wheel.length < 1) throw new Error("Wheel must have at least 1 prize.");
+  if (!Array.isArray(wheel) || wheel.length < 1)
+    throw new Error("Wheel must have at least 1 prize.");
 
   const merchantRef = doc(db, "merchants", merchantId);
   const staffRef = doc(db, "merchants", merchantId, "staff", uid);
   const wheelRef = doc(db, "merchants", merchantId, "config", "wheel");
 
+  // Step 1: Update the merchant doc inside a transaction.
+  // The wheel config is intentionally written OUTSIDE the transaction
+  // (see Step 2) because isMerchantStaff() uses get() inside rules,
+  // which can fail when evaluated within a transaction context.
   await runTransaction(db, async (tx) => {
-    // Ensure caller is staff (rules also enforce, but this gives clearer errors)
+    // Ensure caller is staff — gives a clear error before rules block it
     const staffSnap = await tx.get(staffRef);
     if (!staffSnap.exists() || staffSnap.data()?.active !== true) {
-      throw new Error("You do not have permission to edit this merchant (staff missing/inactive).");
+      throw new Error(
+        "You do not have permission to edit this merchant (staff missing/inactive)."
+      );
     }
 
     tx.update(merchantRef, {
@@ -65,19 +72,22 @@ export async function updateMerchantForUser(args: UpdateMerchantArgs) {
       photoUrls: photoUrls.slice(0, 12),
       updatedAt: serverTimestamp(),
     });
-
-    tx.set(
-      wheelRef,
-      {
-        items: wheel.map((w) => ({
-          label: String(w.label ?? "").trim(),
-          weight: Number(w.weight ?? 0),
-        })),
-        updatedAt: serverTimestamp(),
-      },
-      { merge: true }
-    );
   });
+
+  // Step 2: Write wheel config AFTER the transaction commits so that
+  // the staff doc is fully visible to Firestore security rules when
+  // isMerchantStaff() is evaluated.
+  await setDoc(
+    wheelRef,
+    {
+      items: wheel.map((w) => ({
+        label: String(w.label ?? "").trim(),
+        weight: Number(w.weight ?? 0),
+      })),
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true }
+  );
 
   return { merchantId };
 }
