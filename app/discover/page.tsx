@@ -683,7 +683,7 @@ export default function DiscoverPage() {
         nearMeEnabled={nearMe}
         radiusMiles={radius}
         onPickMerchant={(id) =>
-          (window.location.href = `/?merchantId=${encodeURIComponent(id)}`)
+          (window.location.href = `/wheel?merchantId=${encodeURIComponent(id)}`)
         }
       />
 
@@ -716,7 +716,7 @@ export default function DiscoverPage() {
             {m.address && <div style={{ opacity: 0.7, fontWeight: 700 }}>{m.address}</div>}
 
             <a
-              href={`/?merchantId=${encodeURIComponent(m.id)}`}
+              href={`/wheel?merchantId=${encodeURIComponent(m.id)}`}
               style={{
                 marginTop: 6,
                 padding: 12,

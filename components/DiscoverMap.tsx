@@ -225,7 +225,7 @@ export default function DiscoverMap({
                 </div>
                 <div style={{ marginTop: 10 }}>
                   <a
-                    href={`/?merchantId=${encodeURIComponent(m.id)}`}
+                    href={`/wheel?merchantId=${encodeURIComponent(m.id)}`}
                     style={{ fontWeight: 900, textDecoration: "none" }}
                   >
                     Spin this wheel →

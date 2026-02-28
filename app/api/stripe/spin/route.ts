@@ -51,8 +51,8 @@ export async function POST(req: Request) {
       },
 
       // ✅ keep merchant in URL so the app stays on the right wheel after redirect
-      success_url: `${origin}/?merchantId=${encodeURIComponent(merchantId)}&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${origin}/?merchantId=${encodeURIComponent(merchantId)}&cancelled=1`,
+      success_url: `${origin}/wheel?merchantId=${encodeURIComponent(merchantId)}&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${origin}/wheel?merchantId=${encodeURIComponent(merchantId)}&cancelled=1`,
     });
 
     return NextResponse.json({ url: session.url });
