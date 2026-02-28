@@ -58,7 +58,15 @@ service cloud.firestore {
         && request.resource.data.category is string
         && request.resource.data.city is string;
 
-      allow update: if isMerchantStaff(merchantId);
+      // Allow update if:
+      //   (a) the user is active staff for this merchant, OR
+      //   (b) the user is the owner (ownerUid matches) — needed for the
+      //       founding-spot claim which runs AFTER the onboarding transaction
+      //       before the staff doc is fully visible to rules
+      allow update: if isMerchantStaff(merchantId)
+        || (signedIn()
+            && exists(/databases/$(database)/documents/merchants/$(merchantId))
+            && get(/databases/$(database)/documents/merchants/$(merchantId)).data.ownerUid == request.auth.uid);
       allow delete: if false;
 
       match /staff/{uid} {
