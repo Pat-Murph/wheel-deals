@@ -126,7 +126,8 @@ function linkGray(): React.CSSProperties {
 }
 
 // -------------------- Firestore save (create OR update) --------------------
-// ✅ CHANGED ONLY: remove config/wheel write from transaction and write it after
+// Properly separates CREATE vs UPDATE so Firestore rules evaluate correctly.
+// tx.set() with merge on an existing doc is ambiguous to rules — use tx.update() for edits.
 async function saveMerchantForUser(args: {
   uid: string;
   merchantId?: string | null;
@@ -143,8 +144,6 @@ async function saveMerchantForUser(args: {
 
   wheel: WheelRow[];
   photoUrls: string[];
-
-  // ✅ NEW: terms acceptance
   termsAccepted: boolean;
 }) {
   const {
@@ -173,78 +172,73 @@ async function saveMerchantForUser(args: {
   if (!wheelItems.length)
     throw new Error("Add at least 1 wheel prize with a weight > 0.");
 
-  const merchantRef = merchantId
-    ? doc(db, "merchants", merchantId)
+  const isEdit = !!merchantId;
+
+  const merchantRef = isEdit
+    ? doc(db, "merchants", merchantId!)
     : doc(collection(db, "merchants"));
 
   const staffRef = doc(db, "merchants", merchantRef.id, "staff", uid);
   const userRef = doc(db, "users", uid);
-
-  // keep your config wheel doc too (optional)
   const wheelRef = doc(db, "merchants", merchantRef.id, "config", "wheel");
 
-  await runTransaction(db, async (tx) => {
-    tx.set(
-      merchantRef,
-      {
-        active: true,
-        ...(merchantId ? {} : { ownerUid: uid }),
+  // Shared fields for both create and update
+  const sharedFields = {
+    active: true,
+    name: name.trim(),
+    nameLower: name.trim().toLowerCase(),
+    category: category.trim(),
+    categoryLower: category.trim().toLowerCase(),
+    city: city.trim(),
+    cityLower: city.trim().toLowerCase(),
+    state: state.trim(),
+    stateLower: state.trim().toLowerCase(),
+    address: address.trim(),
+    about: about.trim(),
+    lat: typeof lat === "number" ? lat : null,
+    lng: typeof lng === "number" ? lng : null,
+    photoUrls: photoUrls.slice(0, 12),
+    wheel: wheelItems,
+    termsAccepted: !!termsAccepted,
+    termsAcceptedVersion: 1,
+    termsAcceptedAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  };
 
-        name: name.trim(),
-        nameLower: name.trim().toLowerCase(),
-
-        category: category.trim(),
-        categoryLower: category.trim().toLowerCase(),
-
-        city: city.trim(),
-        cityLower: city.trim().toLowerCase(),
-
-        // optional; good for national rollout
-        state: state.trim(),
-        stateLower: state.trim().toLowerCase(),
-
-        address: address.trim(),
-        about: about.trim(),
-
-        lat: typeof lat === "number" ? lat : null,
-        lng: typeof lng === "number" ? lng : null,
-
-        photoUrls: photoUrls.slice(0, 12),
-
-        // ✅ CRITICAL FIX: customer wheel reads this field
-        wheel: wheelItems,
-
-        // ✅ NEW: merchant terms acceptance
-        termsAccepted: !!termsAccepted,
-        termsAcceptedVersion: 1,
-        termsAcceptedAt: serverTimestamp(),
-
-        updatedAt: serverTimestamp(),
-        ...(merchantId ? {} : { createdAt: serverTimestamp() }),
-      },
-      { merge: true }
-    );
-
-    tx.set(
-      staffRef,
-      {
+  if (isEdit) {
+    // ── EDIT PATH ──────────────────────────────────────────────────────────
+    // Use tx.update() so Firestore rules evaluate this as an UPDATE (not create).
+    // The merchant update rule allows: isMerchantStaff OR ownerUid == auth.uid.
+    await runTransaction(db, async (tx) => {
+      tx.update(merchantRef, sharedFields);
+      // Staff doc already exists — just ensure active flag is set
+      tx.update(staffRef, { active: true, updatedAt: serverTimestamp() });
+      // User doc already has merchantId — just touch updatedAt
+      tx.update(userRef, { updatedAt: serverTimestamp() });
+    });
+  } else {
+    // ── CREATE PATH ────────────────────────────────────────────────────────
+    // Use tx.set() for new docs. ownerUid is included to satisfy create rule.
+    await runTransaction(db, async (tx) => {
+      tx.set(merchantRef, {
+        ...sharedFields,
+        ownerUid: uid,
+        createdAt: serverTimestamp(),
+      });
+      tx.set(staffRef, {
         active: true,
         role: "owner",
-        ...(merchantId ? {} : { createdAt: serverTimestamp() }),
-      },
-      { merge: true }
-    );
+        createdAt: serverTimestamp(),
+      });
+      tx.set(userRef, {
+        merchantId: merchantRef.id,
+        updatedAt: serverTimestamp(),
+      }, { merge: true });
+    });
+  }
 
-    tx.set(
-      userRef,
-      { merchantId: merchantRef.id, updatedAt: serverTimestamp() },
-      { merge: true }
-    );
-
-    // ❌ REMOVED: wheelRef set from transaction (was causing permissions failure)
-  });
-
-  // ✅ Write config wheel AFTER transaction (rules can now see staff doc reliably)
+  // Write wheel config AFTER transaction so staff doc is fully committed
+  // and visible to Firestore rules when isMerchantStaff() is evaluated.
   await setDoc(
     wheelRef,
     { items: wheelItems, updatedAt: serverTimestamp() },
