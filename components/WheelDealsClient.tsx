@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Wheel, { WheelItem } from "./Wheel";
 import { QRCodeCanvas } from "qrcode.react";
 import { getActiveMerchants, type Merchant } from "../lib/merchants";
+import { getFoundingMerchantCount, FOUNDING_MERCHANT_LIMIT } from "../lib/founding";
 
 import { getAuth, onAuthStateChanged, signInAnonymously } from "firebase/auth";
 import { app } from "../lib/firebase";
@@ -142,6 +143,17 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
   const [merchants, setMerchants] = useState<Merchant[]>([]);
   const [loadingMerchants, setLoadingMerchants] = useState(true);
   const [merchantLoadError, setMerchantLoadError] = useState<string | null>(null);
+
+  // ✅ Founding merchant countdown
+  const [foundingTotal, setFoundingTotal] = useState<number>(0);
+  const [foundingRemaining, setFoundingRemaining] = useState<number>(FOUNDING_MERCHANT_LIMIT);
+
+  useEffect(() => {
+    getFoundingMerchantCount().then(({ total, remaining }) => {
+      setFoundingTotal(total);
+      setFoundingRemaining(remaining);
+    }).catch(() => {});
+  }, []);
 
   const [selectedMerchantId, setSelectedMerchantId] = useState<string>("");
 
@@ -353,10 +365,82 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
 
   return (
     <div style={{ display: "grid", gap: 16, justifyItems: "center", width: "100%", padding: "18px 12px" }}>
+      {/* ✅ Founding Merchant Countdown Banner */}
+      {foundingRemaining > 0 && (
+        <div
+          style={{
+            width: "min(680px, 100%)",
+            background: "linear-gradient(135deg, #0a1628 0%, #1a2f55 100%)",
+            borderRadius: 16,
+            padding: "14px 20px",
+            display: "grid",
+            gap: 8,
+            boxShadow: "0 4px 24px rgba(0,0,0,0.18)",
+            border: "1px solid rgba(244,180,0,0.3)",
+          }}
+        >
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+            <div style={{ fontWeight: 950, fontSize: 15, color: "#F4B400", letterSpacing: 0.3 }}>
+              🎉 Founding Merchant Program
+            </div>
+            <div
+              style={{
+                fontWeight: 950,
+                fontSize: 18,
+                color: "white",
+                background: "rgba(244,180,0,0.15)",
+                border: "1px solid rgba(244,180,0,0.4)",
+                borderRadius: 10,
+                padding: "4px 12px",
+                letterSpacing: 0.5,
+              }}
+            >
+              <span style={{ color: "#F4B400" }}>{foundingRemaining}</span>
+              <span style={{ color: "rgba(255,255,255,0.6)", fontSize: 14 }}> / {FOUNDING_MERCHANT_LIMIT} spots left</span>
+            </div>
+          </div>
+
+          {/* Progress bar */}
+          <div style={{ background: "rgba(255,255,255,0.1)", borderRadius: 999, height: 8, overflow: "hidden" }}>
+            <div
+              style={{
+                height: "100%",
+                borderRadius: 999,
+                background: "linear-gradient(90deg, #F4B400, #FF9B3D)",
+                width: `${Math.min(100, (foundingTotal / FOUNDING_MERCHANT_LIMIT) * 100)}%`,
+                transition: "width 0.6s ease",
+              }}
+            />
+          </div>
+
+          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", fontWeight: 800, lineHeight: 1.4 }}>
+            The first <strong style={{ color: "#F4B400" }}>1,000 merchants</strong> earn a <strong style={{ color: "#F4B400" }}>20% net profit share</strong>, distributed quarterly over 5 years starting on our 1st anniversary.
+            Revenue-weighted — the more you earn, the more you share.
+          </div>
+
+          <a
+            href="/merchant/onboard"
+            style={{
+              display: "inline-flex",
+              alignSelf: "start",
+              padding: "8px 16px",
+              borderRadius: 10,
+              background: "linear-gradient(180deg, #F4B400, #FF9B3D)",
+              color: "#111",
+              fontWeight: 950,
+              textDecoration: "none",
+              fontSize: 13,
+            }}
+          >
+            Claim your spot →
+          </a>
+        </div>
+      )}
+
       {/* Header */}
       <div style={{ display: "grid", gap: 8, justifyItems: "center" }}>
         <div style={{ fontSize: 34, fontWeight: 950, letterSpacing: 0.2 }}>
-          <span style={{ color: "#F4B400" }}>Wheel</span>{" "}
+          <span style={{ color: "#F4B400" }}>Wheel</span>{", "}
           <span style={{ color: "#2563EB" }}>Deals</span>
         </div>
 

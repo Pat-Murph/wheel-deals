@@ -123,6 +123,28 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // PLATFORM CONFIG (founding merchant counter, etc.)
+    match /platform/{docId} {
+      // Anyone can read (needed for the public countdown banner)
+      allow read: if true;
+
+      // Only allow writes from authenticated users via transactions
+      // (claimFoundingSpot uses a transaction to atomically increment)
+      allow write: if signedIn();
+    }
+
+    // PROFIT SHARE DISTRIBUTIONS (admin-only read/write)
+    match /profitShareDistributions/{quarterKey} {
+      allow read: if signedIn();
+      allow write: if false; // admin writes only via Firebase console or Admin SDK
+
+      match /allocations/{merchantId} {
+        allow read: if signedIn() &&
+          (request.auth.uid == merchantId || isMerchantStaff(merchantId));
+        allow write: if false; // admin writes only
+      }
+    }
+
     // USER MERCHANT STATS: allow signed-in user to increment (+1 only)
     match /userMerchantStats/{pairId}/daily/{dateKey} {
       allow read: if signedIn();

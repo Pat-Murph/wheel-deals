@@ -11,6 +11,7 @@ import {
 } from "firebase/auth";
 import { app, storage, db } from "../../../lib/firebase";
 import { DISCOVER_CATEGORIES } from "../../../lib/merchants";
+import { claimFoundingSpot } from "../../../lib/founding";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import {
   collection,
@@ -635,9 +636,24 @@ export default function MerchantOnboardPage() {
       });
 
       setMerchantId(res.merchantId);
-      setStatus(
-        merchantId ? "✅ Saved! Changes live now." : "✅ Merchant created! You’re the owner."
-      );
+
+      // ✅ Claim a founding merchant spot for NEW merchants only (not edits)
+      if (!merchantId) {
+        try {
+          const foundingNumber = await claimFoundingSpot(res.merchantId);
+          if (foundingNumber !== null) {
+            setStatus(
+              `✅ Merchant created! You're the owner. 🎉 You are Founding Merchant #${foundingNumber} — you qualify for the 20% profit share program!`
+            );
+          } else {
+            setStatus("✅ Merchant created! You're the owner.");
+          }
+        } catch {
+          setStatus("✅ Merchant created! You're the owner.");
+        }
+      } else {
+        setStatus("✅ Saved! Changes live now.");
+      }
     } catch (e: any) {
       console.error(e);
       setStatus(e?.message ?? "❌ Could not save merchant.");
