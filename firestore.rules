@@ -88,7 +88,12 @@ service cloud.firestore {
       // wheel config doc is public-readable too
       match /config/{docId} {
         allow read: if true;
-        allow write: if isMerchantStaff(merchantId);
+        // Allow write if active staff OR if the signed-in user is the merchant owner.
+        // The owner check avoids isMerchantStaff() get() latency issues after edits.
+        allow write: if isMerchantStaff(merchantId)
+          || (signedIn()
+              && exists(/databases/$(database)/documents/merchants/$(merchantId))
+              && get(/databases/$(database)/documents/merchants/$(merchantId)).data.ownerUid == request.auth.uid);
       }
     }
 
