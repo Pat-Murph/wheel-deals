@@ -13,6 +13,7 @@ import {
   parseDiscoverQuery,
   DISCOVER_CATEGORIES,
 } from "../../lib/merchants";
+import { getFoundingMerchantCount, FOUNDING_MERCHANT_LIMIT } from "../../lib/founding";
 
 function titleCase(s: string) {
   return (s || "")
@@ -105,6 +106,19 @@ export default function DiscoverPage() {
   const [items, setItems] = useState<MerchantResult[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [dynamicCities, setDynamicCities] = useState<string[]>([]);
+
+  // Founding merchant countdown
+  const [foundingTotal, setFoundingTotal] = useState<number>(0);
+  const [foundingRemaining, setFoundingRemaining] = useState<number>(FOUNDING_MERCHANT_LIMIT);
+
+  useEffect(() => {
+    getFoundingMerchantCount()
+      .then(({ total, remaining }) => {
+        setFoundingTotal(total);
+        setFoundingRemaining(remaining);
+      })
+      .catch(() => {});
+  }, []);
 
   const queryLabel = useMemo(() => {
     const parts = [q.trim(), category, city].filter(Boolean);
@@ -229,9 +243,9 @@ export default function DiscoverPage() {
                 lineHeight: 1.02,
               }}
             >
-              <span style={{ color: "#EF4444" }}>Discover</span>{" "}
-  <span style={{ color: "#F6C453" }}>Wheel</span>{" "}
-  <span style={{ color: "#2563EB" }}>Deals</span>
+              <span style={{ color: "#F6C453" }}>Wheel</span>{" "}
+              <span style={{ color: "#2563EB" }}>Deals</span>{" "}
+              <span style={{ color: "#EF4444" }}>Discover</span>
             </div>
 
             <div style={{ fontSize: 18, fontWeight: 850, opacity: 0.86 }}>
@@ -402,6 +416,79 @@ export default function DiscoverPage() {
           }
         `}</style>
       </section>
+
+      {/* Founding Merchant Countdown Banner */}
+      {foundingRemaining > 0 && (
+        <div
+          style={{
+            background: "linear-gradient(135deg, #0a1628 0%, #1a2f55 100%)",
+            borderRadius: 18,
+            padding: "18px 22px",
+            display: "grid",
+            gap: 10,
+            boxShadow: "0 4px 28px rgba(0,0,0,0.18)",
+            border: "1px solid rgba(244,180,0,0.3)",
+          }}
+        >
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
+            <div style={{ fontWeight: 950, fontSize: 16, color: "#F4B400", letterSpacing: 0.3 }}>
+              🎉 Founding Merchant Program
+            </div>
+            <div
+              style={{
+                fontWeight: 950,
+                fontSize: 20,
+                color: "white",
+                background: "rgba(244,180,0,0.15)",
+                border: "1px solid rgba(244,180,0,0.4)",
+                borderRadius: 10,
+                padding: "5px 14px",
+                letterSpacing: 0.5,
+              }}
+            >
+              <span style={{ color: "#F4B400" }}>{foundingRemaining}</span>
+              <span style={{ color: "rgba(255,255,255,0.6)", fontSize: 14 }}> / {FOUNDING_MERCHANT_LIMIT} spots left</span>
+            </div>
+          </div>
+
+          {/* Progress bar */}
+          <div style={{ background: "rgba(255,255,255,0.1)", borderRadius: 999, height: 9, overflow: "hidden" }}>
+            <div
+              style={{
+                height: "100%",
+                borderRadius: 999,
+                background: "linear-gradient(90deg, #F4B400, #FF9B3D)",
+                width: `${Math.min(100, (foundingTotal / FOUNDING_MERCHANT_LIMIT) * 100)}%`,
+                transition: "width 0.6s ease",
+              }}
+            />
+          </div>
+
+          <div style={{ fontSize: 13, color: "rgba(255,255,255,0.75)", fontWeight: 800, lineHeight: 1.5 }}>
+            The first <strong style={{ color: "#F4B400" }}>1,000 merchants</strong> earn a{" "}
+            <strong style={{ color: "#F4B400" }}>20% net profit share</strong>, distributed quarterly
+            over 5 years starting on our 1st anniversary. Revenue-weighted — the more you earn, the more you share.
+          </div>
+
+          <a
+            href="/merchant/onboard"
+            style={{
+              display: "inline-flex",
+              alignSelf: "start",
+              padding: "10px 18px",
+              borderRadius: 12,
+              background: "linear-gradient(180deg, #F4B400, #FF9B3D)",
+              color: "#111",
+              fontWeight: 950,
+              textDecoration: "none",
+              fontSize: 14,
+              boxShadow: "0 4px 14px rgba(244,180,0,0.35)",
+            }}
+          >
+            Claim your founding spot →
+          </a>
+        </div>
+      )}
 
       {/* Search controls */}
       <div

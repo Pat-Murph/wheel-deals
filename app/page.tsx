@@ -1,16 +1,8 @@
-import WheelDealsClient from "../components/WheelDealsClient";
+import { redirect } from "next/navigation";
 
-export default async function Page({
-  searchParams,
-}: {
-  searchParams?: Promise<{ merchantId?: string }>;
-}) {
-  const sp = (await searchParams) ?? {};
-  const merchantId = sp.merchantId;
-
-  return (
-    <main style={{ padding: 24, display: "grid", justifyItems: "center" }}>
-      <WheelDealsClient initialMerchantId={merchantId} />
-    </main>
-  );
+/**
+ * Root page — redirects to /discover which is the main entry point.
+ */
+export default function Page() {
+  redirect("/discover");
 }
