@@ -110,16 +110,15 @@ service cloud.firestore {
 
       allow create: if signedIn() && request.resource.data.uid == request.auth.uid;
 
+      // Merchant staff can mark a spin as redeemed (issued -> redeemed only).
+      // Only status and redeemedAt fields may change — all core fields are immutable.
+      // expiresAt check is skipped if the field is absent (legacy spins).
       allow update: if isMerchantStaff(resource.data.merchantId)
         && resource.data.status == "issued"
         && request.resource.data.status == "redeemed"
-        && request.time < resource.data.expiresAt
-        && request.resource.data.merchantId == resource.data.merchantId
-        && request.resource.data.uid == resource.data.uid
-        && request.resource.data.code == resource.data.code
-        && request.resource.data.prizeLabel == resource.data.prizeLabel
-        && request.resource.data.dateKey == resource.data.dateKey
-        && request.resource.data.expiresAt == resource.data.expiresAt;
+        && (!('expiresAt' in resource.data) || request.time < resource.data.expiresAt)
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(["status", "redeemedAt"]);
 
       allow delete: if false;
     }

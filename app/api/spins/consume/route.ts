@@ -76,6 +76,9 @@ export async function POST(req: Request) {
       });
 
       // Write spin
+      // expiresAt: 7 days from now (required by Firestore rules for redemption)
+      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
       tx.set(spinRef, {
         merchantId,
         uid,
@@ -84,7 +87,8 @@ export async function POST(req: Request) {
         code,
         sessionId,
         createdAt: FieldValue.serverTimestamp(),
-        dateKey: dayKey, // optional but handy for debugging
+        expiresAt,
+        dateKey: dayKey,
       });
 
       // Write code index
