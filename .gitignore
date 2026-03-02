@@ -39,8 +39,17 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
 # Secrets (NEVER COMMIT)
 secrets/
-*.json
 *.pem
 *.p12
+
+# Capacitor / Android — ignore build artifacts, keep source
+android/.gradle/
+android/app/build/
+android/build/
+android/local.properties
+android/.idea/
+android/*.iml
+android/app/*.iml

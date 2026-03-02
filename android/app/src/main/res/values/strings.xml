@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Wheel Deals</string>
+    <string name="title_activity_main">Wheel Deals</string>
+    <string name="package_name">com.wheeldeals.app</string>
+    <string name="custom_url_scheme">com.wheeldeals.app</string>
+</resources>
