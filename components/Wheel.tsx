@@ -53,13 +53,13 @@ const BG_MUSIC_SRC = "/audio/renaissance.mp3";
 /** ---------------------------
  *  WebAudio (persistent + unlock)
  *  --------------------------- */
-function getAudioContext(ref: React.MutableRefObject<AudioContext | null>) {
+function getAudioContext(ref: React.MutableRefObject<AudioContext | null>): AudioContext {
   if (!ref.current) {
     const AudioCtx =
       (window as any).AudioContext || (window as any).webkitAudioContext;
     ref.current = new AudioCtx();
   }
-  return ref.current;
+  return ref.current!;
 }
 
 async function unlockAudio(
