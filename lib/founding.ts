@@ -54,7 +54,7 @@ import {
 import { db } from "./firebase";
 
 export const FOUNDING_MERCHANT_LIMIT = 1000;
-const PLATFORM_DOC = doc(db, "platform", "founding");
+function getPlatformDoc() { return doc(db, "platform", "founding"); }
 
 /**
  * Get the current founding merchant count (for the countdown banner).
@@ -66,7 +66,7 @@ export async function getFoundingMerchantCount(): Promise<{
   isFull: boolean;
 }> {
   try {
-    const snap = await getDoc(PLATFORM_DOC);
+    const snap = await getDoc(getPlatformDoc());
     const total = (snap.data()?.totalFoundingMerchants as number) ?? 0;
     const remaining = Math.max(0, FOUNDING_MERCHANT_LIMIT - total);
     return { total, remaining, isFull: total >= FOUNDING_MERCHANT_LIMIT };
@@ -86,7 +86,7 @@ export async function claimFoundingSpot(merchantId: string): Promise<number | nu
     let foundingNumber: number | null = null;
 
     await runTransaction(db, async (tx) => {
-      const platformSnap = await tx.get(PLATFORM_DOC);
+      const platformSnap = await tx.get(getPlatformDoc());
       const current = (platformSnap.data()?.totalFoundingMerchants as number) ?? 0;
 
       if (current >= FOUNDING_MERCHANT_LIMIT) {
@@ -99,7 +99,7 @@ export async function claimFoundingSpot(merchantId: string): Promise<number | nu
 
       // Increment the global counter
       tx.set(
-        PLATFORM_DOC,
+        getPlatformDoc(),
         {
           totalFoundingMerchants: newTotal,
           updatedAt: serverTimestamp(),
