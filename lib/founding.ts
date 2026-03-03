@@ -85,7 +85,7 @@ export async function claimFoundingSpot(merchantId: string): Promise<number | nu
   try {
     let foundingNumber: number | null = null;
 
-    await runTransaction(db, async (tx) => {
+    await runTransaction(getDb(), async (tx) => {
       const platformSnap = await tx.get(getPlatformDoc());
       const current = (platformSnap.data()?.totalFoundingMerchants as number) ?? 0;
 

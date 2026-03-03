@@ -49,7 +49,7 @@ export async function updateMerchantForUser(args: UpdateMerchantArgs) {
   // The wheel config is intentionally written OUTSIDE the transaction
   // (see Step 2) because isMerchantStaff() uses get() inside rules,
   // which can fail when evaluated within a transaction context.
-  await runTransaction(db, async (tx) => {
+  await runTransaction(getDb(), async (tx) => {
     // Ensure caller is staff — gives a clear error before rules block it
     const staffSnap = await tx.get(staffRef);
     if (!staffSnap.exists() || staffSnap.data()?.active !== true) {

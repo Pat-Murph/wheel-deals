@@ -210,13 +210,13 @@ async function saveMerchantForUser(args: {
     // Only update the merchant doc. Staff and user docs do not need to change
     // on edit — and their rules explicitly block updates (staff: update=false,
     // user: only the owner can update their own doc which is fine but unnecessary).
-    await runTransaction(db, async (tx) => {
+    await runTransaction(getDb(), async (tx) => {
       tx.update(merchantRef, sharedFields);
     });
   } else {
     // ── CREATE PATH ────────────────────────────────────────────────────────
     // Use tx.set() for new docs. ownerUid is included to satisfy create rule.
-    await runTransaction(db, async (tx) => {
+    await runTransaction(getDb(), async (tx) => {
       tx.set(merchantRef, {
         ...sharedFields,
         ownerUid: uid,

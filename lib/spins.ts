@@ -67,7 +67,7 @@ export async function createSpin(params: {
   const expiresAt = expiresAtInDays(7);
 
   const limitRef = doc(
-    db,
+    getDb(),
     "users",
     uid,
     "merchantLimits",
@@ -78,7 +78,7 @@ export async function createSpin(params: {
 
   const spinRef = doc(collection(getDb(), "spins"));
 
-  const txResult = await runTransaction(db, async (tx) => {
+  const txResult = await runTransaction(getDb(), async (tx) => {
     // ✅ READS FIRST
     const limitSnap = await tx.get(limitRef);
 
@@ -183,7 +183,7 @@ export async function redeemSpinByCode(code: string) {
     | { ok: true; prizeLabel: string; merchantId: string }
     | { ok: false; reason: "already_redeemed" | "expired" | "not_found" };
 
-  const result: TxResult = await runTransaction(db, async (tx) => {
+  const result: TxResult = await runTransaction(getDb(), async (tx) => {
     const spinSnap = await tx.get(spinDocRef);
 
     if (!spinSnap.exists()) {
