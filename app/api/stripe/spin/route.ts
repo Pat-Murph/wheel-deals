@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+export const dynamic = "force-dynamic";
 import { stripe } from "@/lib/stripeServer";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { SPIN_PRICE_CENTS, PLATFORM_FEE_CENTS } from "@/lib/payments";

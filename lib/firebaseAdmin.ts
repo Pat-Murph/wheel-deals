@@ -23,9 +23,12 @@ function loadServiceAccount(): any {
   return JSON.parse(raw);
 }
 
-if (!getApps().length) {
-  const svc = loadServiceAccount();
-  initializeApp({ credential: cert(svc) });
+function getAdminDb() {
+  if (!getApps().length) {
+    const svc = loadServiceAccount();
+    initializeApp({ credential: cert(svc) });
+  }
+  return getFirestore();
 }
 
-export const adminDb = getFirestore();
+export const adminDb = getAdminDb();
