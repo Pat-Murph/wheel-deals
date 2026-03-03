@@ -1,34 +1,52 @@
 // lib/firebaseAdmin.ts
-import { getApps, initializeApp, cert } from "firebase-admin/app";
-import { getFirestore } from "firebase-admin/firestore";
+import { getApps, initializeApp, cert, App } from "firebase-admin/app";
+import { getFirestore, Firestore } from "firebase-admin/firestore";
 import fs from "fs";
 
-function loadServiceAccount(): any {
+let _app: App | null = null;
+let _db: Firestore | null = null;
+
+function loadServiceAccount(): object {
   const raw = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
   if (!raw) throw new Error("Missing FIREBASE_SERVICE_ACCOUNT_JSON");
 
-  // If they put a file path like: secrets/firebase-adminsdk.json
-  if (raw.trim().startsWith("{") === false) {
+  // If it looks like a file path (not JSON)
+  if (!raw.trim().startsWith("{")) {
     const file = raw.trim();
     if (!fs.existsSync(file)) {
       throw new Error(
         `FIREBASE_SERVICE_ACCOUNT_JSON looks like a file path but was not found: ${file}`
       );
     }
-    const txt = fs.readFileSync(file, "utf8");
-    return JSON.parse(txt);
+    return JSON.parse(fs.readFileSync(file, "utf8"));
   }
 
-  // Otherwise treat it as raw JSON string
   return JSON.parse(raw);
 }
 
-function getAdminDb() {
-  if (!getApps().length) {
-    const svc = loadServiceAccount();
-    initializeApp({ credential: cert(svc) });
+function getAdminApp(): App {
+  if (!_app) {
+    const apps = getApps();
+    if (apps.length > 0) {
+      _app = apps[0];
+    } else {
+      _app = initializeApp({ credential: cert(loadServiceAccount() as any) });
+    }
   }
-  return getFirestore();
+  return _app;
 }
 
-export const adminDb = getAdminDb();
+export function getAdminDb(): Firestore {
+  if (!_db) {
+    getAdminApp();
+    _db = getFirestore();
+  }
+  return _db;
+}
+
+// Lazy proxy — only initializes when a property is accessed at runtime
+export const adminDb = new Proxy({} as Firestore, {
+  get(_target, prop) {
+    return (getAdminDb() as any)[prop];
+  },
+});
