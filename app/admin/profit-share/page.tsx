@@ -29,7 +29,7 @@ import {
   doc,
   getDoc,
 } from "firebase/firestore";
-import { db } from "../../../lib/firebase";
+import { getDb } from "../../../lib/firebase";
 import { FOUNDING_MERCHANT_LIMIT } from "../../../lib/founding";
 
 const SHARE_PERCENT = 20;
@@ -76,7 +76,7 @@ export default function ProfitShareAdminPage() {
       try {
         // Fetch all founding merchants
         const q = query(
-          collection(db, "merchants"),
+          collection(getDb(), "merchants"),
           where("foundingMerchant", "==", true),
           orderBy("foundingNumber", "asc")
         );
@@ -90,7 +90,7 @@ export default function ProfitShareAdminPage() {
 
           // Sum all daily stats for this merchant
           const statsSnap = await getDocs(
-            collection(db, "merchantStats", docSnap.id, "daily")
+            collection(getDb(), "merchantStats", docSnap.id, "daily")
           );
           const totalRevenueCents = statsSnap.docs.reduce((sum, d) => {
             const rev = (d.data() as any).revenueCents ?? 0;

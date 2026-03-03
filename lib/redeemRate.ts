@@ -1,5 +1,5 @@
 import { collection, getCountFromServer, query, where } from "firebase/firestore";
-import { db } from "./firebase";
+import { getDb } from "./firebase";
 
 export async function getRedeemRateForMerchantLast7Days(
   merchantId: string,
@@ -7,7 +7,7 @@ export async function getRedeemRateForMerchantLast7Days(
 ) {
   // issued count
   const issuedQ = query(
-    collection(db, "spins"),
+    collection(getDb(), "spins"),
     where("merchantId", "==", merchantId),
     where("dateKey", "in", dateKeys)
   );
@@ -18,7 +18,7 @@ export async function getRedeemRateForMerchantLast7Days(
 
   // redeemed count
   const redeemedQ = query(
-    collection(db, "spins"),
+    collection(getDb(), "spins"),
     where("merchantId", "==", merchantId),
     where("dateKey", "in", dateKeys),
     where("status", "==", "redeemed")

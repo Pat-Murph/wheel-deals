@@ -1,6 +1,6 @@
 // lib/merchants.ts
 import { collection, getDocs, query, where } from "firebase/firestore";
-import { db } from "./firebase";
+import { getDb } from "./firebase";
 
 export type Merchant = {
   id: string;
@@ -167,7 +167,7 @@ export async function getDynamicCities(merchants?: Merchant[]): Promise<string[]
 }
 
 export async function getActiveMerchants(): Promise<Merchant[]> {
-  const q = query(collection(db, "merchants"), where("active", "==", true));
+  const q = query(collection(getDb(), "merchants"), where("active", "==", true));
   const snap = await getDocs(q);
 
   return snap.docs.map((d) => {

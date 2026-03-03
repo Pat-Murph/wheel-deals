@@ -8,10 +8,10 @@ import {
   where,
   documentId, // ✅ FIX: use documentId() instead of FieldPath.documentId()
 } from "firebase/firestore";
-import { db } from "./firebase";
+import { getDb } from "./firebase";
 
 export async function findMerchantIdForUser(uid: string) {
-  const userRef = doc(db, "users", uid);
+  const userRef = doc(getDb(), "users", uid);
   const snap = await getDoc(userRef);
   if (!snap.exists()) return null;
   const data = snap.data() as any;
@@ -19,7 +19,7 @@ export async function findMerchantIdForUser(uid: string) {
 }
 
 export async function getMerchantName(merchantId: string) {
-  const ref = doc(db, "merchants", merchantId);
+  const ref = doc(getDb(), "merchants", merchantId);
   const snap = await getDoc(ref);
   if (!snap.exists()) return null;
   const data = snap.data() as any;
@@ -67,7 +67,7 @@ export function ytdKeysLocal() {
 }
 
 export async function getMerchantDaily(merchantId: string, dateKey: string) {
-  const ref = doc(db, "merchantStats", merchantId, "daily", dateKey);
+  const ref = doc(getDb(), "merchantStats", merchantId, "daily", dateKey);
   const snap = await getDoc(ref);
 
   if (!snap.exists()) return { dateKey, spinsCount: 0, revenueCents: 0 };
@@ -115,7 +115,7 @@ export async function getMerchantMonthDailyMap(
   const startKey = keys[0];
   const endKey = keys[keys.length - 1];
 
-  const dailyCol = collection(db, "merchantStats", merchantId, "daily");
+  const dailyCol = collection(getDb(), "merchantStats", merchantId, "daily");
 
   const qy = query(
     dailyCol,

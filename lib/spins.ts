@@ -13,7 +13,7 @@ import {
   setDoc,
   getDoc,
 } from "firebase/firestore";
-import { db } from "./firebase";
+import { getDb } from "./firebase";
 import { ensureCustomerAnonAuth } from "./auth";
 
 export type SpinStatus = "issued" | "redeemed";
@@ -76,7 +76,7 @@ export async function createSpin(params: {
     dateKey
   );
 
-  const spinRef = doc(collection(db, "spins"));
+  const spinRef = doc(collection(getDb(), "spins"));
 
   const txResult = await runTransaction(db, async (tx) => {
     // ✅ READS FIRST
@@ -141,7 +141,7 @@ export async function createSpin(params: {
  * merchantStats/{merchantId}/daily/{dateKey}
  */
 async function incrementMerchantStats(merchantId: string, dateKey: string) {
-  const ref = doc(db, "merchantStats", merchantId, "daily", dateKey);
+  const ref = doc(getDb(), "merchantStats", merchantId, "daily", dateKey);
   const snap = await getDoc(ref);
 
   if (!snap.exists()) {
@@ -171,11 +171,11 @@ export async function redeemSpinByCode(code: string) {
   const cleaned = code.trim().toUpperCase();
 
   // First find the spin document by code
-  const q = query(collection(db, "spins"), where("code", "==", cleaned), limit(1));
+  const q = query(collection(getDb(), "spins"), where("code", "==", cleaned), limit(1));
   const snap = await getDocs(q);
   if (snap.empty) return { ok: false as const, reason: "not_found" as const };
 
-  const spinDocRef = doc(db, "spins", snap.docs[0].id);
+  const spinDocRef = doc(getDb(), "spins", snap.docs[0].id);
 
   // Run inside a transaction so two simultaneous redemption attempts
   // cannot both pass the status check — only the first write wins.

@@ -23,7 +23,7 @@ import {
   limit,
   serverTimestamp,
 } from "firebase/firestore";
-import { app, db } from "../../lib/firebase";
+import { app, getDb } from "../../lib/firebase";
 import { blockAnonAuth, fullSignOut } from "../../lib/auth";
 import {
   getMerchantDaily,
@@ -345,7 +345,7 @@ export default function MerchantDashboardPage() {
 
   /* ---------- LOAD MERCHANT ---------- */
   async function reloadMerchant(mid: string) {
-    const mSnap = await getDoc(doc(db, "merchants", mid));
+    const mSnap = await getDoc(doc(getDb(), "merchants", mid));
     setMerchant(mSnap.exists() ? (mSnap.data() as MerchantDoc) : null);
   }
 
@@ -357,7 +357,7 @@ export default function MerchantDashboardPage() {
       setStatus(null);
 
       try {
-        const userSnap = await getDoc(doc(db, "users", user.uid));
+        const userSnap = await getDoc(doc(getDb(), "users", user.uid));
         const mid = userSnap.exists() ? (userSnap.data() as any)?.merchantId : null;
         if (!mid) return;
 
@@ -469,7 +469,7 @@ export default function MerchantDashboardPage() {
     setBusy(true);
     setStatus(null);
     try {
-      await updateDoc(doc(db, "merchants", merchantId), { active: next });
+      await updateDoc(doc(getDb(), "merchants", merchantId), { active: next });
       setMerchant((m) => (m ? { ...m, active: next } : m));
     } catch (e: any) {
       setStatus(e?.message ?? "Could not update status (rules?).");
@@ -487,8 +487,8 @@ export default function MerchantDashboardPage() {
 
     setBusy(true);
     try {
-      await deleteDoc(doc(db, "merchants", merchantId));
-      await deleteDoc(doc(db, "users", user.uid));
+      await deleteDoc(doc(getDb(), "merchants", merchantId));
+      await deleteDoc(doc(getDb(), "users", user.uid));
       await deleteUser(user);
       await fullSignOut();
     } catch (e: any) {
@@ -518,7 +518,7 @@ export default function MerchantDashboardPage() {
     try {
       // Find the spin for THIS merchant + code
       const qRef = query(
-        collection(db, "spins"),
+        collection(getDb(), "spins"),
         where("merchantId", "==", merchantId),
         where("code", "==", code),
         limit(1)
@@ -552,7 +552,7 @@ export default function MerchantDashboardPage() {
       // Redeem (one-time). Rules should allow merchant staff.
       // If your rules currently require ALL fields unchanged, this may fail with permissions.
       // Recommended rules: allow updating only status + redeemedAt.
-      await updateDoc(doc(db, "spins", spinDoc.id), {
+      await updateDoc(doc(getDb(), "spins", spinDoc.id), {
         status: "redeemed",
         redeemedAt: serverTimestamp(),
       });

@@ -51,10 +51,10 @@ import {
   serverTimestamp,
   increment,
 } from "firebase/firestore";
-import { db } from "./firebase";
+import { getDb } from "./firebase";
 
 export const FOUNDING_MERCHANT_LIMIT = 1000;
-function getPlatformDoc() { return doc(db, "platform", "founding"); }
+function getPlatformDoc() { return doc(getDb(), "platform", "founding"); }
 
 /**
  * Get the current founding merchant count (for the countdown banner).
@@ -108,7 +108,7 @@ export async function claimFoundingSpot(merchantId: string): Promise<number | nu
       );
 
       // Mark the merchant as a founding member
-      const merchantRef = doc(db, "merchants", merchantId);
+      const merchantRef = doc(getDb(), "merchants", merchantId);
       tx.update(merchantRef, {
         foundingMerchant: true,
         foundingNumber: newTotal,
@@ -131,7 +131,7 @@ export async function isFoundingMerchant(merchantId: string): Promise<{
   foundingNumber?: number;
 }> {
   try {
-    const snap = await getDoc(doc(db, "merchants", merchantId));
+    const snap = await getDoc(doc(getDb(), "merchants", merchantId));
     if (!snap.exists()) return { isFounder: false };
     const data = snap.data() as any;
     return {

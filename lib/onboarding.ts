@@ -1,5 +1,5 @@
 // lib/onboarding.ts
-import { db } from "./firebase";
+import { getDb } from "./firebase";
 import { doc, runTransaction, setDoc, serverTimestamp } from "firebase/firestore";
 
 type WheelRow = { label: string; weight: number };
@@ -41,9 +41,9 @@ export async function updateMerchantForUser(args: UpdateMerchantArgs) {
   if (!Array.isArray(wheel) || wheel.length < 1)
     throw new Error("Wheel must have at least 1 prize.");
 
-  const merchantRef = doc(db, "merchants", merchantId);
-  const staffRef = doc(db, "merchants", merchantId, "staff", uid);
-  const wheelRef = doc(db, "merchants", merchantId, "config", "wheel");
+  const merchantRef = doc(getDb(), "merchants", merchantId);
+  const staffRef = doc(getDb(), "merchants", merchantId, "staff", uid);
+  const wheelRef = doc(getDb(), "merchants", merchantId, "config", "wheel");
 
   // Step 1: Update the merchant doc inside a transaction.
   // The wheel config is intentionally written OUTSIDE the transaction

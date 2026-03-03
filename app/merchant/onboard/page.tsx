@@ -9,7 +9,7 @@ import {
   signOut,
   User,
 } from "firebase/auth";
-import { app, storage, db } from "../../../lib/firebase";
+import { app, storage, getDb } from "../../../lib/firebase";
 import { DISCOVER_CATEGORIES } from "../../../lib/merchants";
 import { claimFoundingSpot } from "../../../lib/founding";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
@@ -175,12 +175,12 @@ async function saveMerchantForUser(args: {
   const isEdit = !!merchantId;
 
   const merchantRef = isEdit
-    ? doc(db, "merchants", merchantId!)
-    : doc(collection(db, "merchants"));
+    ? doc(getDb(), "merchants", merchantId!)
+    : doc(collection(getDb(), "merchants"));
 
-  const staffRef = doc(db, "merchants", merchantRef.id, "staff", uid);
-  const userRef = doc(db, "users", uid);
-  const wheelRef = doc(db, "merchants", merchantRef.id, "config", "wheel");
+  const staffRef = doc(getDb(), "merchants", merchantRef.id, "staff", uid);
+  const userRef = doc(getDb(), "users", uid);
+  const wheelRef = doc(getDb(), "merchants", merchantRef.id, "config", "wheel");
 
   // Shared fields for both create and update
   const sharedFields = {
@@ -246,7 +246,7 @@ async function saveMerchantForUser(args: {
 }
 
 async function getMerchantIdForUser(uid: string) {
-  const snap = await getDoc(doc(db, "users", uid));
+  const snap = await getDoc(doc(getDb(), "users", uid));
   if (!snap.exists()) return null;
   return ((snap.data() as any)?.merchantId as string) ?? null;
 }
@@ -327,7 +327,7 @@ export default function MerchantOnboardPage() {
 
         if (!mid) return;
 
-        const msnap = await getDoc(doc(db, "merchants", mid));
+        const msnap = await getDoc(doc(getDb(), "merchants", mid));
         if (!msnap.exists()) return;
 
         const m = msnap.data() as MerchantDoc;
