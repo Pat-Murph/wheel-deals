@@ -1,4 +1,5 @@
 import WheelDealsClient from "../../components/WheelDealsClient";
+export const dynamic = "force-dynamic";
 
 export default async function WheelPage({
   searchParams,

@@ -1,4 +1,5 @@
 "use client";
+export const dynamic = "force-dynamic";
 import dynamic from "next/dynamic";
 
 const DiscoverMap = dynamic(() => import("../../components/DiscoverMap"), {

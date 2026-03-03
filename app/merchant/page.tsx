@@ -1,4 +1,5 @@
 // app/merchant/page.tsx
+export const dynamic = "force-dynamic";
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
