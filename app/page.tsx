@@ -1,5 +1,5 @@
-import { redirect } from "next/navigation";
 export const dynamic = "force-dynamic";
+import { redirect } from "next/navigation";
 
 /**
  * Root page — redirects to /discover which is the main entry point.

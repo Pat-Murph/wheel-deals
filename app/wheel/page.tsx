@@ -1,5 +1,5 @@
-import WheelDealsClient from "../../components/WheelDealsClient";
 export const dynamic = "force-dynamic";
+import WheelDealsClient from "../../components/WheelDealsClient";
 
 export default async function WheelPage({
   searchParams,
