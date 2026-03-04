@@ -44,84 +44,17 @@ function getMerchantWheel(m: any): WheelItem[] | null {
   return items.length ? items : null;
 }
 
-function Pill(props: { children: React.ReactNode }) {
-  return (
-    <span
-      style={{
-        padding: "6px 10px",
-        borderRadius: 999,
-        border: "1px solid rgba(0,0,0,0.12)",
-        background: "linear-gradient(180deg, #fff, #f9fafb)",
-        fontWeight: 900,
-        fontSize: 12,
-        opacity: 0.9,
-      }}
-    >
-      {props.children}
-    </span>
-  );
-}
-
-function card(): React.CSSProperties {
-  return {
-    border: "1px solid #e5e7eb",
-    borderRadius: 18,
-    background: "white",
-    overflow: "hidden",
-    boxShadow: "0 18px 60px rgba(0,0,0,0.06)",
-  };
-}
-
-function btnLinkGray(): React.CSSProperties {
-  return {
-    fontWeight: 900,
-    textDecoration: "none",
-    color: "#111",
-    padding: "10px 12px",
-    borderRadius: 12,
-    border: "1px solid rgba(0,0,0,0.12)",
-    background: "linear-gradient(180deg, #f3f4f6, #fff)",
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-  };
-}
-
-function btnGray(disabled?: boolean): React.CSSProperties {
-  return {
-    padding: "10px 12px",
-    borderRadius: 12,
-    border: "1px solid rgba(0,0,0,0.12)",
-    fontWeight: 900,
-    cursor: disabled ? "not-allowed" : "pointer",
-    background: "linear-gradient(180deg, #f3f4f6, #fff)",
-    opacity: disabled ? 0.7 : 1,
-  };
-}
-
-function btnGoldLink(): React.CSSProperties {
-  return {
-    padding: "10px 12px",
-    borderRadius: 12,
-    border: "1px solid rgba(0,0,0,0.12)",
-    fontWeight: 900,
-    textDecoration: "none",
-    color: "#111",
-    background:
-      "linear-gradient(180deg, rgba(255,217,61,0.95), rgba(255,155,61,0.95))",
-    display: "inline-flex",
-    alignItems: "center",
-  };
+function normalizeUrl(url: string): string {
+  if (!url) return "";
+  if (url.startsWith("http://") || url.startsWith("https://")) return url;
+  return "https://" + url;
 }
 
 export default function WheelDealsClient({ initialMerchantId }: Props) {
-  // ✅ store uid for Stripe + spin attribution
   const [uid, setUid] = useState<string | null>(null);
 
-  // ✅ Customer-only anon auth
   useEffect(() => {
     const auth = getAuth(app);
-
     const unsub = onAuthStateChanged(auth, async (u) => {
       if (!u) {
         try {
@@ -135,40 +68,33 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
       }
       setUid(u.uid);
     });
-
     return () => unsub();
   }, []);
 
   const [merchants, setMerchants] = useState<Merchant[]>([]);
   const [loadingMerchants, setLoadingMerchants] = useState(true);
   const [merchantLoadError, setMerchantLoadError] = useState<string | null>(null);
-
   const [selectedMerchantId, setSelectedMerchantId] = useState<string>("");
-
-  // ✅ ONE redeem code now (comes from /api/spins/consume via Wheel.tsx)
   const [issuedCode, setIssuedCode] = useState("");
   const [lastPrize, setLastPrize] = useState<string | null>(null);
   const [spinError, setSpinError] = useState<string | null>(null);
-
-  // ✅ Email code feature
   const [emailInput, setEmailInput] = useState("");
   const [emailSending, setEmailSending] = useState(false);
   const [emailStatus, setEmailStatus] = useState<string | null>(null);
+  const [activePhotoIdx, setActivePhotoIdx] = useState(0);
+  const [photoBroken, setPhotoBroken] = useState<Record<string, boolean>>({});
 
   async function sendCodeByEmail() {
     if (!emailInput.trim() || !issuedCode) return;
     setEmailSending(true);
     setEmailStatus(null);
-
     try {
-      // Build a mailto link as primary method (no backend email service needed yet)
       const subject = encodeURIComponent(`Your Wheel Deals Prize Code — ${lastPrize ?? "Prize"}`);
       const body = encodeURIComponent(
         `Hi!\n\nYou won: ${lastPrize ?? "a prize"} at ${selectedMerchant?.name ?? "Wheel Deals"}!\n\nYour redemption code: ${issuedCode}\n\nShow this code (or the QR) to the merchant to redeem. One-time use only.\n\n— Wheel Deals`
       );
-      const mailtoLink = `mailto:${emailInput.trim()}?subject=${subject}&body=${body}`;
-      window.open(mailtoLink, "_blank");
-      setEmailStatus("✅ Your email app opened with the code ready to send!");
+      window.open(`mailto:${emailInput.trim()}?subject=${subject}&body=${body}`, "_blank");
+      setEmailStatus("✅ Email app opened with the code ready to send!");
     } catch {
       setEmailStatus("❌ Could not open email app. Please copy the code manually.");
     } finally {
@@ -176,17 +102,11 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
     }
   }
 
-  const [activePhotoIdx, setActivePhotoIdx] = useState(0);
-  const [photoBroken, setPhotoBroken] = useState<Record<string, boolean>>({});
-
-  // Load merchants
   useEffect(() => {
     let mounted = true;
-
     (async () => {
       setLoadingMerchants(true);
       setMerchantLoadError(null);
-
       try {
         const list = await getActiveMerchants();
         if (!mounted) return;
@@ -200,22 +120,13 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
         setLoadingMerchants(false);
       }
     })();
-
-    return () => {
-      mounted = false;
-    };
+    return () => { mounted = false; };
   }, []);
 
-  // ✅ Choose merchant by URL param if present (NO dropdown)
   useEffect(() => {
     if (!merchants.length) return;
-
-    const found =
-      (initialMerchantId && merchants.find((m) => m.id === initialMerchantId)) ||
-      null;
-
+    const found = (initialMerchantId && merchants.find((m) => m.id === initialMerchantId)) || null;
     const next = found?.id ?? merchants[0].id;
-
     if (!selectedMerchantId) {
       setSelectedMerchantId(next);
       setIssuedCode("");
@@ -231,14 +142,11 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
     return merchants.find((m) => m.id === selectedMerchantId) ?? merchants[0];
   }, [merchants, selectedMerchantId, merchants.length]);
 
-  // If URL param changes while staying on page, update selection safely
   useEffect(() => {
     if (!merchants.length) return;
     if (!initialMerchantId) return;
-
     const found = merchants.find((m) => m.id === initialMerchantId);
     if (!found) return;
-
     if (found.id !== selectedMerchantId) {
       setSelectedMerchantId(found.id);
       setIssuedCode("");
@@ -265,11 +173,12 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
   const aboutText = (selectedMerchant as any)?.about || "";
   const category = (selectedMerchant as any)?.category || "";
   const city = (selectedMerchant as any)?.city || "";
+  const website = (selectedMerchant as any)?.website || "";
+  const phone = (selectedMerchant as any)?.phone || "";
 
   const wheelItems: WheelItem[] = useMemo(() => {
     const fromDoc = selectedMerchant ? getMerchantWheel(selectedMerchant as any) : null;
     if (fromDoc) return fromDoc;
-
     return [
       { label: "10% OFF", weight: 40 },
       { label: "15% OFF", weight: 25 },
@@ -279,27 +188,22 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
     ];
   }, [selectedMerchant]);
 
-  // ✅ Report button mailto (change address later)
   const reportHref = useMemo(() => {
     const mid = selectedMerchant?.id ?? "";
     const name = selectedMerchant?.name ?? "";
     const subject = encodeURIComponent("Wheel Deals — Report a merchant");
-    const body = encodeURIComponent(
-      `Please describe the issue.\n\nMerchant Name: ${name}\nMerchant ID: ${mid}\n\nWhat happened:\n`
-    );
-
-    // TODO: swap to your real support email when ready
+    const body = encodeURIComponent(`Please describe the issue.\n\nMerchant Name: ${name}\nMerchant ID: ${mid}\n\nWhat happened:\n`);
     return `mailto:support@wheeldeals.app?subject=${subject}&body=${body}`;
   }, [selectedMerchant?.id, selectedMerchant?.name]);
 
   if (loadingMerchants) {
     return (
       <div style={{ width: "100%", display: "grid", justifyItems: "center", gap: 10, padding: 24 }}>
-        <div style={{ fontSize: 34, fontWeight: 950, letterSpacing: 0.2 }}>
+        <div style={{ fontSize: 28, fontWeight: 950 }}>
           <span style={{ color: "#F4B400" }}>Wheel</span>{" "}
           <span style={{ color: "#2563EB" }}>Deals</span>
         </div>
-        <div style={{ fontWeight: 800, opacity: 0.8 }}>Loading merchants…</div>
+        <div style={{ fontWeight: 800, opacity: 0.8 }}>Loading…</div>
       </div>
     );
   }
@@ -307,26 +211,14 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
   if (merchantLoadError) {
     return (
       <div style={{ width: "100%", display: "grid", justifyItems: "center", gap: 10, padding: 24 }}>
-        <div style={{ fontSize: 34, fontWeight: 950, letterSpacing: 0.2 }}>
+        <div style={{ fontSize: 28, fontWeight: 950 }}>
           <span style={{ color: "#F4B400" }}>Wheel</span>{" "}
           <span style={{ color: "#2563EB" }}>Deals</span>
         </div>
-        <div
-          style={{
-            maxWidth: 640,
-            border: "1px solid rgba(239,68,68,0.30)",
-            background: "rgba(239,68,68,0.08)",
-            borderRadius: 14,
-            padding: 14,
-            fontWeight: 900,
-          }}
-        >
+        <div style={{ maxWidth: 640, border: "1px solid rgba(239,68,68,0.30)", background: "rgba(239,68,68,0.08)", borderRadius: 14, padding: 14, fontWeight: 900 }}>
           ❌ {merchantLoadError}
         </div>
-        <div style={{ opacity: 0.75, fontWeight: 700 }}>
-          If this says “Missing or insufficient permissions”, it’s Firestore rules blocking reads.
-        </div>
-        <a href="/discover" style={btnLinkGray()}>
+        <a href="/discover" style={{ fontWeight: 900, textDecoration: "none", color: "#111", padding: "10px 12px", borderRadius: 12, border: "1px solid rgba(0,0,0,0.12)", background: "linear-gradient(180deg, #f3f4f6, #fff)" }}>
           Go to discovery →
         </a>
       </div>
@@ -336,15 +228,12 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
   if (!merchants.length || !selectedMerchant) {
     return (
       <div style={{ width: "100%", display: "grid", justifyItems: "center", gap: 10, padding: 24 }}>
-        <div style={{ fontSize: 34, fontWeight: 950, letterSpacing: 0.2 }}>
+        <div style={{ fontSize: 28, fontWeight: 950 }}>
           <span style={{ color: "#F4B400" }}>Wheel</span>{" "}
           <span style={{ color: "#2563EB" }}>Deals</span>
         </div>
         <div style={{ fontWeight: 900 }}>No active merchants found.</div>
-        <div style={{ opacity: 0.75, fontWeight: 700 }}>
-          Add a merchant doc in Firestore: merchants/{`{id}`} with <b>active: true</b>.
-        </div>
-        <a href="/discover" style={btnLinkGray()}>
+        <a href="/discover" style={{ fontWeight: 900, textDecoration: "none", color: "#111", padding: "10px 12px", borderRadius: 12, border: "1px solid rgba(0,0,0,0.12)", background: "linear-gradient(180deg, #f3f4f6, #fff)" }}>
           Go to discovery →
         </a>
       </div>
@@ -352,276 +241,256 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
   }
 
   return (
-    <div style={{ display: "grid", gap: 16, justifyItems: "center", width: "100%", padding: "18px 12px" }}>
-      {/* Header */}
-      <div style={{ display: "grid", gap: 8, justifyItems: "center" }}>
-        <div style={{ fontSize: 34, fontWeight: 950, letterSpacing: 0.2 }}>
-          <span style={{ color: "#F4B400" }}>Wheel</span>{", "}
+    <div style={{
+      width: "100%",
+      maxWidth: 520,
+      margin: "0 auto",
+      padding: "12px 12px 32px",
+      display: "flex",
+      flexDirection: "column",
+      gap: 12,
+      boxSizing: "border-box",
+    }}>
+
+      {/* Top nav bar */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+        <div style={{ fontSize: 22, fontWeight: 950 }}>
+          <span style={{ color: "#F4B400" }}>Wheel</span>{" "}
           <span style={{ color: "#2563EB" }}>Deals</span>
         </div>
-
-        {/* ✅ No dropdown now */}
-        <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", justifyContent: "center" }}>
-          <span style={{ fontWeight: 800, opacity: 0.8 }}>Merchant:</span>
-          <span style={{ fontWeight: 950 }}>{selectedMerchant.name}</span>
-
-          <a
-            href="/discover"
-            style={{
-              ...btnLinkGray(),
-              color: "#DC2626", // ✅ Discover in red
-              fontWeight: 950,
-            }}
-          >
-            Discover →
+        <div style={{ display: "flex", gap: 8 }}>
+          <a href="/discover" style={{
+            fontWeight: 900, textDecoration: "none", color: "#DC2626",
+            padding: "8px 12px", borderRadius: 10, border: "1px solid rgba(0,0,0,0.12)",
+            background: "linear-gradient(180deg, #f3f4f6, #fff)", fontSize: 13,
+          }}>
+            ← Discover
           </a>
-
-          <a href={reportHref} style={btnLinkGray()} title="Report this merchant">
+          <a href={reportHref} style={{
+            fontWeight: 900, textDecoration: "none", color: "#111",
+            padding: "8px 12px", borderRadius: 10, border: "1px solid rgba(0,0,0,0.12)",
+            background: "linear-gradient(180deg, #f3f4f6, #fff)", fontSize: 13,
+          }}>
             Report
           </a>
         </div>
-
-        <div style={{ fontSize: 13, opacity: 0.7, textAlign: "center", fontWeight: 700 }}>
-          Limit: <b>8 spins/day</b> per merchant
-        </div>
-
-        <div style={{ fontSize: 12, opacity: 0.65, fontWeight: 800 }}>
-          uid: {uid ?? "(loading...)"} • selectedMerchantId: {selectedMerchant.id}
-        </div>
       </div>
 
-      {/* Merchant card */}
-      <div style={{ width: "min(980px, 100%)" }}>
-        <div
-          style={{
-            ...card(),
-            display: "grid",
-            gridTemplateColumns: "minmax(280px, 420px) 1fr",
-          }}
-        >
-          {/* Photos */}
-          <div style={{ borderRight: "1px solid #e5e7eb", background: "#fafafa" }}>
-            <div style={{ position: "relative", width: "100%", height: 260, background: "#f3f4f6" }}>
-              {!heroPhoto || heroBroken ? (
-                <div
+      {/* Merchant info card */}
+      <div style={{
+        border: "1px solid #e5e7eb",
+        borderRadius: 16,
+        background: "white",
+        overflow: "hidden",
+        boxShadow: "0 4px 20px rgba(0,0,0,0.06)",
+      }}>
+        {/* Hero photo */}
+        {heroPhoto && !heroBroken ? (
+          <div style={{ width: "100%", height: 180, background: "#f3f4f6", overflow: "hidden" }}>
+            <img
+              src={heroPhoto}
+              alt={`${selectedMerchant.name} photo`}
+              style={{ width: "100%", height: "100%", objectFit: "cover" }}
+              onError={() => setPhotoBroken((p) => ({ ...p, [heroPhoto]: true }))}
+            />
+          </div>
+        ) : null}
+
+        {/* Thumbnail strip */}
+        {merchantPhotos.length > 1 && (
+          <div style={{ display: "flex", gap: 6, padding: "8px 10px", overflowX: "auto" }}>
+            {merchantPhotos.slice(0, 6).map((src, i) => {
+              const broken = !!photoBroken[src];
+              const active = i === activePhotoIdx;
+              return (
+                <button
+                  key={src}
+                  onClick={() => setActivePhotoIdx(i)}
                   style={{
-                    height: "100%",
-                    display: "grid",
-                    placeItems: "center",
-                    padding: 14,
-                    textAlign: "center",
-                    fontWeight: 900,
-                    color: "#111",
+                    border: active ? "2px solid #F4B400" : "1px solid #e5e7eb",
+                    borderRadius: 8, padding: 0, overflow: "hidden",
+                    width: 60, height: 44, cursor: "pointer", background: "#fff", flexShrink: 0,
                   }}
                 >
-                  {heroPhoto && heroBroken
-                    ? "Photo blocked (Storage rules or URL issue)."
-                    : "No photos yet. Add some on Merchant Onboarding."}
-                </div>
-              ) : (
-                <img
-                  src={heroPhoto}
-                  alt={`${selectedMerchant.name} photo`}
-                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                  onError={() => setPhotoBroken((p) => ({ ...p, [heroPhoto]: true }))}
-                />
-              )}
-            </div>
+                  {broken ? (
+                    <div style={{ width: "100%", height: "100%", display: "grid", placeItems: "center", fontSize: 9, fontWeight: 900, opacity: 0.5 }}>blocked</div>
+                  ) : (
+                    <img src={src} alt={`thumb-${i}`} style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                      onError={() => setPhotoBroken((p) => ({ ...p, [src]: true }))} />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        )}
 
-            {merchantPhotos.length > 1 && (
-              <div style={{ display: "flex", gap: 8, padding: 10, overflowX: "auto" }}>
-                {merchantPhotos.slice(0, 6).map((src, i) => {
-                  const broken = !!photoBroken[src];
-                  const active = i === activePhotoIdx;
+        {/* Info section */}
+        <div style={{ padding: "12px 14px", display: "flex", flexDirection: "column", gap: 8 }}>
+          <div style={{ fontSize: 20, fontWeight: 950, lineHeight: 1.2 }}>{selectedMerchant.name}</div>
 
-                  return (
-                    <button
-                      key={src}
-                      onClick={() => setActivePhotoIdx(i)}
-                      style={{
-                        border: active ? "2px solid rgba(255,155,61,0.95)" : "1px solid #e5e7eb",
-                        borderRadius: 12,
-                        padding: 0,
-                        overflow: "hidden",
-                        width: 78,
-                        height: 56,
-                        cursor: "pointer",
-                        background: "#fff",
-                        flex: "0 0 auto",
-                      }}
-                      title={broken ? "This photo can't be read." : `Photo ${i + 1}`}
-                    >
-                      {broken ? (
-                        <div
-                          style={{
-                            width: "100%",
-                            height: "100%",
-                            display: "grid",
-                            placeItems: "center",
-                            fontSize: 10,
-                            fontWeight: 900,
-                            opacity: 0.7,
-                          }}
-                        >
-                          blocked
-                        </div>
-                      ) : (
-                        <img
-                          src={src}
-                          alt={`thumb-${i}`}
-                          style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                          onError={() => setPhotoBroken((p) => ({ ...p, [src]: true }))}
-                        />
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
+          {/* Category + City pills */}
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            {category && (
+              <span style={{ padding: "4px 10px", borderRadius: 999, border: "1px solid rgba(0,0,0,0.12)", background: "#f9fafb", fontWeight: 800, fontSize: 12 }}>
+                {titleCase(category)}
+              </span>
+            )}
+            {city && (
+              <span style={{ padding: "4px 10px", borderRadius: 999, border: "1px solid rgba(0,0,0,0.12)", background: "#f9fafb", fontWeight: 800, fontSize: 12 }}>
+                {titleCase(city)}
+              </span>
             )}
           </div>
 
-          {/* Info */}
-          <div style={{ padding: 16, display: "grid", gap: 10 }}>
-            <div style={{ display: "grid", gap: 6 }}>
-              <div style={{ fontSize: 26, fontWeight: 950 }}>{selectedMerchant.name}</div>
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-                {category && <Pill>{titleCase(category)}</Pill>}
-                {city && <Pill>{titleCase(city)}</Pill>}
-              </div>
+          {/* About */}
+          {aboutText ? (
+            <div style={{ fontSize: 14, lineHeight: 1.5, fontWeight: 600, color: "#374151" }}>
+              {aboutText}
             </div>
+          ) : null}
 
-            <div style={{ fontWeight: 950, opacity: 0.75 }}>About</div>
-            <div style={{ whiteSpace: "pre-wrap", lineHeight: 1.45, fontWeight: 750, opacity: 0.95 }}>
-              {aboutText ? aboutText : "No description yet. Merchants can add this on onboarding."}
+          {/* Website + Phone clickable links */}
+          {(website || phone) && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 2 }}>
+              {website && (
+                <a
+                  href={normalizeUrl(website)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                    fontSize: 14,
+                    fontWeight: 800,
+                    color: "#2563EB",
+                    textDecoration: "none",
+                    padding: "8px 12px",
+                    borderRadius: 10,
+                    border: "1px solid rgba(37,99,235,0.25)",
+                    background: "rgba(37,99,235,0.06)",
+                  }}
+                >
+                  🌐 {website.replace(/^https?:\/\//, "")}
+                </a>
+              )}
+              {phone && (
+                <a
+                  href={`tel:${phone.replace(/\D/g, "")}`}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                    fontSize: 14,
+                    fontWeight: 800,
+                    color: "#16a34a",
+                    textDecoration: "none",
+                    padding: "8px 12px",
+                    borderRadius: 10,
+                    border: "1px solid rgba(22,163,74,0.25)",
+                    background: "rgba(22,163,74,0.06)",
+                  }}
+                >
+                  📞 {phone}
+                </a>
+              )}
             </div>
-
-            <div style={{ fontSize: 12, opacity: 0.6, fontWeight: 800 }}>Customers see photos + About here.</div>
-          </div>
+          )}
         </div>
       </div>
 
-      {/* Wheel */}
-      <Wheel
-        items={wheelItems}
-        size={460}
-        merchantId={selectedMerchant.id}
-        uid={uid ?? undefined}
-        onResult={(label, extra) => {
-          setLastPrize(label);
-          setSpinError(null);
-          setEmailInput("");
-          setEmailStatus(null);
+      {/* Spin limit note */}
+      <div style={{ fontSize: 12, opacity: 0.6, fontWeight: 700, textAlign: "center" }}>
+        Limit: <b>8 spins/day</b> per merchant
+      </div>
 
-          // ✅ ONLY use code returned from consume()
-          if (extra?.code) setIssuedCode(extra.code);
-          else setSpinError("Spin completed but no code returned (check /api/spins/consume response).");
-        }}
-      />
+      {/* Wheel */}
+      <div style={{ display: "flex", justifyContent: "center" }}>
+        <Wheel
+          items={wheelItems}
+          size={Math.min(320, typeof window !== "undefined" ? window.innerWidth - 40 : 320)}
+          merchantId={selectedMerchant.id}
+          uid={uid ?? undefined}
+          onResult={(label, extra) => {
+            setLastPrize(label);
+            setSpinError(null);
+            setEmailInput("");
+            setEmailStatus(null);
+            if (extra?.code) setIssuedCode(extra.code);
+            else setSpinError("Spin completed but no code returned.");
+          }}
+        />
+      </div>
 
       {/* Results / code box */}
-      <div style={{ width: "min(560px, 100%)", display: "grid", gap: 10 }}>
-        {spinError && (
-          <div
-            style={{
-              padding: 12,
-              borderRadius: 14,
-              border: "1px solid rgba(239,68,68,0.25)",
-              background: "rgba(239,68,68,0.08)",
-              fontWeight: 900,
-              textAlign: "center",
-            }}
-          >
-            {spinError}
+      {spinError && (
+        <div style={{ padding: 12, borderRadius: 14, border: "1px solid rgba(239,68,68,0.25)", background: "rgba(239,68,68,0.08)", fontWeight: 900, textAlign: "center", fontSize: 14 }}>
+          {spinError}
+        </div>
+      )}
+
+      {issuedCode && (
+        <div style={{ padding: 14, border: "1px solid #ddd", borderRadius: 14, background: "white", display: "flex", flexDirection: "column", gap: 10 }}>
+          <div style={{ fontWeight: 950, fontSize: 18 }}>Redeem Code</div>
+          <div style={{ fontSize: 13, opacity: 0.75 }}>
+            Prize: <b>{lastPrize ?? "—"}</b> · Merchant: <b>{selectedMerchant.name}</b>
           </div>
-        )}
+          <div style={{ fontSize: 26, fontWeight: 950, letterSpacing: 1 }}>{issuedCode}</div>
+          <div style={{ opacity: 0.7, fontSize: 13 }}>Show this code (or QR) to the merchant to redeem (one-time use).</div>
 
-        {issuedCode && (
-          <div style={{ marginTop: 4, padding: 14, border: "1px solid #ddd", borderRadius: 14, background: "white" }}>
-            <div style={{ fontWeight: 950, fontSize: 18 }}>Redeem Code</div>
+          <div style={{ display: "flex", justifyContent: "center", flexDirection: "column", alignItems: "center", gap: 6 }}>
+            <QRCodeCanvas value={issuedCode} size={180} />
+            <div style={{ fontSize: 11, opacity: 0.65, textAlign: "center" }}>Merchant can scan this QR or type the code.</div>
+          </div>
 
-            <div style={{ fontSize: 13, opacity: 0.75, marginTop: 4 }}>
-              Prize: <b>{lastPrize ?? "—"}</b> • Merchant: <b>{selectedMerchant.name}</b>
-            </div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center" }}>
+            <button onClick={() => navigator.clipboard.writeText(issuedCode)} style={{
+              padding: "10px 14px", borderRadius: 10, border: "1px solid rgba(0,0,0,0.12)",
+              fontWeight: 900, cursor: "pointer", background: "linear-gradient(180deg, #f3f4f6, #fff)", fontSize: 13,
+            }}>
+              Copy code
+            </button>
+            <a href="/redeem" style={{
+              padding: "10px 14px", borderRadius: 10, border: "1px solid rgba(0,0,0,0.12)",
+              fontWeight: 900, textDecoration: "none", color: "#111", fontSize: 13,
+              background: "linear-gradient(180deg, rgba(255,217,61,0.95), rgba(255,155,61,0.95))",
+              display: "inline-flex", alignItems: "center",
+            }}>
+              Go to merchant redeem →
+            </a>
+          </div>
 
-            <div style={{ fontSize: 28, fontWeight: 950, marginTop: 10, letterSpacing: 1 }}>{issuedCode}</div>
-
-            <div style={{ opacity: 0.75, marginTop: 6 }}>
-              Show this code (or QR) to the merchant to redeem (one-time).
-            </div>
-
-            <div style={{ marginTop: 14, display: "grid", gap: 10, justifyItems: "center" }}>
-              <QRCodeCanvas value={issuedCode} size={200} />
-              <div style={{ fontSize: 12, opacity: 0.75, textAlign: "center" }}>
-                Merchant can scan this QR or type the code.
-              </div>
-            </div>
-
-            <div style={{ display: "flex", gap: 10, marginTop: 12, flexWrap: "wrap", justifyContent: "center" }}>
-              <button onClick={() => navigator.clipboard.writeText(issuedCode)} style={btnGray()}>
-                Copy code
+          {/* Email code */}
+          <div style={{ padding: "12px 14px", borderRadius: 12, border: "1px solid rgba(0,0,0,0.10)", background: "rgba(246,196,83,0.08)", display: "flex", flexDirection: "column", gap: 8 }}>
+            <div style={{ fontWeight: 950, fontSize: 14 }}>Email this code to yourself</div>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <input
+                type="email"
+                value={emailInput}
+                onChange={(e) => setEmailInput(e.target.value)}
+                placeholder="your@email.com"
+                style={{ flex: 1, minWidth: 160, padding: "10px 12px", borderRadius: 10, border: "1px solid #ddd", fontSize: 14, fontWeight: 700 }}
+              />
+              <button
+                onClick={sendCodeByEmail}
+                disabled={emailSending || !emailInput.trim()}
+                style={{
+                  padding: "10px 14px", borderRadius: 10, border: "1px solid rgba(0,0,0,0.12)",
+                  fontWeight: 950, cursor: emailSending || !emailInput.trim() ? "not-allowed" : "pointer", fontSize: 13,
+                  background: emailSending || !emailInput.trim()
+                    ? "linear-gradient(180deg, #f3f4f6, #fff)"
+                    : "linear-gradient(180deg, rgba(255,217,61,0.95), rgba(255,155,61,0.95))",
+                  opacity: emailSending || !emailInput.trim() ? 0.7 : 1,
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {emailSending ? "Sending…" : "✉️ Send"}
               </button>
-
-              <a href="/redeem" style={btnGoldLink()}>
-                Go to merchant redeem page →
-              </a>
             </div>
-
-            {/* ✅ Email code section */}
-            <div
-              style={{
-                marginTop: 16,
-                padding: "12px 14px",
-                borderRadius: 12,
-                border: "1px solid rgba(0,0,0,0.10)",
-                background: "rgba(246,196,83,0.08)",
-                display: "grid",
-                gap: 8,
-              }}
-            >
-              <div style={{ fontWeight: 950, fontSize: 14 }}>Email this code to yourself</div>
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                <input
-                  type="email"
-                  value={emailInput}
-                  onChange={(e) => setEmailInput(e.target.value)}
-                  placeholder="your@email.com"
-                  style={{
-                    flex: 1,
-                    minWidth: 180,
-                    padding: "10px 12px",
-                    borderRadius: 10,
-                    border: "1px solid #ddd",
-                    fontSize: 15,
-                    fontWeight: 800,
-                  }}
-                />
-                <button
-                  onClick={sendCodeByEmail}
-                  disabled={emailSending || !emailInput.trim()}
-                  style={{
-                    padding: "10px 14px",
-                    borderRadius: 10,
-                    border: "1px solid rgba(0,0,0,0.12)",
-                    fontWeight: 950,
-                    cursor: emailSending || !emailInput.trim() ? "not-allowed" : "pointer",
-                    background:
-                      emailSending || !emailInput.trim()
-                        ? "linear-gradient(180deg, #f3f4f6, #fff)"
-                        : "linear-gradient(180deg, rgba(255,217,61,0.95), rgba(255,155,61,0.95))",
-                    opacity: emailSending || !emailInput.trim() ? 0.7 : 1,
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {emailSending ? "Sending…" : "✉️ Send"}
-                </button>
-              </div>
-              {emailStatus && (
-                <div style={{ fontWeight: 800, fontSize: 13, opacity: 0.85 }}>{emailStatus}</div>
-              )}
-            </div>
+            {emailStatus && <div style={{ fontWeight: 800, fontSize: 13, opacity: 0.85 }}>{emailStatus}</div>}
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

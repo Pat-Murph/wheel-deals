@@ -26,6 +26,8 @@ export type Merchant = {
 
   active?: boolean;
   wheel?: Array<{ label: string; weight: number }>;
+  website?: string;
+  phone?: string;
 };
 
 export const DISCOVER_CATEGORIES = [
@@ -193,6 +195,8 @@ export async function getActiveMerchants(): Promise<Merchant[]> {
 
       wheel: safeArray<any>(data.wheel),
       active: data.active,
+      website: data.website ?? undefined,
+      phone: data.phone ?? undefined,
     } satisfies Merchant;
   });
 }

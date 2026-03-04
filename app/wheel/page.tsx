@@ -10,7 +10,7 @@ export default async function WheelPage({
   const merchantId = sp.merchantId;
 
   return (
-    <main style={{ padding: 24, display: "grid", justifyItems: "center" }}>
+    <main style={{ width: "100%", overflowX: "hidden", boxSizing: "border-box" }}>
       <WheelDealsClient initialMerchantId={merchantId} />
     </main>
   );
