@@ -139,6 +139,8 @@ async function saveMerchantForUser(args: {
 
   address?: string;
   about?: string;
+  website?: string;
+  phone?: string;
   lat?: number;
   lng?: number;
 
@@ -155,6 +157,8 @@ async function saveMerchantForUser(args: {
     state = "",
     address = "",
     about = "",
+    website = "",
+    phone = "",
     lat,
     lng,
     wheel,
@@ -195,6 +199,8 @@ async function saveMerchantForUser(args: {
     stateLower: state.trim().toLowerCase(),
     address: address.trim(),
     about: about.trim(),
+    website: website.trim(),
+    phone: phone.trim(),
     lat: typeof lat === "number" ? lat : null,
     lng: typeof lng === "number" ? lng : null,
     photoUrls: photoUrls.slice(0, 12),
@@ -258,6 +264,8 @@ type MerchantDoc = {
   state?: string;
   address?: string;
   about?: string;
+  website?: string;
+  phone?: string;
   lat?: number | null;
   lng?: number | null;
   wheel?: Array<{ label: string; weight: number }>;
@@ -284,6 +292,8 @@ export default function MerchantOnboardPage() {
   const [address, setAddress] = useState("");
 
   const [about, setAbout] = useState("");
+  const [website, setWebsite] = useState("");
+  const [phone, setPhone] = useState("");
   const [photoFiles, setPhotoFiles] = useState<File[]>([]);
   const [photoPreviewUrls, setPhotoPreviewUrls] = useState<string[]>([]);
   const [uploadedPhotoUrls, setUploadedPhotoUrls] = useState<string[]>([]);
@@ -338,6 +348,8 @@ export default function MerchantOnboardPage() {
         setStateName(m.state ?? "");
         setAddress(m.address ?? "");
         setAbout(m.about ?? "");
+        setWebsite(m.website ?? "");
+        setPhone(m.phone ?? "");
 
         setLat(typeof m.lat === "number" ? String(m.lat) : "");
         setLng(typeof m.lng === "number" ? String(m.lng) : "");
@@ -617,6 +629,8 @@ export default function MerchantOnboardPage() {
         state: stateName.trim(), // optional
         address: address.trim(),
         about: about.trim(),
+        website: website.trim(),
+        phone: phone.trim(),
         lat: latNum,
         lng: lngNum,
         wheel: cleanedWheel,
@@ -912,6 +926,29 @@ export default function MerchantOnboardPage() {
             maxLength={1200}
           />
           <div style={{ fontWeight: 800, opacity: 0.7 }}>{about.length}/1200</div>
+
+          {/* Optional website + phone */}
+          <div style={{ display: "grid", gap: 10, gridTemplateColumns: "1fr 1fr" }}>
+            <input
+              value={website}
+              onChange={(e) => setWebsite(e.target.value)}
+              placeholder="Website (optional, e.g. yoursite.com)"
+              style={inputStyle()}
+              disabled={!user || busy}
+              type="url"
+            />
+            <input
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="Phone number (optional)"
+              style={inputStyle()}
+              disabled={!user || busy}
+              type="tel"
+            />
+          </div>
+          <div style={{ fontWeight: 800, opacity: 0.6, fontSize: 13 }}>
+            Website and phone are optional — if added, customers can tap to visit your site or call you directly from the wheel page.
+          </div>
 
           <div
             style={{
