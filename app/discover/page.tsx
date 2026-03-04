@@ -124,129 +124,167 @@ export default function DiscoverPage() {
   }, []);
 
   return (
-    <main style={{ display: "flex", flexDirection: "column", height: "100dvh", overflow: "hidden", background: "#f8f9fa" }}>
-      {/* ── TOP BAR ── */}
+    <main style={{
+      display: "flex",
+      flexDirection: "column",
+      minHeight: "100dvh",
+      background: "linear-gradient(180deg, #1a4a1a 0%, #0f2d0f 100%)",
+      fontFamily: "'Segoe UI', system-ui, sans-serif",
+    }}>
+
+      {/* TOP HERO HEADER */}
       <div style={{
+        background: "linear-gradient(180deg, #1e5c1e 0%, #154015 100%)",
+        borderBottom: "3px solid #c8a84b",
+        padding: "12px 14px 10px",
         display: "flex",
         alignItems: "center",
-        gap: 10,
-        padding: "10px 12px",
-        background: "white",
-        borderBottom: "1px solid #e5e7eb",
+        gap: 12,
         flexShrink: 0,
+        boxShadow: "0 4px 16px rgba(0,0,0,0.4)",
       }}>
-        {/* Logo + title */}
-        <img src="/wheel-deals-logo.png" alt="Wheel Deals" style={{ width: 36, height: 36, objectFit: "contain" }} />
+        <img
+          src="/wheel-deals-discover.png"
+          alt="Wheel Deals Discover"
+          style={{ width: 72, height: 72, objectFit: "contain", filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.5))" }}
+        />
         <div style={{ flex: 1 }}>
-          <div style={{ fontWeight: 1000, fontSize: 17, lineHeight: 1.1 }}>
-            <span style={{ color: "#F6C453" }}>Wheel</span>{" "}
-            <span style={{ color: "#2563EB" }}>Deals</span>
+          <div style={{ fontWeight: 900, fontSize: 22, lineHeight: 1.1, textShadow: "0 2px 8px rgba(0,0,0,0.6)" }}>
+            <span style={{ color: "#FFD700" }}>Wheel</span>{" "}
+            <span style={{ color: "#7EC8E3" }}>Deals</span>
           </div>
-          <div style={{ fontSize: 11, fontWeight: 800, opacity: 0.6 }}>Spin a local wheel. Unlock a deal.</div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "#c8e6c8", opacity: 0.9, marginTop: 2 }}>
+            Spin a local wheel. Unlock a deal.
+          </div>
         </div>
-        <a href="/merchant" style={{ fontSize: 12, fontWeight: 900, color: "#2563EB", textDecoration: "none", padding: "6px 10px", borderRadius: 8, border: "1px solid #2563EB" }}>
+        <a href="/merchant" style={{
+          fontSize: 13,
+          fontWeight: 900,
+          color: "#1a1a1a",
+          textDecoration: "none",
+          padding: "8px 14px",
+          borderRadius: 10,
+          background: "linear-gradient(180deg, #FFD700, #FFA500)",
+          border: "2px solid #c8a84b",
+          boxShadow: "0 3px 10px rgba(0,0,0,0.3)",
+          whiteSpace: "nowrap",
+        }}>
           Merchant
         </a>
       </div>
 
-      {/* ── FOUNDING BANNER (slim) ── */}
+      {/* FOUNDING BANNER - GREEN */}
       {foundingRemaining > 0 && (
         <div style={{
-          background: "linear-gradient(90deg, #0a1628, #1a2f55)",
-          padding: "8px 12px",
+          background: "linear-gradient(90deg, #1a6b1a, #2d8a2d)",
+          padding: "10px 14px",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
           gap: 8,
           flexShrink: 0,
+          borderBottom: "2px solid #4caf50",
+          boxShadow: "0 2px 8px rgba(0,0,0,0.3)",
         }}>
-          <div style={{ fontSize: 12, fontWeight: 900, color: "#F4B400" }}>
-            🎉 Founding Merchant — {foundingRemaining}/{FOUNDING_MERCHANT_LIMIT} spots left
+          <div style={{ fontSize: 13, fontWeight: 900, color: "#FFD700", textShadow: "0 1px 4px rgba(0,0,0,0.5)" }}>
+            Founding Merchant — {foundingRemaining}/{FOUNDING_MERCHANT_LIMIT} spots left
           </div>
           <a href="/merchant/onboard" style={{
-            fontSize: 11,
-            fontWeight: 950,
-            color: "#111",
-            background: "linear-gradient(180deg, #F4B400, #FF9B3D)",
-            padding: "5px 10px",
-            borderRadius: 8,
+            fontSize: 12,
+            fontWeight: 900,
+            color: "#1a1a1a",
+            background: "linear-gradient(180deg, #FFD700, #FFA500)",
+            padding: "7px 12px",
+            borderRadius: 9,
             textDecoration: "none",
             whiteSpace: "nowrap",
+            border: "2px solid #c8a84b",
+            boxShadow: "0 2px 6px rgba(0,0,0,0.3)",
           }}>
-            Claim spot →
+            Claim spot
           </a>
         </div>
       )}
 
-      {/* ── SEARCH BAR ── */}
+      {/* SEARCH BAR */}
       <div style={{
-        padding: "8px 10px",
-        background: "white",
-        borderBottom: "1px solid #e5e7eb",
+        padding: "10px 12px",
+        background: "rgba(0,0,0,0.25)",
+        borderBottom: "1px solid rgba(200,168,75,0.3)",
         flexShrink: 0,
         display: "grid",
-        gap: 6,
+        gap: 8,
       }}>
-        <div style={{ display: "flex", gap: 6 }}>
+        <div style={{ display: "flex", gap: 8 }}>
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") runSearch({ autoFill: true }); }}
-            placeholder='Search "boba", "pizza", "sushi"…'
+            placeholder='Search "boba", "pizza", "sushi"...'
             style={{
               flex: 1,
-              padding: "10px 12px",
-              borderRadius: 10,
-              border: "1px solid #ddd",
-              fontSize: 14,
+              padding: "12px 14px",
+              borderRadius: 12,
+              border: "2px solid rgba(200,168,75,0.5)",
+              fontSize: 15,
               outline: "none",
+              background: "rgba(255,255,255,0.95)",
+              color: "#1a1a1a",
+              fontWeight: 600,
             }}
           />
           <button
             onClick={() => runSearch({ autoFill: true })}
             disabled={busy}
             style={{
-              padding: "10px 14px",
-              borderRadius: 10,
-              border: "none",
+              padding: "12px 18px",
+              borderRadius: 12,
+              border: "2px solid #c8a84b",
               fontWeight: 900,
-              fontSize: 14,
+              fontSize: 15,
               cursor: busy ? "not-allowed" : "pointer",
-              background: "linear-gradient(180deg, #F6C453, #FF9B3D)",
-              color: "#111",
+              background: "linear-gradient(180deg, #FFD700, #FFA500)",
+              color: "#1a1a1a",
               whiteSpace: "nowrap",
+              boxShadow: "0 3px 10px rgba(0,0,0,0.3)",
             }}
           >
-            {busy ? "…" : "Search"}
+            {busy ? "..." : "Search"}
           </button>
           <button
             onClick={() => setShowFilters(!showFilters)}
             style={{
-              padding: "10px 12px",
-              borderRadius: 10,
-              border: "1px solid #ddd",
+              padding: "12px 14px",
+              borderRadius: 12,
+              border: "2px solid rgba(200,168,75,0.4)",
               fontWeight: 900,
-              fontSize: 13,
+              fontSize: 16,
               cursor: "pointer",
-              background: showFilters ? "#f3f4f6" : "white",
+              background: showFilters ? "rgba(255,215,0,0.2)" : "rgba(255,255,255,0.1)",
+              color: "#FFD700",
             }}
           >
-            ⚙
+            Filters
           </button>
         </div>
 
-        {/* Collapsible filters */}
         {showFilters && (
-          <div style={{ display: "grid", gap: 6, gridTemplateColumns: "1fr 1fr" }}>
-            <select value={category} onChange={(e) => setCategory(e.target.value)} style={{ padding: "8px 10px", borderRadius: 10, border: "1px solid #ddd", fontSize: 13 }}>
+          <div style={{ display: "grid", gap: 8, gridTemplateColumns: "1fr 1fr" }}>
+            <select value={category} onChange={(e) => setCategory(e.target.value)} style={{
+              padding: "10px 12px", borderRadius: 10, border: "2px solid rgba(200,168,75,0.4)",
+              fontSize: 14, background: "rgba(255,255,255,0.95)", color: "#1a1a1a", fontWeight: 600,
+            }}>
               <option value="">All categories</option>
               {DISCOVER_CATEGORIES.map((c) => <option key={c} value={c}>{titleCase(c)}</option>)}
             </select>
-            <select value={city} onChange={(e) => setCity(e.target.value)} style={{ padding: "8px 10px", borderRadius: 10, border: "1px solid #ddd", fontSize: 13 }}>
+            <select value={city} onChange={(e) => setCity(e.target.value)} style={{
+              padding: "10px 12px", borderRadius: 10, border: "2px solid rgba(200,168,75,0.4)",
+              fontSize: 14, background: "rgba(255,255,255,0.95)", color: "#1a1a1a", fontWeight: 600,
+            }}>
               <option value="">All cities</option>
               {dynamicCities.map((c) => <option key={c} value={c}>{titleCase(c)}</option>)}
             </select>
-            <label style={{ display: "flex", gap: 6, alignItems: "center", fontWeight: 800, fontSize: 13 }}>
+            <label style={{ display: "flex", gap: 8, alignItems: "center", fontWeight: 800, fontSize: 14, color: "#c8e6c8" }}>
               <input type="checkbox" checked={nearMe} onChange={async (e) => {
                 const on = e.target.checked;
                 setNearMe(on);
@@ -260,29 +298,44 @@ export default function DiscoverPage() {
                     setError(err?.message ?? "Could not access location.");
                   }
                 }
-              }} />
+              }} style={{ width: 18, height: 18 }} />
               Near me
             </label>
             {nearMe && (
-              <select value={radius} onChange={(e) => setRadius(Number(e.target.value))} style={{ padding: "8px 10px", borderRadius: 10, border: "1px solid #ddd", fontSize: 13 }}>
+              <select value={radius} onChange={(e) => setRadius(Number(e.target.value))} style={{
+                padding: "10px 12px", borderRadius: 10, border: "2px solid rgba(200,168,75,0.4)",
+                fontSize: 14, background: "rgba(255,255,255,0.95)", color: "#1a1a1a", fontWeight: 600,
+              }}>
                 {[2, 5, 10, 15, 25].map((r) => <option key={r} value={r}>{r} mi</option>)}
               </select>
             )}
             <button onClick={() => { setQ(""); setCategory(""); setCity(""); setNearMe(false); setTimeout(() => runSearch({ autoFill: false }), 0); }}
-              style={{ padding: "8px 10px", borderRadius: 10, border: "1px solid #ddd", fontWeight: 800, fontSize: 13, cursor: "pointer", background: "#f3f4f6", gridColumn: "span 2" }}>
+              style={{
+                padding: "10px 12px", borderRadius: 10, border: "2px solid rgba(200,168,75,0.4)",
+                fontWeight: 800, fontSize: 14, cursor: "pointer",
+                background: "rgba(255,255,255,0.1)", color: "#FFD700",
+                gridColumn: "span 2",
+              }}>
               Reset filters
             </button>
           </div>
         )}
 
-        {error && <div style={{ color: "#b91c1c", fontWeight: 900, fontSize: 13 }}>{error}</div>}
-        <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.6 }}>
-          {items.length} wheel{items.length === 1 ? "" : "s"} found • {queryLabel}
+        {error && (
+          <div style={{
+            color: "#ff6b6b", fontWeight: 900, fontSize: 14,
+            background: "rgba(255,0,0,0.1)", padding: "8px 12px", borderRadius: 8,
+          }}>
+            {error}
+          </div>
+        )}
+        <div style={{ fontSize: 13, fontWeight: 800, color: "#a8d5a8" }}>
+          {items.length} wheel{items.length === 1 ? "" : "s"} found — {queryLabel}
         </div>
       </div>
 
-      {/* ── MAP (fills remaining space) ── */}
-      <div style={{ flex: 1, overflow: "hidden", position: "relative" }}>
+      {/* MAP */}
+      <div style={{ height: "38vh", minHeight: 200, position: "relative", flexShrink: 0, borderBottom: "2px solid rgba(200,168,75,0.3)" }}>
         <DiscoverMap
           merchants={items}
           nearMeEnabled={nearMe}
@@ -291,66 +344,95 @@ export default function DiscoverPage() {
         />
       </div>
 
-      {/* ── BOTTOM SHEET: results (scrollable strip) ── */}
-      {items.length > 0 && (
-        <div style={{
-          flexShrink: 0,
-          maxHeight: "28vh",
-          overflowX: "auto",
-          overflowY: "hidden",
-          display: "flex",
-          gap: 10,
-          padding: "10px 12px",
-          background: "white",
-          borderTop: "1px solid #e5e7eb",
-        }}>
-          {items.map((m) => (
-            <a
-              key={m.id}
-              href={`/wheel?merchantId=${encodeURIComponent(m.id)}`}
-              style={{
-                flexShrink: 0,
-                width: 160,
-                border: "1px solid #e5e7eb",
-                borderRadius: 14,
-                padding: 10,
-                background: "white",
-                display: "flex",
-                flexDirection: "column",
-                gap: 4,
-                textDecoration: "none",
-                color: "#111",
-                boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
-              }}
-            >
-              <div style={{ fontSize: 14, fontWeight: 950, lineHeight: 1.2 }}>{m.name ?? m.id}</div>
-              <div style={{ fontSize: 12, opacity: 0.7, fontWeight: 800 }}>
-                {m.category ? titleCase(m.category) : ""}{m.city ? ` • ${titleCase(m.city)}` : ""}
+      {/* MERCHANT CARDS - vertical scrollable list */}
+      <div style={{
+        flex: 1,
+        overflowY: "auto",
+        padding: "12px",
+        display: "flex",
+        flexDirection: "column",
+        gap: 10,
+      }}>
+        {items.length === 0 && !busy && (
+          <div style={{
+            textAlign: "center",
+            padding: "30px 20px",
+            color: "#a8d5a8",
+            fontWeight: 800,
+            fontSize: 15,
+          }}>
+            No merchants found. Try a different search.
+          </div>
+        )}
+
+        {items.map((m) => (
+          <a
+            key={m.id}
+            href={`/wheel?merchantId=${encodeURIComponent(m.id)}`}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 14,
+              background: "linear-gradient(135deg, rgba(255,255,255,0.12), rgba(255,255,255,0.06))",
+              border: "2px solid rgba(200,168,75,0.4)",
+              borderRadius: 16,
+              padding: "14px 16px",
+              textDecoration: "none",
+              color: "#fff",
+              boxShadow: "0 4px 16px rgba(0,0,0,0.3)",
+            }}
+          >
+            {/* Wheel icon */}
+            <div style={{
+              width: 52,
+              height: 52,
+              borderRadius: "50%",
+              background: "linear-gradient(135deg, #FFD700, #FFA500)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 26,
+              flexShrink: 0,
+              boxShadow: "0 3px 10px rgba(0,0,0,0.3)",
+              border: "2px solid #c8a84b",
+            }}>
+              🎡
+            </div>
+
+            {/* Info */}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 17, fontWeight: 900, lineHeight: 1.2, color: "#FFD700", textShadow: "0 1px 4px rgba(0,0,0,0.5)" }}>
+                {m.name ?? m.id}
+              </div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "#c8e6c8", marginTop: 3 }}>
+                {m.category ? titleCase(m.category) : ""}
+                {m.city ? ` — ${titleCase(m.city)}` : ""}
               </div>
               {nearMe && m.distanceMiles != null && (
-                <div style={{ fontSize: 12, fontWeight: 900, opacity: 0.75 }}>{fmtMiles(m.distanceMiles)}</div>
+                <div style={{ fontSize: 12, fontWeight: 800, color: "#a8d5a8", marginTop: 2 }}>
+                  {fmtMiles(m.distanceMiles)} away
+                </div>
               )}
-              <div style={{
-                marginTop: "auto",
-                padding: "6px 8px",
-                borderRadius: 8,
-                background: "linear-gradient(180deg, #F6C453, #FF9B3D)",
-                fontWeight: 900,
-                fontSize: 12,
-                textAlign: "center",
-              }}>
-                Spin →
-              </div>
-            </a>
-          ))}
-        </div>
-      )}
+            </div>
 
-      {!busy && items.length === 0 && (
-        <div style={{ padding: "10px 12px", fontSize: 13, fontWeight: 800, opacity: 0.6, background: "white", borderTop: "1px solid #e5e7eb", flexShrink: 0 }}>
-          No merchants found. Try a different search.
-        </div>
-      )}
+            {/* Spin button */}
+            <div style={{
+              padding: "10px 16px",
+              borderRadius: 12,
+              background: "linear-gradient(180deg, #FFD700, #FFA500)",
+              fontWeight: 900,
+              fontSize: 14,
+              color: "#1a1a1a",
+              whiteSpace: "nowrap",
+              flexShrink: 0,
+              boxShadow: "0 3px 8px rgba(0,0,0,0.3)",
+              border: "2px solid #c8a84b",
+            }}>
+              Spin
+            </div>
+          </a>
+        ))}
+      </div>
     </main>
   );
 }
