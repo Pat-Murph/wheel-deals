@@ -633,31 +633,22 @@ export default function MerchantDashboardPage() {
 
   return (
     <main style={{ padding: "14px 14px 40px", display: "grid", gap: 14, maxWidth: 600, margin: "0 auto", boxSizing: "border-box", width: "100%", overflowX: "hidden" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
-        <div style={{ display: "grid", gap: 6 }}>
-          <div style={{ fontSize: 30, fontWeight: 1000 }}>Merchant Dashboard</div>
-
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
-            <strong style={{ fontSize: 16 }}>{merchantName}</strong>
-            {merchant.active ? pill("Live", "green") : pill("Paused", "gray")}
-            <span style={{ fontSize: 12, opacity: 0.75, fontWeight: 850 }}>
-              Limit: {DAILY_LIMIT} spins/day per customer
-            </span>
-            {busy && <span style={{ opacity: 0.7, fontWeight: 800 }}>Loading…</span>}
-          </div>
+      <div style={{ display: "grid", gap: 4 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
+          <div style={{ fontSize: 26, fontWeight: 1000, lineHeight: 1.2 }}>Merchant Dashboard</div>
+          <a
+            href="/discover"
+            style={{ fontWeight: 950, textDecoration: "none", color: "#111", fontSize: 14, whiteSpace: "nowrap", paddingTop: 4 }}
+          >
+            ← Discover
+          </a>
         </div>
-
-        <a
-          href="/discover"
-          style={{
-            fontWeight: 950,
-            textDecoration: "none",
-            color: "#111",
-            alignSelf: "center",
-          }}
-        >
-          ← Back to Discover
-        </a>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginTop: 4 }}>
+          <strong style={{ fontSize: 15 }}>{merchantName}</strong>
+          {merchant.active ? pill("Live", "green") : pill("Paused", "gray")}
+          <span style={{ fontSize: 11, opacity: 0.65, fontWeight: 850 }}>Limit: {DAILY_LIMIT} spins/day</span>
+          {busy && <span style={{ opacity: 0.7, fontWeight: 800, fontSize: 12 }}>Loading…</span>}
+        </div>
       </div>
 
       {status && (
@@ -667,34 +658,21 @@ export default function MerchantDashboardPage() {
       )}
 
       {/* Controls */}
-      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-        <button onClick={toggleActive} disabled={busy} style={btnSecondary(busy)}>
-          {merchant.active ? "Pause merchant" : "Go live"}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        <button onClick={toggleActive} disabled={busy} style={{ ...btnSecondary(busy), width: "100%" }}>
+          {merchant.active ? "Pause" : "Go live"}
         </button>
-
-        {/* NOTE:
-            Your current "Edit merchant" points to onboarding, which is typically CREATE.
-            If you have (or will make) an edit page, change href to /merchant/edit
-        */}
         <a
           href="/merchant/onboard"
-          style={{
-            ...btnSecondary(false),
-            textDecoration: "none",
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
+          style={{ ...btnSecondary(false), textDecoration: "none", display: "flex", alignItems: "center", justifyContent: "center", width: "100%", boxSizing: "border-box" }}
         >
-          Edit merchant →
+          Edit merchant
         </a>
-
-        <button onClick={deleteMerchantAccount} style={btnDanger(busy)} disabled={busy}>
-          Delete account
-        </button>
-
-        <button onClick={doLogout} style={btnSecondary(false)}>
+        <button onClick={doLogout} style={{ ...btnSecondary(false), width: "100%" }}>
           Sign out
+        </button>
+        <button onClick={deleteMerchantAccount} style={{ ...btnDanger(busy), width: "100%" }} disabled={busy}>
+          Delete account
         </button>
       </div>
 
@@ -713,7 +691,7 @@ export default function MerchantDashboardPage() {
           Enter the code or scan the QR. Once redeemed, it can’t be used again.
         </div>
 
-        <div style={{ marginTop: 12, display: "grid", gap: 10, gridTemplateColumns: "1fr auto" }}>
+        <div style={{ marginTop: 12, display: "grid", gap: 10, gridTemplateColumns: "1fr" }}>
           <input
             value={redeemCode}
             onChange={(e) => setRedeemCode(e.target.value)}
@@ -731,7 +709,7 @@ export default function MerchantDashboardPage() {
             }}
           />
 
-          <button onClick={() => redeemByCode(redeemCode)} disabled={redeemBusy} style={btnPrimary(redeemBusy)}>
+          <button onClick={() => redeemByCode(redeemCode)} disabled={redeemBusy} style={{ ...btnPrimary(redeemBusy), width: "100%" }}>
             {redeemBusy ? "Redeeming…" : "Redeem"}
           </button>
         </div>
@@ -783,16 +761,17 @@ export default function MerchantDashboardPage() {
         <div style={{ marginTop: 6, opacity: 0.82, fontWeight: 850 }}>
           Status: {stripeConnected ? "✅ Connected" : "❌ Not connected"}
           {stripeConnected && (
-            <span
+            <div
               style={{
-                marginLeft: 8,
+                marginTop: 4,
                 fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
-                fontSize: 12,
-                opacity: 0.8,
+                fontSize: 11,
+                opacity: 0.7,
+                wordBreak: "break-all",
               }}
             >
-              ({merchant.stripeAccountId})
-            </span>
+              {merchant.stripeAccountId}
+            </div>
           )}
         </div>
 
@@ -824,23 +803,20 @@ export default function MerchantDashboardPage() {
 
       {/* Calendar */}
       <div style={card()}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+        <div style={{ display: "grid", gap: 8 }}>
           <div style={{ fontWeight: 1000, fontSize: 16 }}>Daily spins calendar</div>
-
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <div style={{ display: "flex", gap: 8, alignItems: "center", justifyContent: "center" }}>
             <button
               onClick={() => setMonthCursor((d) => new Date(d.getFullYear(), d.getMonth() - 1, 1))}
-              style={btnSecondary(monthLoading)}
+              style={{ ...btnSecondary(monthLoading), padding: "8px 14px" }}
               disabled={monthLoading}
             >
               ←
             </button>
-
-            <div style={{ fontWeight: 950, minWidth: 180, textAlign: "center" }}>{ymLabel(monthCursor)}</div>
-
+            <div style={{ fontWeight: 950, flex: 1, textAlign: "center", fontSize: 15 }}>{ymLabel(monthCursor)}</div>
             <button
               onClick={() => setMonthCursor((d) => new Date(d.getFullYear(), d.getMonth() + 1, 1))}
-              style={btnSecondary(monthLoading)}
+              style={{ ...btnSecondary(monthLoading), padding: "8px 14px" }}
               disabled={monthLoading}
             >
               →
