@@ -125,8 +125,7 @@ export default function DiscoverPage() {
 
   return (
     <main style={{
-      display: "flex",
-      flexDirection: "column",
+      display: "block",
       minHeight: "100dvh",
       background: "linear-gradient(180deg, #1a4a1a 0%, #0f2d0f 100%)",
       fontFamily: "'Segoe UI', system-ui, sans-serif",
@@ -335,7 +334,7 @@ export default function DiscoverPage() {
       </div>
 
       {/* MAP */}
-      <div style={{ height: "28vh", minHeight: 160, maxHeight: 220, position: "relative", flexShrink: 0, borderBottom: "2px solid rgba(200,168,75,0.3)" }}>
+      <div style={{ height: 200, position: "relative", borderBottom: "3px solid rgba(200,168,75,0.4)" }}>
         <DiscoverMap
           merchants={items}
           nearMeEnabled={nearMe}
@@ -346,9 +345,7 @@ export default function DiscoverPage() {
 
       {/* MERCHANT CARDS - vertical scrollable list */}
       <div style={{
-        flex: 1,
-        overflowY: "auto",
-        padding: "12px",
+        padding: "14px 12px 24px",
         display: "flex",
         flexDirection: "column",
         gap: 10,
