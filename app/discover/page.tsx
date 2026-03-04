@@ -335,7 +335,7 @@ export default function DiscoverPage() {
       </div>
 
       {/* MAP */}
-      <div style={{ height: "38vh", minHeight: 200, position: "relative", flexShrink: 0, borderBottom: "2px solid rgba(200,168,75,0.3)" }}>
+      <div style={{ height: "28vh", minHeight: 160, maxHeight: 220, position: "relative", flexShrink: 0, borderBottom: "2px solid rgba(200,168,75,0.3)" }}>
         <DiscoverMap
           merchants={items}
           nearMeEnabled={nearMe}
@@ -382,7 +382,7 @@ export default function DiscoverPage() {
               boxShadow: "0 4px 16px rgba(0,0,0,0.3)",
             }}
           >
-            {/* Wheel icon */}
+            {/* Prize Wheel icon */}
             <div style={{
               width: 52,
               height: 52,
@@ -391,12 +391,29 @@ export default function DiscoverPage() {
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              fontSize: 26,
               flexShrink: 0,
               boxShadow: "0 3px 10px rgba(0,0,0,0.3)",
               border: "2px solid #c8a84b",
+              padding: 4,
             }}>
-              🎡
+              <svg viewBox="0 0 100 100" width="40" height="40">
+                {/* Prize wheel segments */}
+                <circle cx="50" cy="50" r="48" fill="#8B0000" stroke="#c8a84b" strokeWidth="2"/>
+                {[0,1,2,3,4,5,6,7].map((i) => {
+                  const colors = ["#FF4444","#FFD700","#4CAF50","#2196F3","#FF9800","#9C27B0","#00BCD4","#FF5722"];
+                  const angle = (i * 45) * Math.PI / 180;
+                  const nextAngle = ((i + 1) * 45) * Math.PI / 180;
+                  const x1 = 50 + 48 * Math.cos(angle);
+                  const y1 = 50 + 48 * Math.sin(angle);
+                  const x2 = 50 + 48 * Math.cos(nextAngle);
+                  const y2 = 50 + 48 * Math.sin(nextAngle);
+                  return <path key={i} d={`M50,50 L${x1},${y1} A48,48 0 0,1 ${x2},${y2} Z`} fill={colors[i]} stroke="#c8a84b" strokeWidth="1"/>;
+                })}
+                {/* Center hub */}
+                <circle cx="50" cy="50" r="10" fill="#FFD700" stroke="#c8a84b" strokeWidth="2"/>
+                {/* Pointer */}
+                <polygon points="50,2 46,14 54,14" fill="#FFD700" stroke="#c8a84b" strokeWidth="1"/>
+              </svg>
             </div>
 
             {/* Info */}
