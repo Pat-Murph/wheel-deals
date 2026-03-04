@@ -802,7 +802,7 @@ export default function MerchantDashboardPage() {
       </div>
 
       {/* Calendar */}
-      <div style={card()}>
+      <div style={{ ...card(), padding: "14px 8px" }}>
         <div style={{ display: "grid", gap: 8 }}>
           <div style={{ fontWeight: 1000, fontSize: 16 }}>Daily spins calendar</div>
           <div style={{ display: "flex", gap: 8, alignItems: "center", justifyContent: "center" }}>
@@ -833,14 +833,14 @@ export default function MerchantDashboardPage() {
           style={{
             display: "grid",
             gridTemplateColumns: "repeat(7, minmax(0, 1fr))",
-            gap: 8,
+            gap: 3,
             marginTop: 12,
-            fontSize: 12,
+            fontSize: 10,
             fontWeight: 950,
             opacity: 0.75,
           }}
         >
-          {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((w) => (
+          {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((w) => (
             <div key={w} style={{ textAlign: "center" }}>
               {w}
             </div>
@@ -851,12 +851,12 @@ export default function MerchantDashboardPage() {
           style={{
             display: "grid",
             gridTemplateColumns: "repeat(7, minmax(0, 1fr))",
-            gap: 8,
-            marginTop: 8,
+            gap: 3,
+            marginTop: 4,
           }}
         >
           {Array.from({ length: padDays }).map((_, i) => (
-            <div key={`pad-${i}`} style={{ height: 76, borderRadius: 12, background: "rgba(0,0,0,0.03)" }} />
+            <div key={`pad-${i}`} style={{ borderRadius: 8, background: "rgba(0,0,0,0.03)", aspectRatio: "1" }} />
           ))}
 
           {monthKeys.map((dateKey) => {
@@ -876,39 +876,28 @@ export default function MerchantDashboardPage() {
                 key={dateKey}
                 onClick={() => setSelectedDateKey(dateKey)}
                 style={{
-                  height: 76,
-                  borderRadius: 12,
+                  borderRadius: 8,
                   border: isSelected ? "2px solid rgba(255,155,61,0.95)" : "1px solid rgba(0,0,0,0.10)",
-                  background: isSelected ? "rgba(255,217,61,0.18)" : "white",
+                  background: isToday ? "rgba(34,197,94,0.10)" : isSelected ? "rgba(255,217,61,0.18)" : "white",
                   cursor: "pointer",
-                  padding: 10,
-                  textAlign: "left",
-                  boxShadow: isSelected ? "0 10px 24px rgba(0,0,0,0.10)" : "none",
+                  padding: "5px 3px",
+                  textAlign: "center",
+                  boxShadow: isSelected ? "0 4px 12px rgba(0,0,0,0.10)" : "none",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: 2,
+                  minHeight: 60,
                 }}
                 title={`${dateKey} • Spins: ${spins} • Revenue: ${moneyFromCents(revCents)}`}
               >
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <div style={{ fontWeight: 1000 }}>{dayNum}</div>
-                  {isToday && (
-                    <div
-                      style={{
-                        fontSize: 10,
-                        fontWeight: 950,
-                        padding: "2px 8px",
-                        borderRadius: 999,
-                        background: "rgba(34,197,94,0.16)",
-                        color: "#0a7a2a",
-                      }}
-                    >
-                      Today
-                    </div>
-                  )}
+                <div style={{ fontWeight: 1000, fontSize: 13, lineHeight: 1 }}>
+                  {dayNum}{isToday ? " •" : ""}
                 </div>
-
-                <div style={{ marginTop: 6, fontSize: 12, fontWeight: 950, opacity: 0.85 }}>
-                  Spins: {spins}
+                <div style={{ fontSize: 9, fontWeight: 950, opacity: 0.8, lineHeight: 1 }}>
+                  {spins}sp
                 </div>
-                <div style={{ marginTop: 2, fontSize: 12, fontWeight: 900, opacity: 0.75 }}>
+                <div style={{ fontSize: 9, fontWeight: 900, opacity: 0.65, lineHeight: 1 }}>
                   {moneyFromCents(revCents)}
                 </div>
               </button>
