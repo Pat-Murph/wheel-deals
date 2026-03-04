@@ -570,7 +570,7 @@ export default function MerchantDashboardPage() {
   /* ---------- UI ---------- */
   if (!user) {
     return (
-      <main style={{ padding: 24, maxWidth: 520 }}>
+      <main style={{ padding: "14px 14px 40px", maxWidth: 600, margin: "0 auto", boxSizing: "border-box", width: "100%" }}>
         <h1 style={{ margin: 0, fontSize: 30, fontWeight: 1000 }}>Merchant Sign In</h1>
 
         <div style={{ display: "grid", gap: 8, marginTop: 12 }}>
@@ -603,7 +603,7 @@ export default function MerchantDashboardPage() {
 
   if (!merchant || !merchantId) {
     return (
-      <main style={{ padding: 24 }}>
+      <main style={{ padding: "14px 14px 40px", maxWidth: 600, margin: "0 auto", boxSizing: "border-box", width: "100%" }}>
         <h2 style={{ margin: 0 }}>No merchant linked</h2>
         <div style={{ marginTop: 8, opacity: 0.75, fontWeight: 800 }}>
           If you just created a merchant, make sure <code>/users/{`{uid}`}.merchantId</code> exists.
@@ -632,7 +632,7 @@ export default function MerchantDashboardPage() {
       : (selectedStat?.spinsCount ?? 0) * REVENUE_CENTS_PER_SPIN;
 
   return (
-    <main style={{ padding: 24, display: "grid", gap: 14, maxWidth: 1100, margin: "0 auto" }}>
+    <main style={{ padding: "14px 14px 40px", display: "grid", gap: 14, maxWidth: 600, margin: "0 auto", boxSizing: "border-box", width: "100%", overflowX: "hidden" }}>
       <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
         <div style={{ display: "grid", gap: 6 }}>
           <div style={{ fontSize: 30, fontWeight: 1000 }}>Merchant Dashboard</div>
@@ -808,7 +808,7 @@ export default function MerchantDashboardPage() {
       </div>
 
       {/* Stats */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px,1fr))", gap: 12 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px,1fr))", gap: 10 }}>
         <Stat title="Spins today" value={String(spinsToday)} />
         <Stat title="Revenue today" value={moneyFromCents(spinsToday * REVENUE_CENTS_PER_SPIN)} />
 

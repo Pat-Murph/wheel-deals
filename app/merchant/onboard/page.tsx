@@ -676,11 +676,14 @@ export default function MerchantOnboardPage() {
   return (
     <main
       style={{
-        padding: 22,
+        padding: "14px 14px 40px",
         display: "grid",
         gap: 14,
-        maxWidth: 980,
+        maxWidth: 600,
         margin: "0 auto",
+        boxSizing: "border-box",
+        width: "100%",
+        overflowX: "hidden",
       }}
     >
       <div
@@ -759,7 +762,7 @@ export default function MerchantOnboardPage() {
                 display: "grid",
                 gap: 10,
                 marginTop: 12,
-                gridTemplateColumns: "1fr 1fr",
+                gridTemplateColumns: "1fr",
               }}
             >
               <input
@@ -857,7 +860,7 @@ export default function MerchantOnboardPage() {
             display: "grid",
             gap: 10,
             marginTop: 12,
-            gridTemplateColumns: "1fr 240px 240px",
+            gridTemplateColumns: "1fr",
           }}
         >
           <input
@@ -897,7 +900,7 @@ export default function MerchantOnboardPage() {
             marginTop: 10,
             display: "grid",
             gap: 10,
-            gridTemplateColumns: "1fr 1fr",
+            gridTemplateColumns: "1fr",
           }}
         >
           <input
@@ -928,7 +931,7 @@ export default function MerchantOnboardPage() {
           <div style={{ fontWeight: 800, opacity: 0.7 }}>{about.length}/1200</div>
 
           {/* Optional website + phone */}
-          <div style={{ display: "grid", gap: 10, gridTemplateColumns: "1fr 1fr" }}>
+          <div style={{ display: "grid", gap: 10, gridTemplateColumns: "1fr" }}>
             <input
               value={website}
               onChange={(e) => setWebsite(e.target.value)}
@@ -1029,7 +1032,7 @@ export default function MerchantOnboardPage() {
             display: "grid",
             gap: 10,
             marginTop: 10,
-            gridTemplateColumns: "1fr 1fr auto",
+            gridTemplateColumns: "1fr",
           }}
         >
           <input
@@ -1065,8 +1068,8 @@ export default function MerchantOnboardPage() {
               key={i}
               style={{
                 display: "grid",
-                gap: 10,
-                gridTemplateColumns: "1fr 160px auto",
+                gap: 8,
+                gridTemplateColumns: "1fr 90px auto",
                 alignItems: "center",
               }}
             >
