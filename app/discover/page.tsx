@@ -127,6 +127,9 @@ export default function DiscoverPage() {
     <main style={{
       display: "block",
       minHeight: "100dvh",
+      width: "100%",
+      overflowX: "hidden",
+      boxSizing: "border-box",
       background: "linear-gradient(180deg, #1a4a1a 0%, #0f2d0f 100%)",
       fontFamily: "'Segoe UI', system-ui, sans-serif",
     }}>
@@ -214,33 +217,35 @@ export default function DiscoverPage() {
         display: "grid",
         gap: 8,
       }}>
-        <div style={{ display: "flex", gap: 8 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr auto auto", gap: 8 }}>
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") runSearch({ autoFill: true }); }}
-            placeholder='Search "boba", "pizza", "sushi"...'
+            placeholder='Search "boba", "pizza"...'
             style={{
-              flex: 1,
-              padding: "12px 14px",
+              minWidth: 0,
+              padding: "12px 10px",
               borderRadius: 12,
               border: "2px solid rgba(200,168,75,0.5)",
-              fontSize: 15,
+              fontSize: 14,
               outline: "none",
               background: "rgba(255,255,255,0.95)",
               color: "#1a1a1a",
               fontWeight: 600,
+              width: "100%",
+              boxSizing: "border-box",
             }}
           />
           <button
             onClick={() => runSearch({ autoFill: true })}
             disabled={busy}
             style={{
-              padding: "12px 18px",
+              padding: "12px 16px",
               borderRadius: 12,
               border: "2px solid #c8a84b",
               fontWeight: 900,
-              fontSize: 15,
+              fontSize: 14,
               cursor: busy ? "not-allowed" : "pointer",
               background: "linear-gradient(180deg, #FFD700, #FFA500)",
               color: "#1a1a1a",
@@ -253,17 +258,18 @@ export default function DiscoverPage() {
           <button
             onClick={() => setShowFilters(!showFilters)}
             style={{
-              padding: "12px 14px",
+              padding: "12px 12px",
               borderRadius: 12,
               border: "2px solid rgba(200,168,75,0.4)",
               fontWeight: 900,
-              fontSize: 16,
+              fontSize: 13,
               cursor: "pointer",
               background: showFilters ? "rgba(255,215,0,0.2)" : "rgba(255,255,255,0.1)",
               color: "#FFD700",
+              whiteSpace: "nowrap",
             }}
           >
-            Filters
+            {showFilters ? "✕" : "Filter"}
           </button>
         </div>
 
@@ -334,7 +340,7 @@ export default function DiscoverPage() {
       </div>
 
       {/* MAP */}
-      <div style={{ height: 200, position: "relative", borderBottom: "3px solid rgba(200,168,75,0.4)" }}>
+      <div style={{ height: 180, position: "relative", borderBottom: "3px solid rgba(200,168,75,0.4)", overflow: "hidden" }}>
         <DiscoverMap
           merchants={items}
           nearMeEnabled={nearMe}
