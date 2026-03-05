@@ -396,55 +396,76 @@ export default function DiscoverPage() {
           </div>
         )}
 
-        {sortedItems.map((m) => (
+        {sortedItems.map((m) => {
+          const photo = (m.photoProcessedUrls?.[0] ?? m.photoUrls?.[0]) || null;
+          return (
           <a
             key={m.id}
             href={`/wheel?merchantId=${encodeURIComponent(m.id)}`}
             style={{
               display: "flex",
               alignItems: "center",
-              gap: 12,
+              gap: 14,
               background: "#ffffff",
               border: "1px solid #e5e7eb",
-              borderRadius: 14,
-              padding: "12px 14px",
+              borderRadius: 16,
+              padding: "16px 16px",
               textDecoration: "none",
               color: "#111827",
-              boxShadow: "0 1px 4px rgba(0,0,0,0.06)",
+              boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+              minHeight: 90,
             }}
           >
             {/* Info */}
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 16, fontWeight: 800, lineHeight: 1.2, color: "#111827" }}>
+            <div style={{ flex: 1, minWidth: 0 }}>  
+              <div style={{ fontSize: 20, fontWeight: 800, lineHeight: 1.2, color: "#111827" }}>
                 {m.name ?? m.id}
               </div>
-              <div style={{ fontSize: 13, fontWeight: 500, color: "#6b7280", marginTop: 3 }}>
+              <div style={{ fontSize: 15, fontWeight: 500, color: "#6b7280", marginTop: 5 }}>
                 {m.category ? titleCase(m.category) : ""}
                 {m.city ? ` — ${titleCase(m.city)}` : ""}
               </div>
               {m.distanceMiles != null && (
-                <div style={{ fontSize: 12, fontWeight: 600, color: "#16a34a", marginTop: 2 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#16a34a", marginTop: 4 }}>
                   {fmtMiles(m.distanceMiles)} away
                 </div>
               )}
             </div>
 
+            {/* Photo thumbnail */}
+            {photo && (
+              <img
+                src={photo}
+                alt={m.name ?? "merchant"}
+                style={{
+                  width: 72,
+                  height: 72,
+                  borderRadius: 12,
+                  objectFit: "cover",
+                  flexShrink: 0,
+                  border: "1px solid #e5e7eb",
+                }}
+              />
+            )}
+
             {/* Spin button */}
             <div style={{
-              padding: "10px 16px",
-              borderRadius: 10,
+              padding: "14px 20px",
+              borderRadius: 12,
               background: "linear-gradient(180deg, #FFD700, #FFA500)",
               fontWeight: 800,
-              fontSize: 14,
+              fontSize: 16,
               color: "#1a1a1a",
               whiteSpace: "nowrap",
               flexShrink: 0,
               border: "1px solid #d4a017",
+              boxShadow: "0 2px 6px rgba(0,0,0,0.12)",
             }}>
               Spin
             </div>
           </a>
-        ))}
+          );
+        })}
       </div>
     </main>
   );
