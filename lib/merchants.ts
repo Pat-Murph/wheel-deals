@@ -26,6 +26,11 @@ export type Merchant = {
 
   active?: boolean;
   wheel?: Array<{ label: string; weight: number }>;
+  /** Multi-wheel support: up to 3 wheels with different spin prices */
+  wheels?: Array<{
+    spinPriceCents: number;
+    items: Array<{ label: string; weight: number }>;
+  }>;
   website?: string;
   phone?: string;
 };
@@ -194,6 +199,7 @@ export async function getActiveMerchants(): Promise<Merchant[]> {
       cityLower: data.cityLower,
 
       wheel: safeArray<any>(data.wheel),
+      wheels: Array.isArray(data.wheels) ? data.wheels : undefined,
       active: data.active,
       website: data.website ?? undefined,
       phone: data.phone ?? undefined,

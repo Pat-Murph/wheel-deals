@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 export const dynamic = "force-dynamic";
 import { stripe } from "@/lib/stripeServer";
 import { adminDb } from "@/lib/firebaseAdmin";
-import { SPIN_PRICE_CENTS } from "@/lib/payments";
+import { VALID_SPIN_PRICES } from "@/lib/payments";
 import { FieldValue } from "firebase-admin/firestore";
 
 export async function POST(req: Request) {
@@ -35,8 +35,9 @@ export async function POST(req: Request) {
       );
     }
 
-    // Safety: verify amount matches spin price
-    if ((session.amount_total ?? 0) !== SPIN_PRICE_CENTS) {
+    // Safety: verify amount matches a valid spin price tier
+    const amountTotal = session.amount_total ?? 0;
+    if (!VALID_SPIN_PRICES.includes(amountTotal)) {
       return NextResponse.json(
         { ok: false, error: "Wrong amount" },
         { status: 400 }

@@ -26,6 +26,9 @@ type Props = {
 
   // ✅ needed for Stripe spin route + entitlement checks
   uid?: string;
+
+  // ✅ spin price in cents (135, 200, 300, or 500); defaults to 135
+  spinPriceCents?: number;
 };
 
 function clamp(n: number, min: number, max: number) {
@@ -44,8 +47,7 @@ const COLORS = [
   "#F472B6",
 ];
 
-// ✅ price shown to user (actual charge is enforced server-side)
-const SPIN_PRICE_LABEL = "$1.35";
+// ✅ price label is now dynamic (see spinPriceLabel() helper below)
 
 // ✅ Background music (put the mp3 at: public/audio/renaissance.mp3)
 const BG_MUSIC_SRC = "/audio/renaissance.mp3";
@@ -235,12 +237,23 @@ function getRotationDegFromElement(el: HTMLElement): number {
   return deg;
 }
 
+// Map cents to display label
+function spinPriceLabel(cents: number | undefined): string {
+  switch (cents) {
+    case 200: return "$2.00";
+    case 300: return "$3.00";
+    case 500: return "$5.00";
+    default:  return "$1.35";
+  }
+}
+
 export default function Wheel({
   items,
   size = 420,
   onResult,
   merchantId,
   uid,
+  spinPriceCents,
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
@@ -729,7 +742,7 @@ export default function Wheel({
       const res = await fetch("/api/stripe/spin", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ merchantId, uid }),
+        body: JSON.stringify({ merchantId, uid, spinPriceCents: spinPriceCents ?? 135 }),
       });
 
       const data = await res.json().catch(() => ({}));
@@ -753,7 +766,7 @@ export default function Wheel({
 
     // ✅ require verified entitlement
     if (!paidSpinReady || !verifiedSessionId) {
-      setPayStatus(`Pay ${SPIN_PRICE_LABEL} to spin.`);
+      setPayStatus(`Pay ${spinPriceLabel(spinPriceCents)} to spin.`);
       return;
     }
 
@@ -1069,7 +1082,7 @@ export default function Wheel({
                 : "0 12px 30px rgba(0,0,0,0.12), 0 0 20px rgba(255,217,61,0.22)",
             }}
           >
-            {payBusy ? "Opening checkout…" : `Pay ${SPIN_PRICE_LABEL} to spin`}
+            {payBusy ? "Opening checkout…" : `Pay ${spinPriceLabel(spinPriceCents)} to spin`}
           </button>
         ) : (
           <button
@@ -1091,7 +1104,7 @@ export default function Wheel({
                 : "0 12px 30px rgba(0,0,0,0.12), 0 0 20px rgba(255,217,61,0.22)",
             }}
           >
-            {spinning ? "Spinning..." : `Spin (${SPIN_PRICE_LABEL})`}
+            {spinning ? "Spinning..." : `Spin (${spinPriceLabel(spinPriceCents)})`}
           </button>
         )}
 

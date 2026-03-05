@@ -2,11 +2,13 @@ import { NextResponse } from "next/server";
 export const dynamic = "force-dynamic";
 import { stripe } from "@/lib/stripeServer";
 import { adminDb } from "@/lib/firebaseAdmin";
-import { SPIN_PRICE_CENTS, PLATFORM_FEE_CENTS } from "@/lib/payments";
+import { getTierByPrice, VALID_SPIN_PRICES, DEFAULT_TIER } from "@/lib/payments";
 
 export async function POST(req: Request) {
   try {
-    const { merchantId, uid } = await req.json();
+    const { merchantId, uid, spinPriceCents: rawPrice } = await req.json();
+    const spinPriceCents = VALID_SPIN_PRICES.includes(Number(rawPrice)) ? Number(rawPrice) : DEFAULT_TIER.priceCents;
+    const tier = getTierByPrice(spinPriceCents);
 
     if (!merchantId || !uid) {
       return NextResponse.json({ error: "Missing merchantId/uid" }, { status: 400 });
@@ -36,8 +38,8 @@ export async function POST(req: Request) {
           quantity: 1,
           price_data: {
             currency: "usd",
-            unit_amount: SPIN_PRICE_CENTS,
-            product_data: { name: "Wheel Deals Spin" },
+            unit_amount: tier.priceCents,
+            product_data: { name: `Wheel Deals Spin (${tier.label})` },
           },
         },
       ],
@@ -46,9 +48,9 @@ export async function POST(req: Request) {
       metadata: { merchantId, uid },
 
       payment_intent_data: {
-        application_fee_amount: PLATFORM_FEE_CENTS,
+        application_fee_amount: tier.platformFeeCents,
         transfer_data: { destination: stripeAccountId },
-        metadata: { merchantId, uid },
+        metadata: { merchantId, uid, spinPriceCents: String(tier.priceCents) },
       },
 
       // ✅ keep merchant in URL so the app stays on the right wheel after redirect

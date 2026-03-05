@@ -176,17 +176,39 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
   const website = (selectedMerchant as any)?.website || "";
   const phone = (selectedMerchant as any)?.phone || "";
 
-  const wheelItems: WheelItem[] = useMemo(() => {
-    const fromDoc = selectedMerchant ? getMerchantWheel(selectedMerchant as any) : null;
-    if (fromDoc) return fromDoc;
-    return [
-      { label: "10% OFF", weight: 40 },
-      { label: "15% OFF", weight: 25 },
-      { label: "20% OFF", weight: 20 },
-      { label: "BOGO", weight: 10 },
-      { label: "FREE UPGRADE", weight: 5 },
-    ];
+  // Multi-wheel support: derive list of wheels from merchant doc
+  const merchantWheels = useMemo(() => {
+    const m = selectedMerchant as any;
+    const rawWheels = Array.isArray(m?.wheels) ? m.wheels : [];
+    // Filter to valid wheels
+    const valid = rawWheels.filter(
+      (wc: any) => Array.isArray(wc?.items) && wc.items.length > 0
+    );
+    if (valid.length > 0) return valid as Array<{ spinPriceCents: number; items: WheelItem[] }>;
+    // Fall back to legacy single wheel
+    const legacy = getMerchantWheel(m);
+    if (legacy) return [{ spinPriceCents: 135, items: legacy }];
+    return [{
+      spinPriceCents: 135,
+      items: [
+        { label: "10% OFF", weight: 40 },
+        { label: "15% OFF", weight: 25 },
+        { label: "20% OFF", weight: 20 },
+        { label: "BOGO", weight: 10 },
+        { label: "FREE UPGRADE", weight: 5 },
+      ],
+    }];
   }, [selectedMerchant]);
+
+  const [selectedWheelIdx, setSelectedWheelIdx] = useState(0);
+
+  // Reset wheel selection when merchant changes
+  useEffect(() => {
+    setSelectedWheelIdx(0);
+  }, [selectedMerchantId]);
+
+  const activeWheel = merchantWheels[selectedWheelIdx] ?? merchantWheels[0];
+  const wheelItems: WheelItem[] = activeWheel?.items ?? [];
 
   const reportHref = useMemo(() => {
     const mid = selectedMerchant?.id ?? "";
@@ -404,6 +426,41 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
         Limit: <b>8 spins/day</b> per merchant
       </div>
 
+      {/* Wheel selector tabs (only shown when merchant has multiple wheels) */}
+      {merchantWheels.length > 1 && (
+        <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
+          {merchantWheels.map((wc, idx) => {
+            const label = wc.spinPriceCents === 135 ? "$1.35"
+              : wc.spinPriceCents === 200 ? "$2.00"
+              : wc.spinPriceCents === 300 ? "$3.00"
+              : wc.spinPriceCents === 500 ? "$5.00"
+              : `$${(wc.spinPriceCents / 100).toFixed(2)}`;
+            const active = idx === selectedWheelIdx;
+            return (
+              <button
+                key={idx}
+                onClick={() => setSelectedWheelIdx(idx)}
+                style={{
+                  padding: "10px 18px",
+                  borderRadius: 12,
+                  border: active ? "2px solid #F4B400" : "1px solid #e5e7eb",
+                  fontWeight: 900,
+                  fontSize: 14,
+                  cursor: "pointer",
+                  background: active
+                    ? "linear-gradient(180deg, rgba(255,217,61,0.95), rgba(255,155,61,0.95))"
+                    : "linear-gradient(180deg, #f9fafb, #fff)",
+                  boxShadow: active ? "0 4px 12px rgba(244,180,0,0.25)" : "none",
+                  color: "#111",
+                }}
+              >
+                {label} spin
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       {/* Wheel */}
       <div style={{ display: "flex", justifyContent: "center" }}>
         <Wheel
@@ -411,6 +468,7 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
           size={Math.min(320, typeof window !== "undefined" ? window.innerWidth - 40 : 320)}
           merchantId={selectedMerchant.id}
           uid={uid ?? undefined}
+          spinPriceCents={activeWheel?.spinPriceCents ?? 135}
           onResult={(label, extra) => {
             setLastPrize(label);
             setSpinError(null);

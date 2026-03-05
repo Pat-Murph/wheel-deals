@@ -23,6 +23,21 @@ import {
 } from "firebase/firestore";
 
 type WheelRow = { label: string; weight: number };
+type WheelConfig = { spinPriceCents: number; items: WheelRow[] };
+
+const SPIN_PRICE_OPTIONS = [
+  { cents: 135, label: "$1.35 spin" },
+  { cents: 200, label: "$2.00 spin" },
+  { cents: 300, label: "$3.00 spin" },
+  { cents: 500, label: "$5.00 spin" },
+];
+
+const DEFAULT_PRIZES: WheelRow[] = [
+  { label: "10% off", weight: 50 },
+  { label: "Free Drink", weight: 30 },
+  { label: "BOGO", weight: 15 },
+  { label: "Free item", weight: 5 },
+];
 
 function titleCase(s: string) {
   return (s || "")
@@ -145,6 +160,7 @@ async function saveMerchantForUser(args: {
   lng?: number;
 
   wheel: WheelRow[];
+  wheels: WheelConfig[];
   photoUrls: string[];
   termsAccepted: boolean;
 }) {
@@ -162,6 +178,7 @@ async function saveMerchantForUser(args: {
     lat,
     lng,
     wheel,
+    wheels,
     photoUrls,
     termsAccepted,
   } = args;
@@ -175,6 +192,14 @@ async function saveMerchantForUser(args: {
 
   if (!wheelItems.length)
     throw new Error("Add at least 1 wheel prize with a weight > 0.");
+
+  // Clean and validate the multi-wheel configs
+  const cleanedWheels = (Array.isArray(wheels) ? wheels : []).map((wc) => ({
+    spinPriceCents: Number(wc.spinPriceCents),
+    items: (Array.isArray(wc.items) ? wc.items : [])
+      .map((r) => ({ label: String(r.label ?? "").trim(), weight: Number(r.weight ?? 0) }))
+      .filter((r) => r.label && r.weight > 0),
+  })).filter((wc) => [135, 200, 300, 500].includes(wc.spinPriceCents) && wc.items.length > 0);
 
   const isEdit = !!merchantId;
 
@@ -205,6 +230,7 @@ async function saveMerchantForUser(args: {
     lng: typeof lng === "number" ? lng : null,
     photoUrls: photoUrls.slice(0, 12),
     wheel: wheelItems,
+    wheels: cleanedWheels,
     termsAccepted: !!termsAccepted,
     termsAcceptedVersion: 1,
     termsAcceptedAt: serverTimestamp(),
@@ -269,6 +295,7 @@ type MerchantDoc = {
   lat?: number | null;
   lng?: number | null;
   wheel?: Array<{ label: string; weight: number }>;
+  wheels?: Array<{ spinPriceCents: number; items: Array<{ label: string; weight: number }> }>;
   photoUrls?: string[];
 
   // ✅ NEW: terms acceptance (read for edit mode)
@@ -301,12 +328,12 @@ export default function MerchantOnboardPage() {
   const [lat, setLat] = useState<string>("");
   const [lng, setLng] = useState<string>("");
 
-  const [wheel, setWheel] = useState<WheelRow[]>([
-    { label: "10% off", weight: 50 },
-    { label: "Free Drink", weight: 30 },
-    { label: "BOGO slice", weight: 15 },
-    { label: "Free appetizer", weight: 5 },
+  // Multi-wheel state: up to 3 wheels, each with a price and prize list
+  const [wheels, setWheels] = useState<WheelConfig[]>([
+    { spinPriceCents: 135, items: [...DEFAULT_PRIZES] },
   ]);
+  // Keep legacy single-wheel state in sync with first wheel for backward compat
+  const wheel = wheels[0]?.items ?? DEFAULT_PRIZES;
 
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
@@ -356,13 +383,23 @@ export default function MerchantOnboardPage() {
 
         setUploadedPhotoUrls(Array.isArray(m.photoUrls) ? m.photoUrls : []);
 
-        if (Array.isArray(m.wheel) && m.wheel.length) {
-          setWheel(
-            m.wheel.map((r) => ({
+        // Prefill multi-wheel config if available, else fall back to legacy single wheel
+        if (Array.isArray(m.wheels) && m.wheels.length) {
+          setWheels(m.wheels.map((wc) => ({
+            spinPriceCents: Number(wc.spinPriceCents),
+            items: (Array.isArray(wc.items) ? wc.items : []).map((r) => ({
               label: String((r as any)?.label ?? "").trim(),
               weight: Number((r as any)?.weight ?? 0),
-            }))
-          );
+            })),
+          })));
+        } else if (Array.isArray(m.wheel) && m.wheel.length) {
+          setWheels([{
+            spinPriceCents: 135,
+            items: m.wheel.map((r) => ({
+              label: String((r as any)?.label ?? "").trim(),
+              weight: Number((r as any)?.weight ?? 0),
+            })),
+          }]);
         }
 
         // ✅ NEW: if they already accepted before, keep it checked
@@ -509,16 +546,41 @@ export default function MerchantOnboardPage() {
     }
   }
 
-  function updateWheel(i: number, patch: Partial<WheelRow>) {
-    setWheel((prev) => prev.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
+  // Multi-wheel helpers
+  function updateWheelItem(wi: number, ii: number, patch: Partial<WheelRow>) {
+    setWheels((prev) => prev.map((wc, wIdx) =>
+      wIdx !== wi ? wc : { ...wc, items: wc.items.map((r, rIdx) => rIdx === ii ? { ...r, ...patch } : r) }
+    ));
   }
 
-  function removeWheel(i: number) {
-    setWheel((prev) => prev.filter((_, idx) => idx !== i));
+  function removeWheelItem(wi: number, ii: number) {
+    setWheels((prev) => prev.map((wc, wIdx) =>
+      wIdx !== wi ? wc : { ...wc, items: wc.items.filter((_, rIdx) => rIdx !== ii) }
+    ));
   }
 
-  function addWheel() {
-    setWheel((prev) => [...prev, { label: "", weight: 10 }]);
+  function addWheelItem(wi: number) {
+    setWheels((prev) => prev.map((wc, wIdx) =>
+      wIdx !== wi ? wc : { ...wc, items: [...wc.items, { label: "", weight: 10 }] }
+    ));
+  }
+
+  function updateWheelPrice(wi: number, cents: number) {
+    setWheels((prev) => prev.map((wc, wIdx) => wIdx !== wi ? wc : { ...wc, spinPriceCents: cents }));
+  }
+
+  function addNewWheel() {
+    if (wheels.length >= 3) return;
+    // Pick a price not already used
+    const usedPrices = new Set(wheels.map((wc) => wc.spinPriceCents));
+    const nextPrice = SPIN_PRICE_OPTIONS.find((o) => !usedPrices.has(o.cents));
+    if (!nextPrice) return;
+    setWheels((prev) => [...prev, { spinPriceCents: nextPrice.cents, items: [...DEFAULT_PRIZES] }]);
+  }
+
+  function removeWheelConfig(wi: number) {
+    if (wheels.length <= 1) return;
+    setWheels((prev) => prev.filter((_, wIdx) => wIdx !== wi));
   }
 
   async function uploadPhotos(uid: string) {
@@ -591,7 +653,7 @@ export default function MerchantOnboardPage() {
       if (!category.trim()) throw new Error("Category is required.");
       if (!city.trim()) throw new Error("City is required.");
 
-      const cleanedWheel = wheel
+      const cleanedWheel = (wheels[0]?.items ?? [])
         .map((r) => ({
           label: String(r.label ?? "").trim(),
           weight: Number(r.weight ?? 0),
@@ -599,7 +661,7 @@ export default function MerchantOnboardPage() {
         .filter((r) => r.label && r.weight > 0);
 
       if (!cleanedWheel.length)
-        throw new Error("Add at least 1 wheel prize with a weight > 0.");
+        throw new Error("Add at least 1 prize to your first wheel.");
 
       const latNum = lat.trim() ? Number(lat) : undefined;
       const lngNum = lng.trim() ? Number(lng) : undefined;
@@ -634,6 +696,7 @@ export default function MerchantOnboardPage() {
         lat: latNum,
         lng: lngNum,
         wheel: cleanedWheel,
+        wheels,
         photoUrls: urls,
 
         // ✅ NEW
@@ -1055,54 +1118,84 @@ export default function MerchantOnboardPage() {
         </div>
       </div>
 
-      {/* Step 3: Wheel */}
+      {/* Step 3: Wheels */}
       <div style={{ ...card(), opacity: locked ? 0.6 : 1 }}>
-        <div style={{ fontWeight: 950, fontSize: 18 }}>Step 3 — Wheel prizes + odds</div>
-        <div style={{ opacity: 0.7, fontWeight: 800, marginTop: 8 }}>
-          Higher weight = more likely. Example: 50 is more common than 5.
+        <div style={{ fontWeight: 950, fontSize: 18 }}>Step 3 — Wheels (up to 3)</div>
+        <div style={{ opacity: 0.7, fontWeight: 800, marginTop: 4, fontSize: 14 }}>
+          Each wheel has its own spin price and prize list. Higher weight = more likely.
         </div>
 
-        <div style={{ display: "grid", gap: 10, marginTop: 12 }}>
-          {wheel.map((row, i) => (
-            <div
-              key={i}
-              style={{
-                display: "grid",
-                gap: 8,
-                gridTemplateColumns: "1fr 90px auto",
-                alignItems: "center",
-              }}
-            >
-              <input
-                value={row.label}
-                onChange={(e) => updateWheel(i, { label: e.target.value })}
-                placeholder="Prize label"
-                style={inputStyle()}
-                disabled={!user || busy}
-              />
-              <input
-                value={String(row.weight)}
-                onChange={(e) => updateWheel(i, { weight: Number(e.target.value || 0) })}
-                placeholder="Weight"
-                style={inputStyle()}
-                disabled={!user || busy}
-              />
-              <button
-                onClick={() => removeWheel(i)}
-                disabled={!user || busy || wheel.length <= 1}
-                style={btnRed(!user || busy || wheel.length <= 1)}
-              >
-                Remove
+        {wheels.map((wc, wi) => {
+          const usedPrices = new Set(wheels.map((w, idx) => idx !== wi ? w.spinPriceCents : null));
+          return (
+            <div key={wi} style={{ marginTop: 16, border: "1px solid #e5e7eb", borderRadius: 14, padding: 14 }}>
+              {/* Wheel header: price selector + remove */}
+              <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", marginBottom: 12 }}>
+                <div style={{ fontWeight: 900, fontSize: 15 }}>Wheel {wi + 1}</div>
+                <select
+                  value={wc.spinPriceCents}
+                  onChange={(e) => updateWheelPrice(wi, Number(e.target.value))}
+                  disabled={!user || busy}
+                  style={{ ...inputStyle(), width: "auto", flex: 1 }}
+                >
+                  {SPIN_PRICE_OPTIONS.map((opt) => (
+                    <option key={opt.cents} value={opt.cents} disabled={usedPrices.has(opt.cents)}>
+                      {opt.label}{usedPrices.has(opt.cents) ? " (in use)" : ""}
+                    </option>
+                  ))}
+                </select>
+                {wheels.length > 1 && (
+                  <button onClick={() => removeWheelConfig(wi)} disabled={!user || busy} style={btnRed(!user || busy)}>
+                    Remove wheel
+                  </button>
+                )}
+              </div>
+
+              {/* Prize rows */}
+              <div style={{ display: "grid", gap: 8 }}>
+                {wc.items.map((row, ii) => (
+                  <div key={ii} style={{ display: "grid", gap: 8, gridTemplateColumns: "1fr 80px auto", alignItems: "center" }}>
+                    <input
+                      value={row.label}
+                      onChange={(e) => updateWheelItem(wi, ii, { label: e.target.value })}
+                      placeholder="Prize label"
+                      style={inputStyle()}
+                      disabled={!user || busy}
+                    />
+                    <input
+                      value={String(row.weight)}
+                      onChange={(e) => updateWheelItem(wi, ii, { weight: Number(e.target.value || 0) })}
+                      placeholder="Weight"
+                      style={inputStyle()}
+                      disabled={!user || busy}
+                    />
+                    <button
+                      onClick={() => removeWheelItem(wi, ii)}
+                      disabled={!user || busy || wc.items.length <= 1}
+                      style={btnRed(!user || busy || wc.items.length <= 1)}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              <button onClick={() => addWheelItem(wi)} disabled={!user || busy} style={{ ...btnGray(!user || busy), marginTop: 10, fontSize: 13 }}>
+                + Add prize
               </button>
             </div>
-          ))}
-        </div>
+          );
+        })}
 
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 12 }}>
-          <button onClick={addWheel} disabled={!user || busy} style={btnGray(!user || busy)}>
-            + Add prize
+        {wheels.length < 3 && (
+          <button
+            onClick={addNewWheel}
+            disabled={!user || busy}
+            style={{ ...btnGold(!user || busy), marginTop: 14, width: "100%" }}
+          >
+            + Add another wheel
           </button>
-        </div>
+        )}
       </div>
 
       {/* ✅ NEW: Merchant Terms */}
