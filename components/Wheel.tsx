@@ -316,6 +316,9 @@ export default function Wheel({
   const bgAudioRef = useRef<HTMLAudioElement | null>(null);
   const [musicOn, setMusicOn] = useState(true);
 
+  // ✅ Prize list overlay
+  const [showPrizes, setShowPrizes] = useState(false);
+
   const startBgMusic = async () => {
     try {
       if (!musicOn) return;
@@ -983,8 +986,133 @@ export default function Wheel({
         )}
       </div>
 
+      {/* ✅ "Tap to enlarge prizes" hint */}
+      <button
+        onClick={() => setShowPrizes(true)}
+        style={{
+          background: "none",
+          border: "none",
+          cursor: "pointer",
+          fontSize: 12,
+          fontWeight: 800,
+          opacity: 0.65,
+          color: "#111",
+          padding: "2px 6px",
+          marginTop: -6,
+          letterSpacing: 0.2,
+          textDecoration: "underline dotted",
+        }}
+      >
+        Tap wheel to enlarge prizes ↗️
+      </button>
+
+      {/* ✅ Prize enlarger overlay */}
+      {showPrizes && (
+        <div
+          onClick={() => setShowPrizes(false)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 9999,
+            background: "rgba(0,0,0,0.45)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 20,
+            backdropFilter: "blur(4px)",
+            WebkitBackdropFilter: "blur(4px)",
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: "rgba(255,255,255,0.97)",
+              borderRadius: 22,
+              padding: "20px 18px",
+              maxWidth: 360,
+              width: "100%",
+              boxShadow: "0 24px 60px rgba(0,0,0,0.22)",
+              display: "flex",
+              flexDirection: "column",
+              gap: 12,
+              maxHeight: "80vh",
+              overflowY: "auto",
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div style={{ fontWeight: 950, fontSize: 17 }}>Prize List</div>
+              <button
+                onClick={() => setShowPrizes(false)}
+                style={{
+                  background: "none",
+                  border: "none",
+                  fontSize: 22,
+                  cursor: "pointer",
+                  lineHeight: 1,
+                  color: "#555",
+                  padding: "2px 6px",
+                }}
+              >
+                ×
+              </button>
+            </div>
+
+            {/* Prize rows */}
+            {items.map((item, idx) => {
+              const pct = totalWeight > 0
+                ? ((Number(item.weight) / totalWeight) * 100).toFixed(1)
+                : "0.0";
+              const color = ["#FF4D6D","#FFD93D","#34D399","#60A5FA","#A78BFA","#FB923C","#22C55E","#F472B6"][idx % 8];
+              return (
+                <div
+                  key={idx}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 12,
+                    padding: "10px 12px",
+                    borderRadius: 12,
+                    background: "#f9fafb",
+                    border: "1px solid #e5e7eb",
+                  }}
+                >
+                  <div
+                    style={{
+                      width: 14,
+                      height: 14,
+                      borderRadius: 4,
+                      background: color,
+                      flexShrink: 0,
+                    }}
+                  />
+                  <div style={{ flex: 1, fontWeight: 900, fontSize: 15 }}>{item.label}</div>
+                  <div
+                    style={{
+                      fontWeight: 800,
+                      fontSize: 13,
+                      color: "#6b7280",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {pct}% chance
+                  </div>
+                </div>
+              );
+            })}
+
+            <div style={{ fontSize: 11, opacity: 0.55, fontWeight: 700, textAlign: "center" }}>
+              Tap anywhere outside to close
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Wheel + pointer */}
-      <div style={fancyContainerStyle}>
+      <div
+        style={{ ...fancyContainerStyle, cursor: "pointer" }}
+        onClick={() => setShowPrizes(true)}
+        title="Tap to see prizes"
+      >
         {/* Pointer triangle (points UP) */}
         <div
           style={{
@@ -1046,6 +1174,7 @@ export default function Wheel({
                 : "transform 0.2s ease-out",
             }}
             onTransitionEnd={onSpinEnd}
+            onClick={(e) => e.stopPropagation()}
           >
             <canvas ref={canvasRef} />
           </div>
