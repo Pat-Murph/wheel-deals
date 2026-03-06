@@ -1003,7 +1003,7 @@ export default function Wheel({
           textDecoration: "underline dotted",
         }}
       >
-        Tap wheel to enlarge prizes ↗️
+        Tap here to see prizes
       </button>
 
       {/* ✅ Prize enlarger overlay */}
