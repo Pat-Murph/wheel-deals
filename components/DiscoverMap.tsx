@@ -57,7 +57,7 @@ function FitToPoints({ points }: { points: Array<[number, number]> }) {
     prev.current = key;
     try {
       const bounds = L.latLngBounds(points.map((p) => L.latLng(p[0], p[1])));
-      map.fitBounds(bounds.pad(0.25), { animate: false });
+      map.fitBounds(bounds.pad(0.35), { animate: false, maxZoom: 14 });
     } catch {
       // map may not be ready yet — safe to ignore
     }
@@ -144,9 +144,7 @@ export default function DiscoverMap({
       <div
         style={{
           width: "100%",
-          height: 420,
-          borderRadius: 16,
-          border: "1px solid #ddd",
+          height: 220,
           background: "#f3f4f6",
           display: "grid",
           placeItems: "center",
@@ -208,8 +206,8 @@ export default function DiscoverMap({
 
       <div
         style={{
-          border: "1px solid #ddd",
-          borderRadius: 16,
+          border: "none",
+          borderRadius: 0,
           overflow: "hidden",
           background: "white",
         }}
@@ -219,7 +217,7 @@ export default function DiscoverMap({
           center={center}
           zoom={12}
           scrollWheelZoom
-          style={{ height: 420, width: "100%" }}
+          style={{ height: 220, width: "100%" }}
         >
           <TileLayer
             attribution="&copy; OpenStreetMap contributors"

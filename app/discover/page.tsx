@@ -186,7 +186,7 @@ export default function DiscoverPage() {
         <img
           src="/wheel-deals-discover.png"
           alt="Wheel Deals Discover"
-          style={{ height: 90, width: "auto", objectFit: "contain" }}
+          style={{ height: 120, width: "auto", objectFit: "contain" }}
         />
         <a href="/merchant" style={{
           position: "absolute",
@@ -367,7 +367,7 @@ export default function DiscoverPage() {
       </div>
 
       {/* MAP */}
-      <div style={{ height: 180, position: "relative", borderBottom: "1px solid #e5e7eb", overflow: "hidden" }}>
+      <div style={{ height: 220, position: "relative", borderBottom: "1px solid #e5e7eb" }}>
         <DiscoverMap
           merchants={sortedItems}
           nearMeEnabled={nearMe}
