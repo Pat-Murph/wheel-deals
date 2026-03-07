@@ -591,9 +591,10 @@ export default function Wheel({
       ctx.textAlign = "right";
       ctx.textBaseline = "middle";
       ctx.fillStyle = "rgba(0,0,0,0.88)";
-      ctx.font = "800 14px system-ui, -apple-system, Segoe UI, Roboto, Arial";
-      const displayLabel = (s.label || "").length > 11 ? (s.label || "").slice(0, 11) + "…" : (s.label || "");
-      ctx.fillText(displayLabel, radius - 22, 0);
+      ctx.font = "800 12px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+      const displayLabel = (s.label || "").length > 8 ? (s.label || "").slice(0, 8) + "\u2026" : (s.label || "");
+      // draw text in the outer 45% of the slice only (from 55% radius to edge)
+      ctx.fillText(displayLabel, radius - 18, 0);
 
       ctx.restore();
     }
