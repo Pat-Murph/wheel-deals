@@ -174,37 +174,36 @@ export default function DiscoverPage() {
       <div style={{
         background: "#ffffff",
         borderBottom: "1px solid #e5e7eb",
-        padding: "12px 14px 16px",
+        padding: "8px 14px",
         display: "flex",
-        flexDirection: "column",
+        flexDirection: "row",
         alignItems: "center",
-        gap: 12,
+        justifyContent: "space-between",
         flexShrink: 0,
         boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
       }}>
-        {/* Logo — centered */}
+        {/* Logo — left */}
         <img
           src="/wheel-deals-discover.png"
           alt="Wheel Deals Discover"
           style={{ height: 160, width: "auto", objectFit: "contain" }}
         />
-        {/* Merchant button — right-aligned below logo */}
-        <div style={{ width: "100%", display: "flex", justifyContent: "flex-end" }}>
-          <a href="/merchant" style={{
-            fontSize: 14,
-            fontWeight: 800,
-            color: "#1a1a1a",
-            textDecoration: "none",
-            padding: "10px 20px",
-            borderRadius: 12,
-            background: "linear-gradient(180deg, #FFD700, #FFA500)",
-            border: "1px solid #d4a017",
-            whiteSpace: "nowrap",
-            boxShadow: "0 2px 6px rgba(0,0,0,0.12)",
-          }}>
-            Merchant
-          </a>
-        </div>
+        {/* Merchant button — right */}
+        <a href="/merchant" style={{
+          fontSize: 14,
+          fontWeight: 800,
+          color: "#1a1a1a",
+          textDecoration: "none",
+          padding: "10px 20px",
+          borderRadius: 12,
+          background: "linear-gradient(180deg, #FFD700, #FFA500)",
+          border: "1px solid #d4a017",
+          whiteSpace: "nowrap",
+          boxShadow: "0 2px 6px rgba(0,0,0,0.12)",
+          flexShrink: 0,
+        }}>
+          Merchant
+        </a>
       </div>
 
       {/* FOUNDING BANNER */}
