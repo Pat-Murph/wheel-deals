@@ -174,29 +174,28 @@ export default function DiscoverPage() {
       <div style={{
         background: "#ffffff",
         borderBottom: "1px solid #e5e7eb",
-        padding: "12px 14px",
+        padding: "12px 14px 16px",
         display: "flex",
+        flexDirection: "column",
         alignItems: "center",
-        justifyContent: "center",
-        position: "relative",
+        gap: 12,
         flexShrink: 0,
         boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
       }}>
-        {/* Logo only — centered */}
+        {/* Logo — centered */}
         <img
           src="/wheel-deals-discover.png"
           alt="Wheel Deals Discover"
-          style={{ height: 160, width: "auto", objectFit: "contain" }}
+          style={{ height: 200, width: "auto", objectFit: "contain" }}
         />
+        {/* Merchant button — below logo, not overlapping */}
         <a href="/merchant" style={{
-          position: "absolute",
-          right: 14,
-          fontSize: 13,
+          fontSize: 14,
           fontWeight: 800,
           color: "#1a1a1a",
           textDecoration: "none",
-          padding: "8px 14px",
-          borderRadius: 10,
+          padding: "10px 28px",
+          borderRadius: 12,
           background: "linear-gradient(180deg, #FFD700, #FFA500)",
           border: "1px solid #d4a017",
           whiteSpace: "nowrap",
