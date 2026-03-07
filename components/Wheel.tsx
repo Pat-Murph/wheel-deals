@@ -592,7 +592,8 @@ export default function Wheel({
       ctx.textBaseline = "middle";
       ctx.fillStyle = "rgba(0,0,0,0.88)";
       ctx.font = "800 14px system-ui, -apple-system, Segoe UI, Roboto, Arial";
-      ctx.fillText(s.label || "", radius - 22, 0);
+      const displayLabel = (s.label || "").length > 11 ? (s.label || "").slice(0, 11) + "…" : (s.label || "");
+      ctx.fillText(displayLabel, radius - 22, 0);
 
       ctx.restore();
     }
