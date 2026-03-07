@@ -186,23 +186,25 @@ export default function DiscoverPage() {
         <img
           src="/wheel-deals-discover.png"
           alt="Wheel Deals Discover"
-          style={{ height: 200, width: "auto", objectFit: "contain" }}
+          style={{ height: 160, width: "auto", objectFit: "contain" }}
         />
-        {/* Merchant button — below logo, not overlapping */}
-        <a href="/merchant" style={{
-          fontSize: 14,
-          fontWeight: 800,
-          color: "#1a1a1a",
-          textDecoration: "none",
-          padding: "10px 28px",
-          borderRadius: 12,
-          background: "linear-gradient(180deg, #FFD700, #FFA500)",
-          border: "1px solid #d4a017",
-          whiteSpace: "nowrap",
-          boxShadow: "0 2px 6px rgba(0,0,0,0.12)",
-        }}>
-          Merchant
-        </a>
+        {/* Merchant button — right-aligned below logo */}
+        <div style={{ width: "100%", display: "flex", justifyContent: "flex-end" }}>
+          <a href="/merchant" style={{
+            fontSize: 14,
+            fontWeight: 800,
+            color: "#1a1a1a",
+            textDecoration: "none",
+            padding: "10px 20px",
+            borderRadius: 12,
+            background: "linear-gradient(180deg, #FFD700, #FFA500)",
+            border: "1px solid #d4a017",
+            whiteSpace: "nowrap",
+            boxShadow: "0 2px 6px rgba(0,0,0,0.12)",
+          }}>
+            Merchant
+          </a>
+        </div>
       </div>
 
       {/* FOUNDING BANNER */}
