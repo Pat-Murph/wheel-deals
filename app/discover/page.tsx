@@ -186,7 +186,7 @@ export default function DiscoverPage() {
         <img
           src="/wheel-deals-discover.png"
           alt="Wheel Deals Discover"
-          style={{ height: 120, width: "auto", objectFit: "contain" }}
+          style={{ height: 160, width: "auto", objectFit: "contain" }}
         />
         <a href="/merchant" style={{
           position: "absolute",
