@@ -209,29 +209,37 @@ export default function DiscoverPage() {
       {/* FOUNDING BANNER */}
       {foundingRemaining > 0 && (
         <div style={{
-          background: "linear-gradient(90deg, #16a34a, #22c55e)",
-          padding: "10px 14px",
+          background: "linear-gradient(135deg, #15803d, #16a34a, #22c55e)",
+          padding: "12px 14px",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          gap: 8,
+          gap: 10,
           flexShrink: 0,
+          boxShadow: "0 2px 6px rgba(0,0,0,0.15)",
         }}>
-          <div style={{ fontSize: 13, fontWeight: 800, color: "#ffffff" }}>
-            Founding Merchant — {foundingRemaining}/{FOUNDING_MERCHANT_LIMIT} spots left
+          <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+            <div style={{ fontSize: 13, fontWeight: 900, color: "#ffffff", letterSpacing: 0.2 }}>
+              🎡 Own a business? Build a spin wheel.
+            </div>
+            <div style={{ fontSize: 11.5, fontWeight: 600, color: "rgba(255,255,255,0.92)", lineHeight: 1.4 }}>
+              Earn from every spin · Free to sign up · {foundingRemaining} founding spots left
+            </div>
           </div>
           <a href="/merchant/onboard" style={{
             fontSize: 12,
             fontWeight: 800,
-            color: "#1a1a1a",
+            color: "#15803d",
             background: "#ffffff",
-            padding: "7px 12px",
-            borderRadius: 8,
+            padding: "9px 13px",
+            borderRadius: 9,
             textDecoration: "none",
             whiteSpace: "nowrap",
-            border: "1px solid rgba(0,0,0,0.1)",
+            border: "1px solid rgba(0,0,0,0.08)",
+            boxShadow: "0 1px 4px rgba(0,0,0,0.1)",
+            flexShrink: 0,
           }}>
-            Claim spot
+            Get started
           </a>
         </div>
       )}
