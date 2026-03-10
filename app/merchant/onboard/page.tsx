@@ -707,17 +707,35 @@ export default function MerchantOnboardPage() {
 
       // ✅ Claim a founding merchant spot for NEW merchants only (not edits)
       if (!merchantId) {
+        let foundingNum: number | null = null;
         try {
-          const foundingNumber = await claimFoundingSpot(res.merchantId);
-          if (foundingNumber !== null) {
+          foundingNum = await claimFoundingSpot(res.merchantId);
+          if (foundingNum !== null) {
             setStatus(
-              `✅ Merchant created! You're the owner. 🎉 You are Founding Merchant #${foundingNumber} — you qualify for the 20% profit share program!`
+              `✅ Merchant created! You're the owner. 🎉 You are Founding Merchant #${foundingNum} — you qualify for the founding profit share program!`
             );
           } else {
             setStatus("✅ Merchant created! You're the owner.");
           }
         } catch {
           setStatus("✅ Merchant created! You're the owner.");
+        }
+        // Send agreement emails (fire-and-forget — don't block UI)
+        try {
+          await fetch("/api/email/merchant-agreement", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              merchantName: name.trim(),
+              merchantId: res.merchantId,
+              merchantEmail: user.email ?? "",
+              foundingNumber: foundingNum,
+              acceptedAt: new Date().toISOString(),
+            }),
+          });
+        } catch (emailErr) {
+          // Email failure is non-fatal — merchant is still created
+          console.warn("Agreement email failed:", emailErr);
         }
       } else {
         setStatus("✅ Saved! Changes live now.");
@@ -1200,19 +1218,42 @@ export default function MerchantOnboardPage() {
 
       {/* ✅ NEW: Merchant Terms */}
       <div style={{ ...card(), opacity: locked ? 0.6 : 1 }}>
-        <div style={{ fontWeight: 950, fontSize: 18 }}>Step 4 — Merchant terms</div>
+        <div style={{ fontWeight: 950, fontSize: 18 }}>Step 4 — Founding Merchant Agreement</div>
         <div style={{ opacity: 0.7, fontWeight: 800, marginTop: 8 }}>
           Required to publish a wheel.
         </div>
 
+        {/* Terms summary bullets */}
+        <ul style={{ fontSize: 13, lineHeight: 1.7, marginTop: 12, paddingLeft: 18, color: "#374151" }}>
+          <li>Prizes are <b>not cash</b> and have no cash value.</li>
+          <li>A <b>prize is always awarded</b> on every spin — no “no prize” outcomes.</li>
+          <li>Your business handles all <b>customer disputes</b> related to redemption.</li>
+          <li>Verification is required before <b>profit share payouts</b> are released.</li>
+          <li><b>Free to sign up</b> — WheelDeals earns only from the platform split per spin.</li>
+        </ul>
+
+        {/* Profit split summary */}
+        <div style={{ marginTop: 12, background: "#fef9c3", border: "1px solid #fde68a", borderRadius: 8, padding: "10px 14px", fontSize: 13 }}>
+          <div style={{ fontWeight: 900, marginBottom: 6 }}>Your earnings per spin (after Stripe fees):</div>
+          <div>$1.35 spin → <b>70% to you</b> (~$0.72) &nbsp;|&nbsp; $2.00 spin → <b>70%</b> (~$1.10)</div>
+          <div style={{ marginTop: 4 }}>$3.00 spin → <b>70%</b> (~$1.72) &nbsp;|&nbsp; $5.00 spin → <b>75% to you</b> (~$3.17)</div>
+        </div>
+
+        <div style={{ marginTop: 12, fontSize: 13 }}>
+          <a href="/merchant/terms" target="_blank" style={{ color: "#d97706", fontWeight: 800, textDecoration: "underline" }}>
+            Read the full Founding Merchant Terms &amp; Conditions ↗
+          </a>
+        </div>
+
         <label
           style={{
-            marginTop: 12,
+            marginTop: 14,
             display: "flex",
             gap: 10,
             alignItems: "flex-start",
             fontWeight: 850,
             lineHeight: 1.35,
+            fontSize: 14,
           }}
         >
           <input
@@ -1220,16 +1261,16 @@ export default function MerchantOnboardPage() {
             checked={acceptMerchantTerms}
             onChange={(e) => setAcceptMerchantTerms(e.target.checked)}
             disabled={!user || busy}
-            style={{ marginTop: 4 }}
+            style={{ marginTop: 3, width: 16, height: 16 }}
           />
           <span>
-            I agree that my Wheel Deals prizes are <b>not cash</b>, a <b>prize is always awarded</b> on every spin,
-            and my business will <b>handle any customer disputes</b> related to redemption.
+            I have read and agree to the{" "}
+            <a href="/merchant/terms" target="_blank" style={{ color: "#d97706" }}>Founding Merchant Terms &amp; Conditions</a>.
           </span>
         </label>
 
         {!acceptMerchantTerms && user && (
-          <div style={{ marginTop: 10, fontWeight: 900, color: "#b91c1c" }}>
+          <div style={{ marginTop: 10, fontWeight: 900, color: "#b91c1c", fontSize: 13 }}>
             Please check the box to continue.
           </div>
         )}
@@ -1252,6 +1293,19 @@ export default function MerchantOnboardPage() {
             </a>
             <a href="/discover" style={linkGray()}>
               View on Discover →
+            </a>
+            <a
+              href={`/api/flyer/${merchantId}`}
+              target="_blank"
+              style={{
+                fontSize: 13,
+                fontWeight: 800,
+                color: "#15803d",
+                textDecoration: "underline",
+                cursor: "pointer",
+              }}
+            >
+              Download In-Store Flyer (PDF)
             </a>
             <button onClick={doSignOut} style={btnGray(false)}>
               Sign out
