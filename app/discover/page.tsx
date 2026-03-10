@@ -220,7 +220,7 @@ export default function DiscoverPage() {
         }}>
           <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
             <div style={{ fontSize: 13, fontWeight: 900, color: "#ffffff", letterSpacing: 0.2 }}>
-              Own a business? Build a spin wheel.
+              Own a business? Get discovered. Build a spin wheel.
             </div>
             <div style={{ fontSize: 11.5, fontWeight: 600, color: "rgba(255,255,255,0.92)", lineHeight: 1.4 }}>
               Earn from every spin · Free to sign up · {foundingRemaining} founding spots left
