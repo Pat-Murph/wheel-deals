@@ -460,9 +460,9 @@ export default function DiscoverPage() {
                 loading="lazy"
                 decoding="async"
                 style={{
-                  width: 160,
-                  height: 80,
-                  borderRadius: 10,
+                  width: 130,
+                  height: 90,
+                  borderRadius: 8,
                   objectFit: "cover",
                   flexShrink: 0,
                   border: "1px solid #e5e7eb",
