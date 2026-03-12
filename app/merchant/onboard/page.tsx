@@ -795,6 +795,44 @@ export default function MerchantOnboardPage() {
         </a>
       </div>
 
+      {/* FOUNDING TIER BRACKET */}
+      <div style={{
+        background: "linear-gradient(135deg, #15803d, #16a34a, #22c55e)",
+        borderRadius: 14,
+        padding: "14px 16px",
+        color: "#ffffff",
+        boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
+      }}>
+        <div style={{ fontWeight: 900, fontSize: 14, marginBottom: 10, letterSpacing: 0.2 }}>
+          🏅 Founding Merchant Tier Program
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "3px 0", background: "rgba(255,255,255,0.12)", borderRadius: 10, overflow: "hidden", fontSize: 12 }}>
+          {/* Header */}
+          <div style={{ padding: "5px 8px", fontWeight: 800, color: "rgba(255,255,255,0.7)", borderBottom: "1px solid rgba(255,255,255,0.15)" }}>Tier</div>
+          <div style={{ padding: "5px 8px", fontWeight: 800, color: "rgba(255,255,255,0.7)", borderBottom: "1px solid rgba(255,255,255,0.15)" }}>Merchants</div>
+          <div style={{ padding: "5px 8px", fontWeight: 800, color: "rgba(255,255,255,0.7)", borderBottom: "1px solid rgba(255,255,255,0.15)" }}>Recognition</div>
+          {/* Diamond */}
+          <div style={{ padding: "6px 8px", fontWeight: 700 }}>💎 Diamond</div>
+          <div style={{ padding: "6px 8px", color: "rgba(255,255,255,0.9)" }}>First 20</div>
+          <div style={{ padding: "6px 8px", color: "rgba(255,255,255,0.9)" }}>Highest</div>
+          {/* Platinum */}
+          <div style={{ padding: "6px 8px", fontWeight: 700 }}>🏆 Platinum</div>
+          <div style={{ padding: "6px 8px", color: "rgba(255,255,255,0.9)" }}>#21–100</div>
+          <div style={{ padding: "6px 8px", color: "rgba(255,255,255,0.9)" }}>Early pioneer</div>
+          {/* Gold */}
+          <div style={{ padding: "6px 8px", fontWeight: 700 }}>🥇 Gold</div>
+          <div style={{ padding: "6px 8px", color: "rgba(255,255,255,0.9)" }}>#101–300</div>
+          <div style={{ padding: "6px 8px", color: "rgba(255,255,255,0.9)" }}>Early adopter</div>
+          {/* Silver */}
+          <div style={{ padding: "6px 8px", fontWeight: 700 }}>🥈 Silver</div>
+          <div style={{ padding: "6px 8px", color: "rgba(255,255,255,0.9)" }}>#301–1,000</div>
+          <div style={{ padding: "6px 8px", color: "rgba(255,255,255,0.9)" }}>Founding member</div>
+        </div>
+        <div style={{ marginTop: 10, fontSize: 11, color: "rgba(255,255,255,0.8)", lineHeight: 1.5 }}>
+          Sign up now to lock in your tier. Founding merchants may receive future benefits, promotional advantages, or recognition as the platform grows.
+        </div>
+      </div>
+
       {/* Step 1: Auth */}
       <div style={card()}>
         {!user ? (

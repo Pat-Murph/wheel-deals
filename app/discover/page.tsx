@@ -214,60 +214,38 @@ export default function DiscoverPage() {
       {/* FOUNDING BANNER */}
       {foundingRemaining > 0 && (
         <div style={{
-          background: "linear-gradient(135deg, #1e1b4b, #312e81, #4338ca)",
-          padding: "14px 14px 12px",
+          background: "linear-gradient(135deg, #15803d, #16a34a, #22c55e)",
+          padding: "12px 14px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 10,
           flexShrink: 0,
-          boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
+          boxShadow: "0 2px 6px rgba(0,0,0,0.15)",
         }}>
-          {/* Header row */}
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-            <div>
-              <div style={{ fontSize: 13, fontWeight: 900, color: "#ffffff", letterSpacing: 0.2 }}>
-                Own a business? Get discovered. Build a spin wheel.
-              </div>
-              <div style={{ fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.8)", marginTop: 2 }}>
-                Free to sign up · {foundingRemaining} founding spots left
-              </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+            <div style={{ fontSize: 13, fontWeight: 900, color: "#ffffff", letterSpacing: 0.2 }}>
+              Own a business? Get discovered. Build a spin wheel.
             </div>
-            <a href="/merchant/onboard" style={{
-              fontSize: 12,
-              fontWeight: 800,
-              color: "#312e81",
-              background: "#ffffff",
-              padding: "8px 12px",
-              borderRadius: 9,
-              textDecoration: "none",
-              whiteSpace: "nowrap",
-              border: "1px solid rgba(0,0,0,0.08)",
-              boxShadow: "0 1px 4px rgba(0,0,0,0.1)",
-              flexShrink: 0,
-            }}>
-              Get started
-            </a>
+            <div style={{ fontSize: 11.5, fontWeight: 600, color: "rgba(255,255,255,0.92)", lineHeight: 1.4 }}>
+              Earn from every spin · Free to sign up · {foundingRemaining} founding spots left
+            </div>
           </div>
-          {/* Tier table */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "4px 0", background: "rgba(255,255,255,0.08)", borderRadius: 10, overflow: "hidden", fontSize: 11 }}>
-            {/* Header */}
-            <div style={{ padding: "5px 8px", fontWeight: 800, color: "rgba(255,255,255,0.6)", borderBottom: "1px solid rgba(255,255,255,0.12)" }}>Tier</div>
-            <div style={{ padding: "5px 8px", fontWeight: 800, color: "rgba(255,255,255,0.6)", borderBottom: "1px solid rgba(255,255,255,0.12)" }}>Merchants</div>
-            <div style={{ padding: "5px 8px", fontWeight: 800, color: "rgba(255,255,255,0.6)", borderBottom: "1px solid rgba(255,255,255,0.12)" }}>Status</div>
-            {/* Diamond */}
-            <div style={{ padding: "6px 8px", fontWeight: 700, color: "#e0f2fe" }}>💎 Diamond</div>
-            <div style={{ padding: "6px 8px", color: "rgba(255,255,255,0.9)" }}>First 20</div>
-            <div style={{ padding: "6px 8px", color: "rgba(255,255,255,0.9)" }}>Highest recognition</div>
-            {/* Platinum */}
-            <div style={{ padding: "6px 8px", fontWeight: 700, color: "#fde68a" }}>🏆 Platinum</div>
-            <div style={{ padding: "6px 8px", color: "rgba(255,255,255,0.9)" }}>21–100</div>
-            <div style={{ padding: "6px 8px", color: "rgba(255,255,255,0.9)" }}>Early pioneers</div>
-            {/* Gold */}
-            <div style={{ padding: "6px 8px", fontWeight: 700, color: "#fcd34d" }}>🥇 Gold</div>
-            <div style={{ padding: "6px 8px", color: "rgba(255,255,255,0.9)" }}>101–300</div>
-            <div style={{ padding: "6px 8px", color: "rgba(255,255,255,0.9)" }}>Early adopters</div>
-            {/* Silver */}
-            <div style={{ padding: "6px 8px", fontWeight: 700, color: "#e2e8f0" }}>🥈 Silver</div>
-            <div style={{ padding: "6px 8px", color: "rgba(255,255,255,0.9)" }}>301–1000</div>
-            <div style={{ padding: "6px 8px", color: "rgba(255,255,255,0.9)" }}>Founding members</div>
-          </div>
+          <a href="/merchant/onboard" style={{
+            fontSize: 12,
+            fontWeight: 800,
+            color: "#15803d",
+            background: "#ffffff",
+            padding: "9px 13px",
+            borderRadius: 9,
+            textDecoration: "none",
+            whiteSpace: "nowrap",
+            border: "1px solid rgba(0,0,0,0.08)",
+            boxShadow: "0 1px 4px rgba(0,0,0,0.1)",
+            flexShrink: 0,
+          }}>
+            Get started
+          </a>
         </div>
       )}
 
