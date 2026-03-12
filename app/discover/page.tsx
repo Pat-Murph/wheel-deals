@@ -457,10 +457,12 @@ export default function DiscoverPage() {
               <img
                 src={photo}
                 alt={m.name ?? "merchant"}
+                loading="lazy"
+                decoding="async"
                 style={{
-                  width: 100,
-                  height: 100,
-                  borderRadius: 14,
+                  width: 160,
+                  height: 80,
+                  borderRadius: 10,
                   objectFit: "cover",
                   flexShrink: 0,
                   border: "1px solid #e5e7eb",
@@ -468,20 +470,20 @@ export default function DiscoverPage() {
               />
             )}
 
-            {/* Spin button */}
+            {/* View button */}
             <div style={{
-              padding: "14px 20px",
-              borderRadius: 12,
+              padding: "8px 12px",
+              borderRadius: 10,
               background: "linear-gradient(180deg, #FFD700, #FFA500)",
               fontWeight: 800,
-              fontSize: 16,
+              fontSize: 13,
               color: "#1a1a1a",
               whiteSpace: "nowrap",
               flexShrink: 0,
               border: "1px solid #d4a017",
               boxShadow: "0 2px 6px rgba(0,0,0,0.12)",
             }}>
-              Spin
+              View
             </div>
           </a>
           );
