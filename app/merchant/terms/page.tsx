@@ -19,7 +19,7 @@ export default function MerchantTermsPage() {
           Founding Merchant Terms &amp; Conditions
         </div>
         <div style={{ fontSize: 13, color: "#6b7280", marginTop: 6 }}>
-          Version 1.0 — Effective upon acceptance
+          Version 1.1 — Effective upon acceptance
         </div>
       </div>
 
@@ -31,12 +31,40 @@ export default function MerchantTermsPage() {
         </p>
       </Section>
 
-      <Section title="2. Founding Merchant Program">
+      <Section title="2. Founding Merchant Program &amp; Tiers">
         <p>
           As a Founding Merchant, you are among the first businesses to join the WheelDeals platform.
-          Founding Merchant status is limited to the first 1,000 qualifying businesses. This status
-          entitles you to the profit share rates described in Section 5 for as long as your account
-          remains in good standing.
+          Founding Merchant status is limited to the first 1,000 qualifying businesses and is assigned
+          based on the order in which merchants complete onboarding. Your tier is determined
+          permanently by your founding merchant number.
+        </p>
+        <table
+          style={{
+            width: "100%",
+            borderCollapse: "collapse",
+            fontSize: 14,
+            marginTop: 12,
+            marginBottom: 12,
+          }}
+        >
+          <thead>
+            <tr style={{ background: "#1e1b4b" }}>
+              <Th light>Tier</Th>
+              <Th light>Merchant Numbers</Th>
+              <Th light>Status</Th>
+            </tr>
+          </thead>
+          <tbody>
+            <Tr cells={["💎 Diamond", "First 20 merchants", "Highest recognition"]} />
+            <Tr cells={["🏆 Platinum", "21–100", "Early pioneers"]} shade />
+            <Tr cells={["🥇 Gold", "101–300", "Early adopters"]} />
+            <Tr cells={["🥈 Silver", "301–1,000", "Founding members"]} shade />
+          </tbody>
+        </table>
+        <p>
+          Founding Merchant tiers may receive future benefits, promotional advantages, or recognition
+          based on the success and growth of the Wheel Deals platform. Specific benefits may evolve
+          as the platform develops.
         </p>
       </Section>
 
@@ -81,10 +109,10 @@ export default function MerchantTermsPage() {
         </p>
       </Section>
 
-      <Section title="5. Profit Share &amp; Earnings">
+      <Section title="5. Spin Revenue &amp; Earnings">
         <p>
           Merchants earn a percentage of each spin payment after Stripe payment processing fees
-          are deducted. The following rates apply:
+          are deducted. The following rates apply to all merchants:
         </p>
         <table
           style={{
@@ -235,7 +263,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-function Th({ children }: { children: React.ReactNode }) {
+function Th({ children, light }: { children: React.ReactNode; light?: boolean }) {
   return (
     <th
       style={{
@@ -244,6 +272,7 @@ function Th({ children }: { children: React.ReactNode }) {
         textAlign: "left",
         fontWeight: 800,
         fontSize: 13,
+        color: light ? "#ffffff" : undefined,
       }}
     >
       {children}

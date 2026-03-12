@@ -45,6 +45,9 @@ type MerchantDoc = {
   active?: boolean;
   ownerUid?: string;
   stripeAccountId?: string;
+  // Founding tier
+  foundingMerchant?: boolean;
+  foundingNumber?: number;
   // Boost / free spin fields
   boostActive?: boolean;
   boostFreeSpinsRemaining?: number;
@@ -54,6 +57,15 @@ type MerchantDoc = {
   wheels?: Array<{ spinPriceCents: number; items: Array<{ label: string; weight: number }> }>;
   wheel?: Array<{ label: string; weight: number }>;
 };
+
+function getFoundingTier(n?: number): { icon: string; label: string; color: string } | null {
+  if (!n) return null;
+  if (n <= 20)  return { icon: "💎", label: "Diamond",  color: "#0ea5e9" };
+  if (n <= 100) return { icon: "🏆", label: "Platinum", color: "#d97706" };
+  if (n <= 300) return { icon: "🥇", label: "Gold",     color: "#ca8a04" };
+  if (n <= 1000) return { icon: "🥈", label: "Silver",  color: "#64748b" };
+  return null;
+}
 
 function moneyFromCents(cents: number) {
   return (cents / 100).toLocaleString(undefined, {
@@ -688,6 +700,23 @@ export default function MerchantDashboardPage() {
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginTop: 4 }}>
           <strong style={{ fontSize: 15 }}>{merchantName}</strong>
           {merchant.active ? pill("Live", "green") : pill("Paused", "gray")}
+          {(() => {
+            const tier = getFoundingTier(merchant.foundingNumber);
+            return tier ? (
+              <span style={{
+                fontSize: 11,
+                fontWeight: 900,
+                color: tier.color,
+                background: tier.color + "18",
+                border: `1px solid ${tier.color}44`,
+                borderRadius: 999,
+                padding: "2px 8px",
+                letterSpacing: 0.2,
+              }}>
+                {tier.icon} {tier.label} Founding #{merchant.foundingNumber}
+              </span>
+            ) : null;
+          })()}
           <span style={{ fontSize: 11, opacity: 0.65, fontWeight: 850 }}>Limit: {DAILY_LIMIT} spins/day</span>
           {busy && <span style={{ opacity: 0.7, fontWeight: 800, fontSize: 12 }}>Loading…</span>}
         </div>

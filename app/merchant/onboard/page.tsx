@@ -712,7 +712,7 @@ export default function MerchantOnboardPage() {
           foundingNum = await claimFoundingSpot(res.merchantId);
           if (foundingNum !== null) {
             setStatus(
-              `✅ Merchant created! You're the owner. 🎉 You are Founding Merchant #${foundingNum} — you qualify for the founding profit share program!`
+              `✅ Merchant created! You're the owner. 🎉 You are Founding Merchant #${foundingNum} — welcome to the founding tier program!`
             );
           } else {
             setStatus("✅ Merchant created! You're the owner.");
@@ -1228,15 +1228,21 @@ export default function MerchantOnboardPage() {
           <li>Prizes are <b>not cash</b> and have no cash value.</li>
           <li>A <b>prize is always awarded</b> on every spin — no “no prize” outcomes.</li>
           <li>Your business handles all <b>customer disputes</b> related to redemption.</li>
-          <li>Verification is required before <b>profit share payouts</b> are released.</li>
           <li><b>Free to sign up</b> — WheelDeals earns only from the platform split per spin.</li>
         </ul>
 
-        {/* Profit split summary */}
-        <div style={{ marginTop: 12, background: "#fef9c3", border: "1px solid #fde68a", borderRadius: 8, padding: "10px 14px", fontSize: 13 }}>
-          <div style={{ fontWeight: 900, marginBottom: 6 }}>Your earnings per spin (after Stripe fees):</div>
-          <div>$1.35 spin → <b>70% to you</b> (~$0.72) &nbsp;|&nbsp; $2.00 spin → <b>70%</b> (~$1.10)</div>
-          <div style={{ marginTop: 4 }}>$3.00 spin → <b>70%</b> (~$1.72) &nbsp;|&nbsp; $5.00 spin → <b>75% to you</b> (~$3.17)</div>
+        {/* Founding Tier summary */}
+        <div style={{ marginTop: 12, background: "#f0f9ff", border: "1px solid #bae6fd", borderRadius: 8, padding: "10px 14px", fontSize: 13 }}>
+          <div style={{ fontWeight: 900, marginBottom: 6 }}>🏅 Founding Merchant Tier Program</div>
+          <div style={{ lineHeight: 1.65 }}>
+            <div>💎 <b>Diamond</b> — First 20 merchants</div>
+            <div>🏆 <b>Platinum</b> — Merchants #21–100</div>
+            <div>🥇 <b>Gold</b> — Merchants #101–300</div>
+            <div>🥈 <b>Silver</b> — Merchants #301–1,000</div>
+          </div>
+          <div style={{ marginTop: 8, fontSize: 12, color: "#0369a1" }}>
+            Founding merchants may receive future benefits, promotional advantages, or recognition based on the success and growth of the Wheel Deals platform.
+          </div>
         </div>
 
         <div style={{ marginTop: 12, fontSize: 13 }}>
