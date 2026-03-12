@@ -45,6 +45,14 @@ type MerchantDoc = {
   active?: boolean;
   ownerUid?: string;
   stripeAccountId?: string;
+  // Boost / free spin fields
+  boostActive?: boolean;
+  boostFreeSpinsRemaining?: number;
+  boostWheelPriceCents?: number;
+  boostPurchasedAt?: string;
+  // Wheels
+  wheels?: Array<{ spinPriceCents: number; items: Array<{ label: string; weight: number }> }>;
+  wheel?: Array<{ label: string; weight: number }>;
 };
 
 function moneyFromCents(cents: number) {
@@ -300,6 +308,10 @@ export default function MerchantDashboardPage() {
   const [redeemMsg, setRedeemMsg] = useState<string | null>(null);
   const [scannerOpen, setScannerOpen] = useState(false);
 
+  // Boost
+  const [boostWheelPriceCents, setBoostWheelPriceCents] = useState<number>(135);
+  const [boostBusy, setBoostBusy] = useState(false);
+
   /* ---------- AUTH ---------- */
   useEffect(() => {
     return onAuthStateChanged(auth, (u) => {
@@ -460,7 +472,37 @@ export default function MerchantDashboardPage() {
     if (stripeFlag === "return" || stripeFlag === "refresh") {
       reloadMerchant(merchantId).catch(() => {});
     }
+    // Handle boost return
+    if (params.get("boost_success") === "1") {
+      reloadMerchant(merchantId).catch(() => {});
+      setStatus("🔥 Boost activated! You have 10 free spins ready. Your listing now shows a fire badge.");
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+    if (params.get("boost_error")) {
+      setStatus(`❌ Boost payment failed: ${params.get("boost_error")}`);
+      window.history.replaceState({}, "", window.location.pathname);
+    }
   }, [merchantId]);
+
+  async function purchaseBoost() {
+    if (!merchantId || !user) return;
+    setBoostBusy(true);
+    setStatus(null);
+    try {
+      const res = await fetch("/api/stripe/boost", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ merchantId, uid: user.uid, boostWheelPriceCents }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error ?? "Could not create boost checkout");
+      window.location.href = data.url;
+    } catch (e: any) {
+      setStatus(e?.message ?? "Boost purchase failed.");
+    } finally {
+      setBoostBusy(false);
+    }
+  }
 
   /* ---------- CONTROLS ---------- */
   async function toggleActive() {
@@ -781,9 +823,59 @@ export default function MerchantDashboardPage() {
           </button>
         </div>
 
-        <div style={{ marginTop: 8, fontSize: 12, opacity: 0.75, fontWeight: 800 }}>
+         <div style={{ marginTop: 8, fontSize: 12, opacity: 0.75, fontWeight: 800 }}>
           Note: Even after connecting, Stripe may require onboarding to enable payouts.
         </div>
+      </div>
+
+      {/* Free Spin Boost */}
+      <div style={{ ...card(), border: merchant.boostActive ? "2px solid #f97316" : "1px solid rgba(0,0,0,0.10)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 950, fontSize: 16 }}>
+          <span style={{ fontSize: 22 }}>🔥</span>
+          Free Spin Boost
+          {merchant.boostActive && (
+            <span style={{ marginLeft: 4, background: "#fff7ed", border: "1px solid #fed7aa", color: "#c2410c", borderRadius: 999, padding: "2px 10px", fontSize: 12, fontWeight: 900 }}>
+              ACTIVE — {merchant.boostFreeSpinsRemaining ?? 0} spins left
+            </span>
+          )}
+        </div>
+
+        <div style={{ marginTop: 8, fontSize: 13, color: "#374151", lineHeight: 1.6 }}>
+          Pay <b>$5.00</b> to unlock <b>10 free spins</b> on a wheel of your choice.
+          Your listing gets a <b>fire badge</b> and appears at the top of the Discover page
+          (sorted by proximity to each customer). Customers must be within <b>200 meters</b> of your store to claim the free spin — driving foot traffic directly to you.
+        </div>
+
+        {merchant.boostActive ? (
+          <div style={{ marginTop: 10, padding: "10px 14px", background: "#fff7ed", borderRadius: 10, fontSize: 13, fontWeight: 800, color: "#c2410c" }}>
+            Boost is active! Once all {10} free spins are claimed, your listing returns to normal. Purchase another boost anytime.
+          </div>
+        ) : (
+          <div style={{ marginTop: 12, display: "grid", gap: 10 }}>
+            <div style={{ fontSize: 13, fontWeight: 800 }}>Choose which wheel to unlock for free spins:</div>
+            <select
+              value={boostWheelPriceCents}
+              onChange={(e) => setBoostWheelPriceCents(Number(e.target.value))}
+              style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid #ddd", fontSize: 14, fontWeight: 800, background: "#fff" }}
+            >
+              {/* Show wheels the merchant has configured */}
+              {(merchant.wheels && merchant.wheels.length > 0 ? merchant.wheels : [
+                { spinPriceCents: merchant.wheel && merchant.wheel.length > 0 ? 135 : 135 }
+              ]).map((w: { spinPriceCents: number }) => (
+                <option key={w.spinPriceCents} value={w.spinPriceCents}>
+                  ${(w.spinPriceCents / 100).toFixed(2)} spin wheel
+                </option>
+              ))}
+            </select>
+            <button
+              onClick={purchaseBoost}
+              disabled={boostBusy}
+              style={{ ...btnPrimary(boostBusy), display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
+            >
+              {boostBusy ? "Redirecting to payment…" : "🔥 Unlock 10 Free Spins — $5.00"}
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Stats */}

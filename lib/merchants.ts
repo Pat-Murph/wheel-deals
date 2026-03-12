@@ -33,6 +33,10 @@ export type Merchant = {
   }>;
   website?: string;
   phone?: string;
+  // Boost / free spin
+  boostActive?: boolean;
+  boostFreeSpinsRemaining?: number;
+  boostWheelPriceCents?: number;
 };
 
 export const DISCOVER_CATEGORIES = [
@@ -203,6 +207,9 @@ export async function getActiveMerchants(): Promise<Merchant[]> {
       active: data.active,
       website: data.website ?? undefined,
       phone: data.phone ?? undefined,
+      boostActive: data.boostActive === true && (data.boostFreeSpinsRemaining ?? 0) > 0,
+      boostFreeSpinsRemaining: typeof data.boostFreeSpinsRemaining === "number" ? data.boostFreeSpinsRemaining : 0,
+      boostWheelPriceCents: typeof data.boostWheelPriceCents === "number" ? data.boostWheelPriceCents : undefined,
     } satisfies Merchant;
   });
 }

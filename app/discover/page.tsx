@@ -141,15 +141,20 @@ export default function DiscoverPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Sort items by distance from user's location (when not using "Near me" filter)
+  // Sort items: boosted merchants first (by proximity), then normal merchants (by proximity)
   const sortedItems = useMemo(() => {
-    if (nearMe || !pos) return items; // already sorted by searchMerchants when nearMe
-    return [...items].map((m) => {
-      if (typeof m.lat === "number" && typeof m.lng === "number") {
+    const withDist = [...items].map((m) => {
+      if (pos && typeof m.lat === "number" && typeof m.lng === "number") {
         return { ...m, distanceMiles: distanceMiles(pos.lat, pos.lng, m.lat, m.lng) };
       }
       return m;
-    }).sort((a, b) => {
+    });
+    return withDist.sort((a, b) => {
+      // Boosted merchants always come first
+      const aBoost = a.boostActive ? 1 : 0;
+      const bBoost = b.boostActive ? 1 : 0;
+      if (aBoost !== bBoost) return bBoost - aBoost;
+      // Within same tier, sort by proximity
       const da = a.distanceMiles;
       const db = b.distanceMiles;
       if (da == null && db == null) return 0;
@@ -414,20 +419,27 @@ export default function DiscoverPage() {
               display: "flex",
               alignItems: "center",
               gap: 14,
-              background: "#ffffff",
-              border: "1px solid #e5e7eb",
+              background: m.boostActive ? "#fff7ed" : "#ffffff",
+              border: m.boostActive ? "2px solid #f97316" : "1px solid #e5e7eb",
               borderRadius: 16,
               padding: "16px 16px",
               textDecoration: "none",
               color: "#111827",
-              boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+              boxShadow: m.boostActive ? "0 4px 16px rgba(249,115,22,0.18)" : "0 2px 8px rgba(0,0,0,0.08)",
               minHeight: 90,
+              position: "relative",
             }}
           >
             {/* Info */}
             <div style={{ flex: 1, minWidth: 0 }}>  
-              <div style={{ fontSize: 20, fontWeight: 800, lineHeight: 1.2, color: "#111827" }}>
+              <div style={{ fontSize: 20, fontWeight: 800, lineHeight: 1.2, color: "#111827", display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                {m.boostActive && <span style={{ fontSize: 18 }}>🔥</span>}
                 {m.name ?? m.id}
+                {m.boostActive && (
+                  <span style={{ fontSize: 11, fontWeight: 900, background: "#f97316", color: "#fff", borderRadius: 999, padding: "2px 8px", letterSpacing: 0.3 }}>
+                    FREE SPIN
+                  </span>
+                )}
               </div>
               <div style={{ fontSize: 15, fontWeight: 500, color: "#6b7280", marginTop: 5 }}>
                 {m.category ? titleCase(m.category) : ""}

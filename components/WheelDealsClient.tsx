@@ -83,6 +83,10 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
   const [emailStatus, setEmailStatus] = useState<string | null>(null);
   const [activePhotoIdx, setActivePhotoIdx] = useState(0);
   const [photoBroken, setPhotoBroken] = useState<Record<string, boolean>>({});
+  // Geolocation for free spin proximity gate
+  const [userPos, setUserPos] = useState<{ lat: number; lng: number } | null>(null);
+  const [geoChecking, setGeoChecking] = useState(false);
+  const [geoError, setGeoError] = useState<string | null>(null);
 
   async function sendCodeByEmail() {
     if (!emailInput.trim() || !issuedCode) return;
@@ -209,6 +213,59 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
 
   const activeWheel = merchantWheels[selectedWheelIdx] ?? merchantWheels[0];
   const wheelItems: WheelItem[] = activeWheel?.items ?? [];
+
+  // Haversine distance in meters
+  function haversineMeters(lat1: number, lon1: number, lat2: number, lon2: number) {
+    const R = 6371000;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) ** 2 +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  }
+
+  // Is the active wheel a boosted free-spin wheel?
+  const isFreeSpinWheel = useMemo(() => {
+    if (!(selectedMerchant as any)?.boostActive) return false;
+    const boostPrice = (selectedMerchant as any)?.boostWheelPriceCents;
+    return boostPrice != null && activeWheel?.spinPriceCents === boostPrice;
+  }, [selectedMerchant, activeWheel]);
+
+  // Distance from user to merchant in meters
+  const distanceToMerchantMeters = useMemo(() => {
+    if (!userPos) return null;
+    const m = selectedMerchant as any;
+    if (typeof m?.lat !== "number" || typeof m?.lng !== "number") return null;
+    return haversineMeters(userPos.lat, userPos.lng, m.lat, m.lng);
+  }, [userPos, selectedMerchant]);
+
+  const isWithin200m = distanceToMerchantMeters != null && distanceToMerchantMeters <= 200;
+
+  async function requestLocationForFreeSpin() {
+    setGeoChecking(true);
+    setGeoError(null);
+    return new Promise<void>((resolve) => {
+      if (!navigator.geolocation) {
+        setGeoError("Geolocation is not supported by your browser.");
+        setGeoChecking(false);
+        resolve();
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(
+        (p) => {
+          setUserPos({ lat: p.coords.latitude, lng: p.coords.longitude });
+          setGeoChecking(false);
+          resolve();
+        },
+        (err) => {
+          setGeoError("Location permission denied. Please allow location access to claim your free spin.");
+          setGeoChecking(false);
+          resolve();
+        },
+        { enableHighAccuracy: true, timeout: 10000 }
+      );
+    });
+  }
 
   const reportHref = useMemo(() => {
     const mid = selectedMerchant?.id ?? "";
@@ -461,14 +518,130 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
         </div>
       )}
 
-      {/* Wheel */}
-      <div style={{ display: "flex", justifyContent: "center" }}>
+      {/* Free spin proximity gate banner */}
+      {isFreeSpinWheel && (
+        <div style={{
+          background: "linear-gradient(135deg, #fff7ed, #ffedd5)",
+          border: "2px solid #f97316",
+          borderRadius: 14,
+          padding: "14px 16px",
+          textAlign: "center",
+          display: "flex",
+          flexDirection: "column",
+          gap: 8,
+        }}>
+          <div style={{ fontSize: 15, fontWeight: 900, color: "#c2410c" }}>
+            🔥 Free Spin Available!
+          </div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: "#7c2d12" }}>
+            {(selectedMerchant as any)?.boostFreeSpinsRemaining ?? 0} free spins remaining
+          </div>
+          {!userPos && (
+            <>
+              <div style={{ fontSize: 13, color: "#92400e", fontWeight: 600 }}>
+                You must be within 200m of the store to claim your free spin.
+              </div>
+              <button
+                onClick={requestLocationForFreeSpin}
+                disabled={geoChecking}
+                style={{
+                  padding: "10px 20px",
+                  borderRadius: 10,
+                  border: "none",
+                  fontWeight: 800,
+                  fontSize: 14,
+                  cursor: geoChecking ? "not-allowed" : "pointer",
+                  background: "linear-gradient(180deg, #f97316, #ea580c)",
+                  color: "#fff",
+                  alignSelf: "center",
+                }}
+              >
+                {geoChecking ? "Checking location…" : "Check my location"}
+              </button>
+              {geoError && (
+                <div style={{ fontSize: 12, color: "#dc2626", fontWeight: 700 }}>{geoError}</div>
+              )}
+            </>
+          )}
+          {userPos && !isWithin200m && (
+            <>
+              <div style={{ fontSize: 13, color: "#dc2626", fontWeight: 700 }}>
+                You are {distanceToMerchantMeters != null ? `${Math.round(distanceToMerchantMeters)}m` : "too far"} away. Drive to {selectedMerchant.name} to unlock your free spin!
+              </div>
+              {(selectedMerchant as any)?.lat != null && (selectedMerchant as any)?.lng != null && (
+                <a
+                  href={`https://www.google.com/maps/dir/?api=1&destination=${(selectedMerchant as any).lat},${(selectedMerchant as any).lng}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    display: "inline-block",
+                    padding: "10px 20px",
+                    borderRadius: 10,
+                    background: "linear-gradient(180deg, #1d4ed8, #1e40af)",
+                    color: "#fff",
+                    fontWeight: 800,
+                    fontSize: 13,
+                    textDecoration: "none",
+                    alignSelf: "center",
+                  }}
+                >
+                  📍 Get Directions
+                </a>
+              )}
+              <button
+                onClick={requestLocationForFreeSpin}
+                disabled={geoChecking}
+                style={{
+                  padding: "8px 16px",
+                  borderRadius: 10,
+                  border: "1px solid #f97316",
+                  fontWeight: 700,
+                  fontSize: 12,
+                  cursor: geoChecking ? "not-allowed" : "pointer",
+                  background: "transparent",
+                  color: "#c2410c",
+                  alignSelf: "center",
+                }}
+              >
+                {geoChecking ? "Checking…" : "Re-check location"}
+              </button>
+            </>
+          )}
+          {userPos && isWithin200m && (
+            <div style={{ fontSize: 13, color: "#16a34a", fontWeight: 800 }}>
+              ✅ You&apos;re here! Spin the wheel below for your free spin!
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Wheel — hidden behind geo gate if free spin and not within 200m */}
+      <div style={{ display: "flex", justifyContent: "center", position: "relative" }}>
+        {isFreeSpinWheel && userPos && !isWithin200m && (
+          <div style={{
+            position: "absolute",
+            inset: 0,
+            background: "rgba(255,255,255,0.75)",
+            backdropFilter: "blur(4px)",
+            borderRadius: 16,
+            zIndex: 10,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: 15,
+            fontWeight: 900,
+            color: "#c2410c",
+          }}>
+            🔒 Drive to the store to unlock
+          </div>
+        )}
         <Wheel
           items={wheelItems}
           size={Math.min(320, typeof window !== "undefined" ? window.innerWidth - 40 : 320)}
           merchantId={selectedMerchant.id}
           uid={uid ?? undefined}
-          spinPriceCents={activeWheel?.spinPriceCents ?? 135}
+          spinPriceCents={isFreeSpinWheel && isWithin200m ? 0 : (activeWheel?.spinPriceCents ?? 135)}
+          isFreeSpinBoost={isFreeSpinWheel && isWithin200m}
           onResult={(label, extra) => {
             setLastPrize(label);
             setSpinError(null);

@@ -29,6 +29,9 @@ type Props = {
 
   // ✅ spin price in cents (135, 200, 300, or 500); defaults to 135
   spinPriceCents?: number;
+
+  // ✅ when true, this is a free boost spin (no Stripe charge, calls boost/consume instead)
+  isFreeSpinBoost?: boolean;
 };
 
 function clamp(n: number, min: number, max: number) {
@@ -254,6 +257,7 @@ export default function Wheel({
   merchantId,
   uid,
   spinPriceCents,
+  isFreeSpinBoost = false,
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
@@ -743,6 +747,28 @@ export default function Wheel({
       return;
     }
 
+    // ✅ Free boost spin path — no Stripe charge, just grant entitlement directly
+    if (isFreeSpinBoost) {
+      try {
+        const res = await fetch("/api/boost/consume", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ merchantId, uid }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data?.error ?? "Could not claim free spin");
+        // Grant entitlement so spin() can proceed
+        setPaidSpinReady(true);
+        setVerifiedSessionId(data.sessionId ?? "free-boost-" + Date.now());
+        setPayStatus(null);
+      } catch (e: any) {
+        setPayStatus(e?.message ?? "Could not claim free spin.");
+      } finally {
+        setPayBusy(false);
+      }
+      return;
+    }
+
     try {
       const res = await fetch("/api/stripe/spin", {
         method: "POST",
@@ -852,15 +878,14 @@ export default function Wheel({
       if (!uid) throw new Error("Missing uid");
       if (!verifiedSessionId) throw new Error("Missing sessionId");
 
-      const consumeRes = await fetch("/api/spins/consume", {
+      const consumeRes = await fetch(isFreeSpinBoost ? "/api/boost/consume" : "/api/spins/consume", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          sessionId: verifiedSessionId,
-          merchantId,
-          uid,
-          prizeLabel: resLabel,
-        }),
+        body: JSON.stringify(
+          isFreeSpinBoost
+            ? { merchantId, uid, prizeLabel: resLabel, finalize: true }
+            : { sessionId: verifiedSessionId, merchantId, uid, prizeLabel: resLabel }
+        ),
       });
 
       const consumeData = await consumeRes.json().catch(() => ({}));
@@ -1213,7 +1238,7 @@ export default function Wheel({
                 : "0 12px 30px rgba(0,0,0,0.12), 0 0 20px rgba(255,217,61,0.22)",
             }}
           >
-            {payBusy ? "Opening checkout…" : `Pay ${spinPriceLabel(spinPriceCents)} to spin`}
+            {payBusy ? (isFreeSpinBoost ? "Claiming free spin…" : "Opening checkout…") : (isFreeSpinBoost ? "🔥 Claim Free Spin" : `Pay ${spinPriceLabel(spinPriceCents)} to spin`)}
           </button>
         ) : (
           <button
