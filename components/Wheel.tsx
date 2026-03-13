@@ -483,43 +483,13 @@ export default function Wheel({
     shimmerRafRef.current = requestAnimationFrame(step);
   };
 
-  // ✅ Poll localStorage for a verified payment written by /pay-return.
-  // This keeps the wheel page alive while Stripe checkout runs in a new tab.
+  // ✅ After Stripe redirects back via /pay-return, pick up the verified session.
+  // /pay-return verifies the payment then redirects to /wheel?session_id=...
+  // so we just need to read session_id from the URL here.
   useEffect(() => {
     const LS_KEY = "wd_paid_session";
 
-    function applySession(raw: string) {
-      try {
-        const payload = JSON.parse(raw) as {
-          sessionId: string;
-          merchantId: string;
-          uid: string | null;
-          ts: number;
-        };
-        // Ignore stale entries (older than 10 minutes)
-        if (Date.now() - payload.ts > 10 * 60 * 1000) {
-          localStorage.removeItem(LS_KEY);
-          return;
-        }
-        // Only apply if this entry is for our merchantId (or no merchantId prop yet)
-        if (merchantId && payload.merchantId !== merchantId) return;
-
-        localStorage.removeItem(LS_KEY); // consume once
-        setPaidSpinReady(true);
-        setVerifiedSessionId(payload.sessionId);
-        if (payload.uid) setVerifiedUid(payload.uid);
-        setPayStatus("✅ Payment verified — spin now!");
-        setPayBusy(false);
-      } catch {
-        // ignore malformed entries
-      }
-    }
-
-    // Check immediately in case the tab was already closed before we mounted
-    const existing = localStorage.getItem(LS_KEY);
-    if (existing) { applySession(existing); return; }
-
-    // Also handle the legacy URL param flow (fallback when popup was blocked)
+    // Primary path: session_id in URL (set by /pay-return redirect)
     const sp = new URLSearchParams(window.location.search);
     const sessionId = sp.get("session_id");
     if (sessionId) {
@@ -539,6 +509,7 @@ export default function Wheel({
           setVerifiedSessionId(sessionId);
           if (data.uid) setVerifiedUid(data.uid);
           setPayStatus("✅ Payment verified — spin now!");
+          // Clean session_id from URL
           sp.delete("session_id");
           const next = sp.toString();
           window.history.replaceState({}, "", `${window.location.pathname}${next ? `?${next}` : ""}`);
@@ -553,22 +524,20 @@ export default function Wheel({
       return;
     }
 
-    // Poll localStorage every 1s for up to 10 minutes (no status shown until payment arrives)
-    const interval = setInterval(() => {
+    // Bonus: also check localStorage in case a new-tab flow completed
+    try {
       const raw = localStorage.getItem(LS_KEY);
       if (raw) {
-        clearInterval(interval);
-        applySession(raw);
+        const payload = JSON.parse(raw) as { sessionId: string; merchantId: string; uid: string | null; ts: number };
+        if (Date.now() - payload.ts < 10 * 60 * 1000 && (!merchantId || payload.merchantId === merchantId)) {
+          localStorage.removeItem(LS_KEY);
+          setPaidSpinReady(true);
+          setVerifiedSessionId(payload.sessionId);
+          if (payload.uid) setVerifiedUid(payload.uid);
+          setPayStatus("✅ Payment verified — spin now!");
+        }
       }
-    }, 1000);
-
-    // Stop polling after 10 minutes
-    const timeout = setTimeout(() => clearInterval(interval), 10 * 60 * 1000);
-
-    return () => {
-      clearInterval(interval);
-      clearTimeout(timeout);
-    };
+    } catch { /* ignore */ }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [merchantId]);
 
@@ -830,14 +799,9 @@ export default function Wheel({
       if (!res.ok) throw new Error(data?.error ?? "Could not start checkout");
       if (!data?.url) throw new Error("Missing checkout url");
 
-      // ✅ Open Stripe checkout in a NEW TAB so the wheel page stays alive.
-      // /pay-return will verify, write to localStorage, then close itself.
-      // The localStorage poll below will pick up the result.
-      const popup = window.open(data.url, "_blank");
-      if (!popup) {
-        // Fallback: if popups are blocked, navigate current tab (old behaviour)
-        window.location.href = data.url;
-      }
+      // Navigate to Stripe checkout in the same tab.
+      // /pay-return verifies the payment then redirects back to /wheel?session_id=...
+      window.location.href = data.url;
     } catch (e: any) {
       setPayStatus(e?.message ?? "Checkout failed.");
     } finally {

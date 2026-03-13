@@ -1,9 +1,9 @@
 "use client";
 import { useEffect, useState } from "react";
 
-// This page is the Stripe success_url target.
-// It verifies the payment, writes the result to localStorage so the
-// original wheel tab can pick it up, then closes itself.
+// Stripe success_url lands here.
+// We verify the payment then redirect straight back to the wheel page
+// with session_id in the URL so the wheel can grant the spin.
 export default function PayReturnPage() {
   const [status, setStatus] = useState("Verifying payment…");
 
@@ -13,7 +13,10 @@ export default function PayReturnPage() {
     const merchantId = sp.get("merchantId");
 
     if (!sessionId || !merchantId) {
-      setStatus("Missing payment info. You can close this tab.");
+      setStatus("Missing payment info — redirecting…");
+      setTimeout(() => {
+        window.location.href = "/discover";
+      }, 1500);
       return;
     }
 
@@ -30,29 +33,25 @@ export default function PayReturnPage() {
           throw new Error(data?.error ?? "Payment not verified");
         }
 
-        // ✅ Write verified session to localStorage so the wheel tab picks it up
-        const payload = JSON.stringify({
-          sessionId,
-          merchantId,
-          uid: data.uid ?? null,
-          ts: Date.now(),
-        });
-        localStorage.setItem("wd_paid_session", payload);
+        // Write to localStorage as a backup signal for any open wheel tabs
+        try {
+          localStorage.setItem("wd_paid_session", JSON.stringify({
+            sessionId,
+            merchantId,
+            uid: data.uid ?? null,
+            ts: Date.now(),
+          }));
+        } catch { /* ignore if localStorage unavailable */ }
+
         setStatus("✅ Payment verified! Returning to wheel…");
 
-        // Give localStorage a moment to flush, then close this tab
-        setTimeout(() => {
-          window.close();
-          // Fallback: if window.close() is blocked (e.g. not opened by script),
-          // redirect back to the wheel page instead
-          window.location.href = `/wheel?merchantId=${encodeURIComponent(merchantId)}`;
-        }, 800);
+        // Redirect back to the wheel page with session_id so it can spin
+        window.location.href = `/wheel?merchantId=${encodeURIComponent(merchantId)}&session_id=${encodeURIComponent(sessionId)}`;
       } catch (e: any) {
-        setStatus("Payment verify failed: " + (e?.message ?? "Unknown error"));
-        // Still try to redirect back on error
+        setStatus("Something went wrong — redirecting back…");
         setTimeout(() => {
           window.location.href = `/wheel?merchantId=${encodeURIComponent(merchantId)}&pay_error=1`;
-        }, 2000);
+        }, 1500);
       }
     })();
   }, []);
@@ -70,9 +69,7 @@ export default function PayReturnPage() {
       textAlign: "center",
       gap: 16,
     }}>
-      <div style={{ fontSize: 48 }}>🎡</div>
       <div style={{ fontSize: 20, fontWeight: 800, color: "#111" }}>{status}</div>
-      <div style={{ fontSize: 14, color: "#666" }}>This tab will close automatically.</div>
     </div>
   );
 }
