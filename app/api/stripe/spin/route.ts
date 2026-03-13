@@ -26,7 +26,12 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Merchant has not connected Stripe yet" }, { status: 400 });
     }
 
-    const origin = req.headers.get("origin") ?? process.env.NEXT_PUBLIC_APP_URL;
+    // Always prefer the canonical app URL so Stripe redirects back to the
+    // production app, not a Vercel preview/build URL.
+    const origin =
+      process.env.NEXT_PUBLIC_APP_URL ??
+      req.headers.get("origin") ??
+      req.headers.get("referer")?.replace(/\/[^/]*$/, "");
     if (!origin) {
       return NextResponse.json({ error: "Missing NEXT_PUBLIC_APP_URL" }, { status: 500 });
     }
