@@ -681,14 +681,6 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
             }}>
               Copy code
             </button>
-            <a href="/redeem" style={{
-              padding: "10px 14px", borderRadius: 10, border: "1px solid rgba(0,0,0,0.12)",
-              fontWeight: 900, textDecoration: "none", color: "#111", fontSize: 13,
-              background: "linear-gradient(180deg, rgba(255,217,61,0.95), rgba(255,155,61,0.95))",
-              display: "inline-flex", alignItems: "center",
-            }}>
-              Go to merchant redeem →
-            </a>
           </div>
 
           {/* Email code */}

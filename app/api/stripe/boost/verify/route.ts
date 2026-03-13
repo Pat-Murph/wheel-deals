@@ -9,7 +9,7 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const sessionId = searchParams.get("session_id");
   const merchantId = searchParams.get("merchantId");
-  const origin = req.headers.get("origin") ?? process.env.NEXT_PUBLIC_APP_URL ?? "";
+  const origin = process.env.NEXT_PUBLIC_APP_URL ?? req.headers.get("origin") ?? "";
 
   if (!sessionId || !merchantId) {
     return NextResponse.redirect(`${origin}/merchant?boost_error=missing_params`);

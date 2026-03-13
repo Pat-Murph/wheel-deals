@@ -49,8 +49,8 @@ export async function POST(req: Request) {
       await mRef.set({ stripeAccountId }, { merge: true });
     }
 
-    // Base URL: prefer origin header, fallback to env
-    const origin = req.headers.get("origin") ?? process.env.NEXT_PUBLIC_APP_URL;
+    // Always prefer the canonical app URL so Stripe redirects back to production
+    const origin = process.env.NEXT_PUBLIC_APP_URL ?? req.headers.get("origin");
     if (!origin) {
       return NextResponse.json(
         { error: "Missing NEXT_PUBLIC_APP_URL" },
