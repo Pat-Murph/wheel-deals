@@ -58,8 +58,9 @@ export async function POST(req: Request) {
         metadata: { merchantId, uid, spinPriceCents: String(tier.priceCents) },
       },
 
-      // ✅ keep merchant in URL so the app stays on the right wheel after redirect
-      success_url: `${origin}/wheel?merchantId=${encodeURIComponent(merchantId)}&session_id={CHECKOUT_SESSION_ID}`,
+      // ✅ Redirect to /pay-return which verifies, writes to localStorage, then closes itself.
+      // The original wheel tab polls localStorage and grants the spin without a page reload.
+      success_url: `${origin}/pay-return?merchantId=${encodeURIComponent(merchantId)}&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/wheel?merchantId=${encodeURIComponent(merchantId)}&cancelled=1`,
     });
 
