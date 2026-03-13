@@ -311,6 +311,8 @@ export default function Wheel({
   const [verifiedSessionId, setVerifiedSessionId] = useState<string | null>(
     null
   );
+  // ✅ uid from the verified Stripe session (may differ from prop uid after page reload)
+  const [verifiedUid, setVerifiedUid] = useState<string | null>(null);
 
   // ✅ store redemption info returned from consume
   const [redeemCode, setRedeemCode] = useState<string | null>(null);
@@ -505,6 +507,9 @@ export default function Wheel({
         // ✅ allow exactly 1 spin after verified payment
         setPaidSpinReady(true);
         setVerifiedSessionId(sessionId);
+        // ✅ store the uid from the session record so consume uses the right uid
+        // even if anonymous auth re-generated a different uid on this page load
+        if (data.uid) setVerifiedUid(data.uid);
         setPayStatus("✅ Payment verified — spin now!");
 
         // clean URL (removes session_id)
@@ -875,7 +880,11 @@ export default function Wheel({
 
     try {
       if (!merchantId) throw new Error("Missing merchantId");
-      if (!uid) throw new Error("Missing uid");
+      // ✅ prefer verifiedUid (from the Stripe session record) over the prop uid.
+      // Anonymous auth can re-generate a new uid on page reload after Stripe redirect,
+      // which would cause a 'User mismatch' error in the consume route.
+      const effectiveUid = verifiedUid ?? uid;
+      if (!effectiveUid) throw new Error("Missing uid");
       if (!verifiedSessionId) throw new Error("Missing sessionId");
 
       const consumeRes = await fetch(isFreeSpinBoost ? "/api/boost/consume" : "/api/spins/consume", {
@@ -883,8 +892,8 @@ export default function Wheel({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(
           isFreeSpinBoost
-            ? { merchantId, uid, prizeLabel: resLabel, finalize: true }
-            : { sessionId: verifiedSessionId, merchantId, uid, prizeLabel: resLabel }
+            ? { merchantId, uid: effectiveUid, prizeLabel: resLabel, finalize: true }
+            : { sessionId: verifiedSessionId, merchantId, uid: effectiveUid, prizeLabel: resLabel }
         ),
       });
 
@@ -899,6 +908,7 @@ export default function Wheel({
       setRedeemCode(nextCode);
       setPayStatus("✅ Spin saved. Show your code to redeem!");
       setVerifiedSessionId(null); // prevent reuse
+      setVerifiedUid(null); // clear verified uid after use
 
       // ✅ notify parent so you can show ONE unified code + QR in WheelDealsClient
       onResult?.(resLabel, { code: nextCode, spinId: nextSpinId });
