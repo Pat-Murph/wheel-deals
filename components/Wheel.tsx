@@ -1229,7 +1229,7 @@ export default function Wheel({
           textDecoration: "underline dotted",
         }}
       >
-        Tap here to see prizes
+        Tap to see promotional deals
       </button>
 
       {/* ✅ Prize enlarger overlay */}
@@ -1337,7 +1337,7 @@ export default function Wheel({
       <div
         style={{ ...fancyContainerStyle, cursor: "pointer" }}
         onClick={() => setShowPrizes(true)}
-        title="Tap to see prizes"
+        title="Tap to see promotional deals"
       >
         {/* Pointer triangle (points UP) */}
         <div
@@ -1437,7 +1437,7 @@ export default function Wheel({
                 : "0 12px 30px rgba(0,0,0,0.12), 0 0 20px rgba(255,217,61,0.22)",
             }}
           >
-            {payBusy ? (isFreeSpinBoost ? "Claiming free spin…" : "Opening checkout…") : (isFreeSpinBoost ? "🔥 Claim Free Spin" : `Pay ${spinPriceLabel(spinPriceCents)} to spin`)}
+            {payBusy ? (isFreeSpinBoost ? "Claiming free spin…" : "Opening checkout…") : (isFreeSpinBoost ? "🔥 Claim Free Spin" : `Unlock Deal — Pay ${spinPriceLabel(spinPriceCents)}`)}
           </button>
         ) : (
           <button
