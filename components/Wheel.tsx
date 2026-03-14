@@ -64,14 +64,14 @@ function darkenHex(hex: string, amount: number): string {
 
 // Renaissance jewel-tone palette (cycles)
 const COLORS = [
-  "#8B1A1A", // deep crimson
-  "#1B3A6B", // royal navy
-  "#2D6A4F", // forest emerald
-  "#7B4F00", // antique gold-brown
-  "#4A1259", // deep violet
-  "#8B3A00", // burnt sienna
-  "#1A4D3A", // dark malachite
-  "#5C1A3A", // burgundy rose
+  "#C0392B", // bright crimson
+  "#2E5FA3", // vivid royal blue
+  "#27AE60", // bright emerald
+  "#D4880A", // warm amber gold
+  "#7D3C98", // vivid violet
+  "#CA6F1E", // bright sienna
+  "#1E8449", // bright malachite
+  "#922B5E", // vivid rose
 ];
 
 // ✅ price label is now dynamic (see spinPriceLabel() helper below)
@@ -585,20 +585,62 @@ export default function Wheel({
     const cy = size / 2;
     const radius = size / 2 - 10;
 
-    // ── Renaissance outer ring: deep aged-gold gradient ──────────────────
-    const outerRingGrad = ctx.createRadialGradient(cx, cy, radius - 4, cx, cy, radius + 8);
-    outerRingGrad.addColorStop(0, "#3D2B00");
-    outerRingGrad.addColorStop(0.3, "#C8960C");
-    outerRingGrad.addColorStop(0.55, "#F5D060");
-    outerRingGrad.addColorStop(0.75, "#C8960C");
-    outerRingGrad.addColorStop(1, "#3D2B00");
+    // ── Wood-grain trim ring ──────────────────────────────────────────────
+    // Base walnut-brown fill for the outer ring
+    const woodRingOuter = radius + 12;
+    const woodRingInner = radius - 2;
+
+    // Base wood color (walnut)
     ctx.save();
     ctx.beginPath();
-    ctx.arc(cx, cy, radius + 8, 0, Math.PI * 2);
-    ctx.fillStyle = outerRingGrad;
-    ctx.shadowColor = "rgba(200,150,12,0.55)";
-    ctx.shadowBlur = 18;
+    ctx.arc(cx, cy, woodRingOuter, 0, Math.PI * 2);
+    ctx.fillStyle = "#5C3317";
+    ctx.shadowColor = "rgba(0,0,0,0.5)";
+    ctx.shadowBlur = 10;
     ctx.fill();
+    ctx.restore();
+
+    // Wood grain lines — thin arcs at slightly varying radii
+    const grainColors = [
+      "rgba(120,70,20,0.55)",
+      "rgba(180,110,40,0.45)",
+      "rgba(90,50,15,0.50)",
+      "rgba(200,140,60,0.35)",
+      "rgba(100,55,18,0.60)",
+      "rgba(160,95,35,0.40)",
+      "rgba(80,45,12,0.55)",
+      "rgba(210,150,65,0.30)",
+    ];
+    for (let g = 0; g < grainColors.length; g++) {
+      const grainR = woodRingInner + 2 + (g / grainColors.length) * (woodRingOuter - woodRingInner - 2);
+      ctx.beginPath();
+      ctx.arc(cx, cy, grainR, 0, Math.PI * 2);
+      ctx.strokeStyle = grainColors[g];
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
+    }
+
+    // Thin gold inlay lines on inner and outer edges of wood ring
+    ctx.beginPath();
+    ctx.arc(cx, cy, woodRingOuter - 1, 0, Math.PI * 2);
+    ctx.strokeStyle = "rgba(200,150,12,0.9)";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(cx, cy, woodRingInner + 1, 0, Math.PI * 2);
+    ctx.strokeStyle = "rgba(200,150,12,0.9)";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Warm glow behind the ring
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(cx, cy, woodRingOuter + 2, 0, Math.PI * 2);
+    ctx.strokeStyle = "rgba(180,100,20,0.30)";
+    ctx.lineWidth = 6;
+    ctx.shadowColor = "rgba(160,80,10,0.40)";
+    ctx.shadowBlur = 12;
+    ctx.stroke();
     ctx.restore();
 
     // ── Parchment-toned base circle ────────────────────────────────────────
