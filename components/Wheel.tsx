@@ -483,13 +483,11 @@ export default function Wheel({
     shimmerRafRef.current = requestAnimationFrame(step);
   };
 
-  // ✅ After Stripe redirects back via /pay-return, pick up the verified session.
-  // /pay-return verifies the payment then redirects to /wheel?session_id=...
-  // so we just need to read session_id from the URL here.
+  // ✅ After Stripe redirects back to /wheel?session_id=..., verify and grant the spin.
   useEffect(() => {
     const LS_KEY = "wd_paid_session";
 
-    // Primary path: session_id in URL (set by /pay-return redirect)
+    // Primary path: session_id in URL (set directly by Stripe success_url)
     const sp = new URLSearchParams(window.location.search);
     const sessionId = sp.get("session_id");
     if (sessionId) {
