@@ -24,6 +24,9 @@ type Props = {
   // needed for payouts + attribution
   merchantId?: string;
 
+  // merchant display name shown in the header instead of "Wheel Deals"
+  merchantName?: string;
+
   // ✅ needed for Stripe spin route + entitlement checks
   uid?: string;
 
@@ -255,6 +258,7 @@ export default function Wheel({
   size = 420,
   onResult,
   merchantId,
+  merchantName,
   uid,
   spinPriceCents,
   isFreeSpinBoost = false,
@@ -729,10 +733,16 @@ export default function Wheel({
     ctx.stroke();
 
     ctx.fillStyle = "#111";
-    ctx.font = "900 14px system-ui, -apple-system, Segoe UI, Roboto, Arial";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText("SPIN", cx, cy);
+    // Line 1: WHEEL
+    ctx.font = "900 11px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+    ctx.fillStyle = "#f59e0b";
+    ctx.fillText("WHEEL", cx, cy - 8);
+    // Line 2: DEALS
+    ctx.font = "900 11px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+    ctx.fillStyle = "#2563eb";
+    ctx.fillText("DEALS", cx, cy + 8);
   }, [size, slices, winnerIdx, sparkleKey]);
 
   function pickWeightedIndex() {
@@ -767,10 +777,17 @@ export default function Wheel({
     // ✅ Free boost spin path — no Stripe charge, just grant entitlement directly
     if (isFreeSpinBoost) {
       try {
+        // Get device fingerprint for 1-per-device-per-day enforcement
+        let deviceFingerprint: string | undefined;
+        try {
+          const { getDeviceFingerprint } = await import("@/lib/deviceFingerprint");
+          deviceFingerprint = await getDeviceFingerprint();
+        } catch { /* non-fatal */ }
+
         const res = await fetch("/api/boost/consume", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ merchantId, uid }),
+          body: JSON.stringify({ merchantId, uid, deviceFingerprint }),
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data?.error ?? "Could not claim free spin");
@@ -995,15 +1012,21 @@ export default function Wheel({
               zIndex: 1,
               fontWeight: 1000,
               letterSpacing: 0.4,
-              fontSize: 16,
+              fontSize: merchantName ? 18 : 16,
               textTransform: "uppercase",
               lineHeight: 1,
               textShadow:
                 "0 10px 30px rgba(0,0,0,0.10), 0 0 18px rgba(255,217,61,0.18), 0 0 18px rgba(37,99,235,0.14)",
             }}
           >
-            <span style={{ color: "rgb(234,179,8)" }}>Wheel</span>{" "}
-            <span style={{ color: "rgb(37,99,235)" }}>Deals</span>
+            {merchantName ? (
+              <span style={{ color: "#111" }}>{merchantName}</span>
+            ) : (
+              <>
+                <span style={{ color: "rgb(234,179,8)" }}>Wheel</span>{" "}
+                <span style={{ color: "rgb(37,99,235)" }}>Deals</span>
+              </>
+            )}
           </div>
         </div>
 

@@ -639,6 +639,7 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
           items={wheelItems}
           size={Math.min(320, typeof window !== "undefined" ? window.innerWidth - 40 : 320)}
           merchantId={selectedMerchant.id}
+          merchantName={(selectedMerchant as any)?.name ?? undefined}
           uid={uid ?? undefined}
           spinPriceCents={isFreeSpinWheel && isWithin200m ? 0 : (activeWheel?.spinPriceCents ?? 135)}
           isFreeSpinBoost={isFreeSpinWheel && isWithin200m}
