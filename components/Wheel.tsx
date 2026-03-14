@@ -1126,10 +1126,11 @@ export default function Wheel({
         display: "grid",
         gap: 14,
         justifyItems: "center",
-        padding: 16,
+        padding: 20,
         borderRadius: 18,
-        background:
-          "radial-gradient(1200px 500px at 50% -20%, rgba(255,217,61,0.15), transparent 45%), linear-gradient(180deg, rgba(17,24,39,0.04), rgba(255,255,255,1))",
+        background: "linear-gradient(160deg, #3B1F0A 0%, #5C3317 30%, #7A4520 55%, #5C3317 80%, #3B1F0A 100%)",
+        boxShadow: "0 8px 32px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,200,80,0.15), inset 0 -1px 0 rgba(0,0,0,0.4)",
+        border: "2px solid #C8960C",
       }}
     >
       {/* Title / winner */}
@@ -1171,11 +1172,11 @@ export default function Wheel({
             }}
           >
             {merchantName ? (
-              <span style={{ color: "#111" }}>{merchantName}</span>
+              <span style={{ color: "#F5D060", textShadow: "0 2px 8px rgba(0,0,0,0.6)" }}>{merchantName}</span>
             ) : (
               <>
-                <span style={{ color: "rgb(234,179,8)" }}>Wheel</span>{" "}
-                <span style={{ color: "rgb(37,99,235)" }}>Deals</span>
+                <span style={{ color: "#F5D060" }}>Wheel</span>{" "}
+                <span style={{ color: "#93C5FD" }}>Deals</span>
               </>
             )}
           </div>
@@ -1186,7 +1187,7 @@ export default function Wheel({
             minHeight: 22,
             marginTop: 8,
             fontWeight: 800,
-            color: winnerText ? "#111" : "rgba(17,17,17,0.55)",
+            color: winnerText ? "#F5D060" : "rgba(245,208,96,0.65)",
           }}
         >
           {winnerText || (spinning ? "Spinning..." : "Spin to win a deal")}
@@ -1199,7 +1200,7 @@ export default function Wheel({
         )}
 
         {payStatus && (
-          <div style={{ marginTop: 8, fontWeight: 800, opacity: 0.85 }}>
+          <div style={{ marginTop: 8, fontWeight: 800, opacity: 0.85, color: "#F5E6C8" }}>
             {payStatus}
           </div>
         )}
@@ -1220,8 +1221,8 @@ export default function Wheel({
           cursor: "pointer",
           fontSize: 12,
           fontWeight: 800,
-          opacity: 0.65,
-          color: "#111",
+          opacity: 0.75,
+          color: "#F5D060",
           padding: "2px 6px",
           marginTop: -6,
           letterSpacing: 0.2,
@@ -1480,11 +1481,12 @@ export default function Wheel({
           style={{
             padding: "12px 14px",
             borderRadius: 14,
-            border: "1px solid rgba(0,0,0,0.12)",
-            background: "linear-gradient(180deg, #f3f4f6, #fff)",
+            border: "1px solid rgba(200,150,12,0.5)",
+            background: "linear-gradient(180deg, rgba(90,50,15,0.9), rgba(60,30,5,0.9))",
             cursor: "pointer",
             fontWeight: 900,
             opacity: 0.95,
+            color: "#F5D060",
           }}
         >
           {musicOn ? "🔊 Music on" : "🔇 Music off"}
@@ -1497,10 +1499,11 @@ export default function Wheel({
           marginTop: 6,
           fontSize: 12,
           fontWeight: 800,
-          opacity: 0.7,
+          opacity: 0.65,
           textAlign: "center",
           maxWidth: 520,
           lineHeight: 1.35,
+          color: "#F5E6C8",
         }}
       >
         By spinning, you agree all spins are final. No cash value. Must be 18+.
