@@ -41,16 +41,37 @@ function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n));
 }
 
-// Bright “Vegas” palette (cycles)
+// Hex color helpers for Renaissance slice gradients
+function hexToRgb(hex: string): [number, number, number] {
+  const h = hex.replace("#", "");
+  return [
+    parseInt(h.slice(0, 2), 16),
+    parseInt(h.slice(2, 4), 16),
+    parseInt(h.slice(4, 6), 16),
+  ];
+}
+function rgbToHex(r: number, g: number, b: number): string {
+  return "#" + [r, g, b].map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, "0")).join("");
+}
+function lightenHex(hex: string, amount: number): string {
+  const [r, g, b] = hexToRgb(hex);
+  return rgbToHex(r + amount, g + amount, b + amount);
+}
+function darkenHex(hex: string, amount: number): string {
+  const [r, g, b] = hexToRgb(hex);
+  return rgbToHex(r - amount, g - amount, b - amount);
+}
+
+// Renaissance jewel-tone palette (cycles)
 const COLORS = [
-  "#FF4D6D",
-  "#FFD93D",
-  "#34D399",
-  "#60A5FA",
-  "#A78BFA",
-  "#FB923C",
-  "#22C55E",
-  "#F472B6",
+  "#8B1A1A", // deep crimson
+  "#1B3A6B", // royal navy
+  "#2D6A4F", // forest emerald
+  "#7B4F00", // antique gold-brown
+  "#4A1259", // deep violet
+  "#8B3A00", // burnt sienna
+  "#1A4D3A", // dark malachite
+  "#5C1A3A", // burgundy rose
 ];
 
 // ✅ price label is now dynamic (see spinPriceLabel() helper below)
@@ -564,26 +585,32 @@ export default function Wheel({
     const cy = size / 2;
     const radius = size / 2 - 10;
 
-    // outer base + glow
+    // ── Renaissance outer ring: deep aged-gold gradient ──────────────────
+    const outerRingGrad = ctx.createRadialGradient(cx, cy, radius - 4, cx, cy, radius + 8);
+    outerRingGrad.addColorStop(0, "#3D2B00");
+    outerRingGrad.addColorStop(0.3, "#C8960C");
+    outerRingGrad.addColorStop(0.55, "#F5D060");
+    outerRingGrad.addColorStop(0.75, "#C8960C");
+    outerRingGrad.addColorStop(1, "#3D2B00");
     ctx.save();
     ctx.beginPath();
-    ctx.arc(cx, cy, radius + 6, 0, Math.PI * 2);
-    ctx.fillStyle = "#0B0B0F";
-    ctx.shadowColor = "rgba(255, 217, 61, 0.35)";
-    ctx.shadowBlur = 24;
+    ctx.arc(cx, cy, radius + 8, 0, Math.PI * 2);
+    ctx.fillStyle = outerRingGrad;
+    ctx.shadowColor = "rgba(200,150,12,0.55)";
+    ctx.shadowBlur = 18;
     ctx.fill();
     ctx.restore();
 
-    // base circle
+    // ── Parchment-toned base circle ────────────────────────────────────────
     ctx.beginPath();
     ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-    ctx.fillStyle = "#111";
+    ctx.fillStyle = "#1A0F00";
     ctx.fill();
 
     if (!slices.length) {
       ctx.beginPath();
       ctx.arc(cx, cy, radius - 6, 0, Math.PI * 2);
-      ctx.fillStyle = "#f3f4f6";
+      ctx.fillStyle = "#f3f0e8";
       ctx.fill();
       return;
     }
@@ -591,36 +618,71 @@ export default function Wheel({
     // top-based clockwise degrees -> canvas radians
     const toRad = (deg: number) => ((deg - 90) * Math.PI) / 180;
 
-    // Draw slices
+    // ── Draw slices with Renaissance jewel tones ───────────────────────────
     for (const s of slices) {
       const a0 = toRad(s.start);
       const a1 = toRad(s.end);
+      const baseColor = COLORS[s.idx % COLORS.length];
 
+      // Slice fill with subtle radial sheen
       ctx.beginPath();
       ctx.moveTo(cx, cy);
-      ctx.arc(cx, cy, radius - 6, a0, a1);
+      ctx.arc(cx, cy, radius - 4, a0, a1);
       ctx.closePath();
-      ctx.fillStyle = COLORS[s.idx % COLORS.length];
+
+      // Radial gradient: lighter at center, richer at edge
+      const sliceGrad = ctx.createRadialGradient(cx, cy, 20, cx, cy, radius - 4);
+      sliceGrad.addColorStop(0, lightenHex(baseColor, 40));
+      sliceGrad.addColorStop(0.5, baseColor);
+      sliceGrad.addColorStop(1, darkenHex(baseColor, 30));
+      ctx.fillStyle = sliceGrad;
       ctx.fill();
 
-      ctx.strokeStyle = "rgba(0,0,0,0.28)";
-      ctx.lineWidth = 2;
+      // Gold divider lines between slices
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.arc(cx, cy, radius - 4, a0, a1);
+      ctx.closePath();
+      ctx.strokeStyle = "rgba(200,150,12,0.85)";
+      ctx.lineWidth = 2.5;
       ctx.stroke();
+      ctx.restore();
 
-      // text
+      // Decorative spoke: thin gold line from center to rim
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(toRad(s.mid));
+      // spoke line
+      ctx.beginPath();
+      ctx.moveTo(20, 0);
+      ctx.lineTo(radius - 14, 0);
+      ctx.strokeStyle = "rgba(245,208,96,0.30)";
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      // small diamond ornament at 65% radius
+      const dPos = radius * 0.62;
+      ctx.save();
+      ctx.translate(dPos, 0);
+      ctx.rotate(Math.PI / 4);
+      ctx.fillStyle = "rgba(245,208,96,0.45)";
+      ctx.fillRect(-3, -3, 6, 6);
+      ctx.restore();
+      ctx.restore();
+
+      // Slice label — cream/gold text with subtle shadow
       const mid = toRad(s.mid);
       ctx.save();
       ctx.translate(cx, cy);
       ctx.rotate(mid);
-
       ctx.textAlign = "right";
       ctx.textBaseline = "middle";
-      ctx.fillStyle = "rgba(0,0,0,0.88)";
-      ctx.font = "800 12px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+      ctx.shadowColor = "rgba(0,0,0,0.7)";
+      ctx.shadowBlur = 4;
+      ctx.fillStyle = "#F5E6C8";
+      ctx.font = "700 11px Georgia, 'Times New Roman', serif";
       const displayLabel = (s.label || "").length > 8 ? (s.label || "").slice(0, 8) + "\u2026" : (s.label || "");
-      // draw text in the outer 45% of the slice only (from 55% radius to edge)
-      ctx.fillText(displayLabel, radius - 18, 0);
-
+      ctx.fillText(displayLabel, radius - 16, 0);
       ctx.restore();
     }
 
@@ -716,33 +778,80 @@ export default function Wheel({
       }
     }
 
-    // inner ring
+    // ── Renaissance inner ring: layered gold bands ────────────────────────
+    // Outer band: dark aged gold
+    const innerBandGrad = ctx.createRadialGradient(cx, cy, 46, cx, cy, 58);
+    innerBandGrad.addColorStop(0, "#5C3D00");
+    innerBandGrad.addColorStop(0.4, "#C8960C");
+    innerBandGrad.addColorStop(0.7, "#F5D060");
+    innerBandGrad.addColorStop(1, "#3D2B00");
     ctx.beginPath();
-    ctx.arc(cx, cy, 54, 0, Math.PI * 2);
-    ctx.fillStyle = "#0B0B0F";
+    ctx.arc(cx, cy, 58, 0, Math.PI * 2);
+    ctx.fillStyle = innerBandGrad;
     ctx.fill();
 
-    // center button
+    // Engraved ring notches (12 tick marks like a clock)
+    for (let i = 0; i < 12; i++) {
+      const angle = (i / 12) * Math.PI * 2;
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(angle);
+      ctx.beginPath();
+      ctx.moveTo(47, 0);
+      ctx.lineTo(57, 0);
+      ctx.strokeStyle = "rgba(60,30,0,0.7)";
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // ── Gilded medallion center ─────────────────────────────────────────────
+    const hubGrad = ctx.createRadialGradient(cx - 8, cy - 8, 4, cx, cy, 46);
+    hubGrad.addColorStop(0, "#FFF8DC"); // cornsilk highlight
+    hubGrad.addColorStop(0.25, "#F5D060"); // bright gold
+    hubGrad.addColorStop(0.55, "#C8960C"); // mid gold
+    hubGrad.addColorStop(0.8, "#7B5800"); // dark gold
+    hubGrad.addColorStop(1, "#3D2B00"); // deep shadow
     ctx.beginPath();
     ctx.arc(cx, cy, 46, 0, Math.PI * 2);
-    ctx.fillStyle = "#ffffff";
+    ctx.fillStyle = hubGrad;
     ctx.fill();
 
-    ctx.strokeStyle = "rgba(0,0,0,0.35)";
-    ctx.lineWidth = 3;
+    // Embossed ring on hub edge
+    ctx.beginPath();
+    ctx.arc(cx, cy, 46, 0, Math.PI * 2);
+    ctx.strokeStyle = "#F5D060";
+    ctx.lineWidth = 2;
     ctx.stroke();
 
-    ctx.fillStyle = "#111";
+    // 8-point star ornament in center
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.fillStyle = "rgba(60,30,0,0.45)";
+    for (let i = 0; i < 8; i++) {
+      ctx.save();
+      ctx.rotate((i * Math.PI) / 4);
+      ctx.beginPath();
+      ctx.moveTo(0, -28);
+      ctx.lineTo(3, -18);
+      ctx.lineTo(0, -14);
+      ctx.lineTo(-3, -18);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    }
+    ctx.restore();
+
+    // WHEEL DEALS text on hub
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    // Line 1: WHEEL
-    ctx.font = "900 11px system-ui, -apple-system, Segoe UI, Roboto, Arial";
-    ctx.fillStyle = "#f59e0b";
-    ctx.fillText("WHEEL", cx, cy - 8);
-    // Line 2: DEALS
-    ctx.font = "900 11px system-ui, -apple-system, Segoe UI, Roboto, Arial";
-    ctx.fillStyle = "#2563eb";
-    ctx.fillText("DEALS", cx, cy + 8);
+    ctx.shadowColor = "rgba(0,0,0,0.6)";
+    ctx.shadowBlur = 3;
+    ctx.font = "700 10px Georgia, 'Times New Roman', serif";
+    ctx.fillStyle = "#3D2B00";
+    ctx.fillText("WHEEL", cx, cy - 7);
+    ctx.fillText("DEALS", cx, cy + 7);
+    ctx.shadowBlur = 0;
   }, [size, slices, winnerIdx, sparkleKey]);
 
   function pickWeightedIndex() {
