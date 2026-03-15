@@ -98,9 +98,9 @@ export default function MerchantTermsPage() {
       <Section title="4. Merchant Verification">
         <p>
           Merchant accounts do not require verification to onboard or to publish a spin wheel.
-          However, <strong>verification is required before any profit share payouts are released</strong>.
+          However, <strong>verification may be required before certain features or payouts are enabled</strong>.
           This is a one-time process designed to confirm your business is active and legitimate,
-          and to prevent fraudulent or inactive ("ghost") merchant accounts from receiving payments.
+          and to prevent fraudulent or inactive ("ghost") merchant accounts from accessing platform features.
         </p>
         <p>
           The WheelDeals team will contact you at your registered email address to complete
