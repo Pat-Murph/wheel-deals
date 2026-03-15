@@ -44,7 +44,8 @@ export const DISCOVER_CATEGORIES = [
   "health and wellness",
   "tickets and events",
   "things to do",
-  "beauty and hair",
+  "beauty and spa",
+  "auto and home",
 ] as const;
 
 // Cities are dynamic — populated from active merchant profiles.
@@ -73,6 +74,18 @@ const CATEGORY_ALIASES: Record<string, string> = {
   sushi: "food and beverage",
   tacos: "food and beverage",
   burgers: "food and beverage",
+  seafood: "food and beverage",
+  shrimp: "food and beverage",
+  steak: "food and beverage",
+  bbq: "food and beverage",
+  sandwich: "food and beverage",
+  sandwiches: "food and beverage",
+  breakfast: "food and beverage",
+  brunch: "food and beverage",
+  bakery: "food and beverage",
+  dessert: "food and beverage",
+  ice cream: "food and beverage",
+  wings: "food and beverage",
 
   // Health & Wellness
   "health and wellness": "health and wellness",
@@ -80,9 +93,14 @@ const CATEGORY_ALIASES: Record<string, string> = {
   wellness: "health and wellness",
   gym: "health and wellness",
   yoga: "health and wellness",
-  spa: "health and wellness",
   fitness: "health and wellness",
   massage: "health and wellness",
+  chiropractic: "health and wellness",
+  chiropractor: "health and wellness",
+  physical therapy: "health and wellness",
+  nutrition: "health and wellness",
+  vitamin: "health and wellness",
+  supplements: "health and wellness",
 
   // Tickets & Events
   "tickets and events": "tickets and events",
@@ -91,6 +109,9 @@ const CATEGORY_ALIASES: Record<string, string> = {
   event: "tickets and events",
   concert: "tickets and events",
   show: "tickets and events",
+  comedy: "tickets and events",
+  theater: "tickets and events",
+  theatre: "tickets and events",
 
   // Things To Do
   "things to do": "things to do",
@@ -99,15 +120,53 @@ const CATEGORY_ALIASES: Record<string, string> = {
   activities: "things to do",
   entertainment: "things to do",
   fun: "things to do",
+  bowling: "things to do",
+  arcade: "things to do",
+  escape: "things to do",
+  golf: "things to do",
+  mini golf: "things to do",
+  laser tag: "things to do",
+  paintball: "things to do",
+  axe throwing: "things to do",
 
-  // Beauty & Hair
-  "beauty and hair": "beauty and hair",
-  beauty: "beauty and hair",
-  hair: "beauty and hair",
-  salon: "beauty and hair",
-  nails: "beauty and hair",
-  barber: "beauty and hair",
-  makeup: "beauty and hair",
+  // Beauty & Spa (formerly Beauty & Hair)
+  "beauty and spa": "beauty and spa",
+  "beauty and hair": "beauty and spa",
+  beauty: "beauty and spa",
+  hair: "beauty and spa",
+  salon: "beauty and spa",
+  nails: "beauty and spa",
+  barber: "beauty and spa",
+  makeup: "beauty and spa",
+  spa: "beauty and spa",
+  waxing: "beauty and spa",
+  lashes: "beauty and spa",
+  eyebrows: "beauty and spa",
+  skincare: "beauty and spa",
+  facial: "beauty and spa",
+  tanning: "beauty and spa",
+
+  // Auto & Home
+  "auto and home": "auto and home",
+  auto: "auto and home",
+  automotive: "auto and home",
+  car: "auto and home",
+  cars: "auto and home",
+  mechanic: "auto and home",
+  oil change: "auto and home",
+  tires: "auto and home",
+  detailing: "auto and home",
+  "car wash": "auto and home",
+  home: "auto and home",
+  plumbing: "auto and home",
+  electrician: "auto and home",
+  hvac: "auto and home",
+  roofing: "auto and home",
+  landscaping: "auto and home",
+  cleaning: "auto and home",
+  handyman: "auto and home",
+  flooring: "auto and home",
+  painting: "auto and home",
 };
 
 const CITY_ALIASES: Record<string, string> = {
@@ -240,12 +299,21 @@ export async function searchMerchants(params: SearchMerchantsParams): Promise<Me
     const name = normalize(m.nameLower ?? m.name ?? "");
     const cat = normalize(m.categoryLower ?? m.category ?? "");
     const cty = normalize(m.cityLower ?? m.city ?? "");
+    // Also search the business description (about field)
+    const about = normalize(m.about ?? "");
 
-    if (category && cat !== category) return false;
+    // Normalize stored category: treat legacy "beauty and hair" as "beauty and spa"
+    const normalizedCat = cat === "beauty and hair" ? "beauty and spa" : cat;
+
+    if (category) {
+      const filterCat = category === "beauty and hair" ? "beauty and spa" : category;
+      if (normalizedCat !== filterCat) return false;
+    }
     if (city && cty !== city) return false;
 
     for (const t of tokens) {
-      const ok = name.includes(t) || cat.includes(t) || cty.includes(t);
+      // Match against name, category, city, OR business description
+      const ok = name.includes(t) || normalizedCat.includes(t) || cty.includes(t) || about.includes(t);
       if (!ok) return false;
     }
 
