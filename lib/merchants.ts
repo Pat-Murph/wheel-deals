@@ -85,7 +85,7 @@ const CATEGORY_ALIASES: Record<string, string> = {
   brunch: "food and beverage",
   bakery: "food and beverage",
   dessert: "food and beverage",
-  ice cream: "food and beverage",
+  "ice cream": "food and beverage",
   wings: "food and beverage",
 
   // Health & Wellness
@@ -98,7 +98,7 @@ const CATEGORY_ALIASES: Record<string, string> = {
   massage: "health and wellness",
   chiropractic: "health and wellness",
   chiropractor: "health and wellness",
-  physical therapy: "health and wellness",
+  "physical therapy": "health and wellness",
   nutrition: "health and wellness",
   vitamin: "health and wellness",
   supplements: "health and wellness",
@@ -125,10 +125,10 @@ const CATEGORY_ALIASES: Record<string, string> = {
   arcade: "things to do",
   escape: "things to do",
   golf: "things to do",
-  mini golf: "things to do",
-  laser tag: "things to do",
+  "mini golf": "things to do",
+  "laser tag": "things to do",
   paintball: "things to do",
-  axe throwing: "things to do",
+  "axe throwing": "things to do",
 
   // Beauty & Spa (formerly Beauty & Hair)
   "beauty and spa": "beauty and spa",
@@ -160,7 +160,7 @@ const CATEGORY_ALIASES: Record<string, string> = {
   car: "auto and home",
   cars: "auto and home",
   mechanic: "auto and home",
-  oil change: "auto and home",
+  "oil change": "auto and home",
   tires: "auto and home",
   detailing: "auto and home",
   "car wash": "auto and home",
