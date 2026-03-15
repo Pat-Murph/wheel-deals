@@ -333,13 +333,10 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
 
       {/* Top nav bar */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-        <div style={{ fontSize: 22, fontWeight: 950 }}>
-          <span style={{ color: "#F4B400" }}>Wheel</span>{" "}
-          <span style={{ color: "#2563EB" }}>Deals</span>
-        </div>
+        <div />
         <div style={{ display: "flex", gap: 8 }}>
           <a href="/discover" style={{
-            fontWeight: 900, textDecoration: "none", color: "#DC2626",
+            fontWeight: 900, textDecoration: "none", color: "#111",
             padding: "8px 12px", borderRadius: 10, border: "1px solid rgba(0,0,0,0.12)",
             background: "linear-gradient(180deg, #f3f4f6, #fff)", fontSize: 13,
           }}>
