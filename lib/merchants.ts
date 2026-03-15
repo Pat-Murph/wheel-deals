@@ -46,6 +46,7 @@ export const DISCOVER_CATEGORIES = [
   "things to do",
   "beauty and spa",
   "auto and home",
+  "others",
 ] as const;
 
 // Cities are dynamic — populated from active merchant profiles.
@@ -145,6 +146,12 @@ const CATEGORY_ALIASES: Record<string, string> = {
   skincare: "beauty and spa",
   facial: "beauty and spa",
   tanning: "beauty and spa",
+
+  // Others
+  others: "others",
+  other: "others",
+  misc: "others",
+  miscellaneous: "others",
 
   // Auto & Home
   "auto and home": "auto and home",
