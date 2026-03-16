@@ -23,6 +23,8 @@ export type Merchant = {
   nameLower?: string;
   categoryLower?: string;
   cityLower?: string;
+  state?: string;
+  stateLower?: string;
 
   active?: boolean;
   wheel?: Array<{ label: string; weight: number }>;
@@ -267,6 +269,8 @@ export async function getActiveMerchants(): Promise<Merchant[]> {
       nameLower: data.nameLower,
       categoryLower: data.categoryLower,
       cityLower: data.cityLower,
+      state: data.state,
+      stateLower: data.stateLower,
 
       wheel: safeArray<any>(data.wheel),
       wheels: Array.isArray(data.wheels) ? data.wheels : undefined,
@@ -316,7 +320,15 @@ export async function searchMerchants(params: SearchMerchantsParams): Promise<Me
       const filterCat = category === "beauty and hair" ? "beauty and spa" : category;
       if (normalizedCat !== filterCat) return false;
     }
-    if (city && cty !== city) return false;
+    // Location filter: match city, state name, state abbreviation, or zip in address
+    if (city) {
+      const st = normalize(m.stateLower ?? m.state ?? "");
+      const addr = normalize(m.address ?? "");
+      const cityMatch = cty.includes(city) || city.includes(cty);
+      const stateMatch = st.includes(city) || city.includes(st);
+      const addrMatch = addr.includes(city);
+      if (!cityMatch && !stateMatch && !addrMatch) return false;
+    }
 
     for (const t of tokens) {
       // Match against name, category, city, OR business description
