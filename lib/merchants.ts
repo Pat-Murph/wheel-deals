@@ -59,6 +59,27 @@ function normalize(s: string) {
   return (s || "").trim().toLowerCase();
 }
 
+// US state abbreviation → full name (lowercase)
+const STATE_ABBR: Record<string, string> = {
+  al: "alabama", ak: "alaska", az: "arizona", ar: "arkansas", ca: "california",
+  co: "colorado", ct: "connecticut", de: "delaware", fl: "florida", ga: "georgia",
+  hi: "hawaii", id: "idaho", il: "illinois", in: "indiana", ia: "iowa",
+  ks: "kansas", ky: "kentucky", la: "louisiana", me: "maine", md: "maryland",
+  ma: "massachusetts", mi: "michigan", mn: "minnesota", ms: "mississippi",
+  mo: "missouri", mt: "montana", ne: "nebraska", nv: "nevada", nh: "new hampshire",
+  nj: "new jersey", nm: "new mexico", ny: "new york", nc: "north carolina",
+  nd: "north dakota", oh: "ohio", ok: "oklahoma", or: "oregon", pa: "pennsylvania",
+  ri: "rhode island", sc: "south carolina", sd: "south dakota", tn: "tennessee",
+  tx: "texas", ut: "utah", vt: "vermont", va: "virginia", wa: "washington",
+  wv: "west virginia", wi: "wisconsin", wy: "wyoming", dc: "district of columbia",
+};
+
+/** Expand a location query: if it's a 2-letter state abbr return the full name, else return as-is */
+function expandLocation(q: string): string {
+  const lower = q.trim().toLowerCase();
+  return STATE_ABBR[lower] ?? lower;
+}
+
 function uniq(arr: string[]) {
   return Array.from(new Set(arr));
 }
@@ -322,10 +343,15 @@ export async function searchMerchants(params: SearchMerchantsParams): Promise<Me
     }
     // Location filter: match city, state name, state abbreviation, or zip in address
     if (city) {
+      // Expand abbreviations: "CA" → "california", "NV" → "nevada", etc.
+      const locationQuery = expandLocation(city);
       const st = normalize(m.stateLower ?? m.state ?? "");
       const addr = normalize(m.address ?? "");
-      const cityMatch = cty.includes(city) || city.includes(cty);
-      const stateMatch = st.includes(city) || city.includes(st);
+      // city field partial match
+      const cityMatch = cty.includes(locationQuery) || locationQuery.includes(cty);
+      // state field partial match (using expanded query)
+      const stateMatch = st.includes(locationQuery) || locationQuery.includes(st);
+      // address field contains the raw query (handles zip codes like "89029")
       const addrMatch = addr.includes(city);
       if (!cityMatch && !stateMatch && !addrMatch) return false;
     }
