@@ -1053,7 +1053,7 @@ export default function Wheel({
             color: winnerText ? "#F5D060" : "rgba(245,208,96,0.65)",
           }}
         >
-          {winnerText || (spinning ? "Spinning..." : "Spin to win a deal")}
+          {winnerText || (spinning ? "Unlocking..." : "Spin to unlock a deal")}
         </div>
 
         {redeemCode && (
@@ -1129,7 +1129,7 @@ export default function Wheel({
             }}
           >
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <div style={{ fontWeight: 950, fontSize: 17 }}>Prize List</div>
+              <div style={{ fontWeight: 950, fontSize: 17 }}>Deal List</div>
               <button
                 onClick={() => setShowPrizes(false)}
                 style={{
@@ -1183,7 +1183,7 @@ export default function Wheel({
                       whiteSpace: "nowrap",
                     }}
                   >
-                    {pct}% chance
+                    {pct}% likely
                   </div>
                 </div>
               );
@@ -1322,7 +1322,7 @@ export default function Wheel({
                 : "0 12px 30px rgba(0,0,0,0.12), 0 0 20px rgba(255,217,61,0.22)",
             }}
           >
-            {spinning ? "Spinning..." : `Spin (${spinPriceLabel(spinPriceCents)})`}
+            {spinning ? "Unlocking..." : `Spin (${spinPriceLabel(spinPriceCents)})`}
           </button>
         )}
 

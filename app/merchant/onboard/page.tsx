@@ -1178,7 +1178,7 @@ export default function MerchantOnboardPage() {
       <div style={{ ...card(), opacity: locked ? 0.6 : 1 }}>
         <div style={{ fontWeight: 950, fontSize: 18 }}>Step 3 — Wheels (up to 3)</div>
         <div style={{ opacity: 0.7, fontWeight: 800, marginTop: 4, fontSize: 14 }}>
-          Each wheel has its own spin price and prize list. Higher weight = more likely.
+          Each wheel has its own spin price and deal list. Higher weight = more likely.
         </div>
 
         {wheels.map((wc, wi) => {
@@ -1214,7 +1214,7 @@ export default function MerchantOnboardPage() {
                     <input
                       value={row.label}
                       onChange={(e) => updateWheelItem(wi, ii, { label: e.target.value })}
-                      placeholder="Prize label"
+                      placeholder="Deal label"
                       style={inputStyle()}
                       disabled={!user || busy}
                     />
@@ -1237,7 +1237,7 @@ export default function MerchantOnboardPage() {
               </div>
 
               <button onClick={() => addWheelItem(wi)} disabled={!user || busy} style={{ ...btnGray(!user || busy), marginTop: 10, fontSize: 13 }}>
-                + Add prize
+                + Add deal
               </button>
             </div>
           );
@@ -1263,10 +1263,10 @@ export default function MerchantOnboardPage() {
 
         {/* Terms summary bullets */}
         <ul style={{ fontSize: 13, lineHeight: 1.7, marginTop: 12, paddingLeft: 18, color: "#374151" }}>
-          <li>Prizes are <b>not cash</b> and have no cash value.</li>
-          <li>A <b>prize is always awarded</b> on every spin — no “no prize” outcomes.</li>
+          <li>Deals are <b>not cash</b> and have no cash value.</li>
+          <li>A <b>deal is always awarded</b> on every spin — no "no deal" outcomes.</li>
           <li>Your business handles all <b>customer disputes</b> related to redemption.</li>
-          <li><b>Free to sign up</b> — WheelDeals earns only from the platform split per spin.</li>
+          <li><b>Free to sign up</b> — WheelDeals earns only from the platform split per deal unlocked.</li>
         </ul>
 
         {/* Founding Tier summary */}

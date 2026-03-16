@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Wheel Deals",
-  description: "Spin to win deals at local merchants",
+  description: "Unlock promotional deals at local merchants — discover and redeem exclusive offers near you.",
   manifest: "/manifest.json",
   icons: {
     icon: [

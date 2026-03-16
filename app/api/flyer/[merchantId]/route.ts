@@ -202,8 +202,8 @@ export async function GET(
     <img class="logo" src="${appUrl}/wheel-deals-discover.png" alt="Wheel Deals Discover" />
   </div>
 
-  <div class="headline">Spin to Win!</div>
-  <div class="sub">Exclusive deals — right here at ${merchantName}</div>
+  <div class="headline">Spin to Unlock Deals!</div>
+  <div class="sub">Exclusive promotional deals — right here at ${merchantName}</div>
 
   <div class="wheel-graphic">🎡</div>
 
@@ -214,11 +214,11 @@ export async function GET(
     </div>
     <div class="step">
       <div class="step-num">2</div>
-      <div class="step-text">Find us on WheelDeals &amp; tap Spin</div>
+      <div class="step-text">Find us on WheelDeals &amp; spin the deal wheel</div>
     </div>
     <div class="step">
       <div class="step-num">3</div>
-      <div class="step-text">Show your prize to redeem in store!</div>
+      <div class="step-text">Show your deal code to redeem in store!</div>
     </div>
   </div>
 
@@ -236,8 +236,8 @@ export async function GET(
   <div class="footer">
     <div class="footer-brand">WheelDeals</div>
     <div class="footer-text">
-      Spin prices start at $1.35 &nbsp;·&nbsp; Prizes are non-cash &nbsp;·&nbsp; Must be 18+<br/>
-      A prize is always awarded on every spin. No cash value.
+      Unlock prices start at $1.35 &nbsp;·&nbsp; Deals are non-cash promotional offers &nbsp;·&nbsp; Must be 18+<br/>
+      A deal is always awarded on every spin. No cash value.
     </div>
   </div>
 </body>

@@ -68,28 +68,28 @@ export default function MerchantTermsPage() {
         </p>
       </Section>
 
-      <Section title="3. Spin Wheel Rules">
+      <Section title="3. Deal Wheel Rules">
         <ul>
           <li>
-            <strong>All prizes are non-cash.</strong> Prizes listed on your spin wheel have no cash
+            <strong>All deals are non-cash promotional offers.</strong> Deals listed on your wheel have no cash
             value and cannot be exchanged for money under any circumstances.
           </li>
           <li>
-            <strong>A prize is always awarded.</strong> Every spin must result in a prize being
-            awarded to the customer. You may not configure a "no prize" or "try again" outcome.
+            <strong>A deal is always awarded.</strong> Every spin must result in a deal being
+            awarded to the customer. You may not configure a "no deal" or "try again" outcome.
           </li>
           <li>
-            <strong>Prizes must be honored.</strong> You are responsible for honoring every prize
-            won by a customer at your business. Failure to honor prizes may result in removal from
+            <strong>Deals must be honored.</strong> You are responsible for honoring every deal
+            unlocked by a customer at your business. Failure to honor deals may result in removal from
             the platform.
           </li>
           <li>
-            <strong>Accurate prize descriptions.</strong> All prize labels must accurately describe
-            what the customer will receive. Misleading or deceptive prize descriptions are prohibited.
+            <strong>Accurate deal descriptions.</strong> All deal labels must accurately describe
+            what the customer will receive. Misleading or deceptive deal descriptions are prohibited.
           </li>
           <li>
             <strong>Customer disputes.</strong> Your business is solely responsible for handling any
-            customer disputes related to prize redemption. WheelDeals is not liable for disputes
+            customer disputes related to deal redemption. WheelDeals is not liable for disputes
             between merchants and customers.
           </li>
         </ul>
@@ -153,14 +153,14 @@ export default function MerchantTermsPage() {
           <li>You must be a legitimate, operating business to participate.</li>
           <li>
             You may not use WheelDeals to promote illegal products or services, adult content,
-            gambling (beyond the spin mechanic itself), or any content that violates applicable law.
+            or any content that violates applicable law.
           </li>
           <li>
             WheelDeals reserves the right to suspend or permanently remove any merchant account
             that violates these terms, at our sole discretion, with or without prior notice.
           </li>
           <li>
-            You are responsible for ensuring your prizes comply with all applicable local, state,
+            You are responsible for ensuring your deals comply with all applicable local, state,
             and federal laws and regulations.
           </li>
         </ul>
@@ -168,8 +168,8 @@ export default function MerchantTermsPage() {
 
       <Section title="7. No Upfront Cost">
         <p>
-          There is <strong>no fee to sign up</strong> or to publish a spin wheel on WheelDeals.
-          WheelDeals earns revenue solely through the platform percentage of each spin as described
+          There is <strong>no fee to sign up</strong> or to publish a deal wheel on WheelDeals.
+          WheelDeals earns revenue solely through the platform percentage of each deal unlocked as described
           in Section 5. We do not charge monthly fees, setup fees, or listing fees.
         </p>
       </Section>

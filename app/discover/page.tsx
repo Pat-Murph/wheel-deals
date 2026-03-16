@@ -9,7 +9,6 @@ const DiscoverMap = nextDynamic(() => import("../../components/DiscoverMap"), {
 import { useEffect, useMemo, useState } from "react";
 import {
   searchMerchants,
-  getDynamicCities,
   type MerchantResult,
   parseDiscoverQuery,
   DISCOVER_CATEGORIES,
@@ -50,9 +49,9 @@ export default function DiscoverPage() {
   const [busy, setBusy] = useState(false);
   const [items, setItems] = useState<MerchantResult[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [dynamicCities, setDynamicCities] = useState<string[]>([]);
   const [foundingRemaining, setFoundingRemaining] = useState<number>(FOUNDING_MERCHANT_LIMIT);
   const [showFilters, setShowFilters] = useState(false);
+  const [showMap, setShowMap] = useState(false);
 
   useEffect(() => {
     getFoundingMerchantCount()
@@ -123,12 +122,6 @@ export default function DiscoverPage() {
 
       setItems(res);
 
-      if (dynamicCities.length === 0) {
-        try {
-          const cities = await getDynamicCities();
-          setDynamicCities(cities);
-        } catch {}
-      }
     } catch (e: any) {
       setError(e?.message ?? "Search failed.");
     } finally {
@@ -141,7 +134,8 @@ export default function DiscoverPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Sort items: boosted merchants first (by proximity), then normal merchants (by proximity)
+  // Sort items: boosted merchants within 50 miles come first, then normal merchants by proximity
+  const BOOST_RADIUS_MILES = 50;
   const sortedItems = useMemo(() => {
     const withDist = [...items].map((m) => {
       if (pos && typeof m.lat === "number" && typeof m.lng === "number") {
@@ -150,9 +144,11 @@ export default function DiscoverPage() {
       return m;
     });
     return withDist.sort((a, b) => {
-      // Boosted merchants always come first
-      const aBoost = a.boostActive ? 1 : 0;
-      const bBoost = b.boostActive ? 1 : 0;
+      // A boost only elevates a merchant if they are within 50 miles of the user
+      const aWithinBoostRadius = a.boostActive && (a.distanceMiles == null || a.distanceMiles <= BOOST_RADIUS_MILES);
+      const bWithinBoostRadius = b.boostActive && (b.distanceMiles == null || b.distanceMiles <= BOOST_RADIUS_MILES);
+      const aBoost = aWithinBoostRadius ? 1 : 0;
+      const bBoost = bWithinBoostRadius ? 1 : 0;
       if (aBoost !== bBoost) return bBoost - aBoost;
       // Within same tier, sort by proximity
       const da = a.distanceMiles;
@@ -225,10 +221,13 @@ export default function DiscoverPage() {
         }}>
           <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
             <div style={{ fontSize: 13, fontWeight: 900, color: "#ffffff", letterSpacing: 0.2 }}>
-              Own a business? Get discovered. Build a spin wheel.
+              Own a business? Get discovered.
             </div>
-            <div style={{ fontSize: 11.5, fontWeight: 600, color: "rgba(255,255,255,0.92)", lineHeight: 1.4 }}>
-              Earn from every spin · Free to sign up · {foundingRemaining} founding spots left
+            <div style={{ fontSize: 11.5, fontWeight: 600, color: "rgba(255,255,255,0.92)", lineHeight: 1.6 }}>
+              Build a promotional deal wheel.<br />
+              Customers pay to unlock your deals.<br />
+              Earn from each deal unlocked · Bring real customers into your store.<br />
+              Free to sign up · {foundingRemaining} founding spots left.
             </div>
           </div>
           <a href="/merchant/onboard" style={{
@@ -322,13 +321,17 @@ export default function DiscoverPage() {
               <option value="">All categories</option>
               {DISCOVER_CATEGORIES.map((c) => <option key={c} value={c}>{titleCase(c)}</option>)}
             </select>
-            <select value={city} onChange={(e) => setCity(e.target.value)} style={{
-              padding: "10px 10px", borderRadius: 8, border: "1px solid #d1d5db",
-              fontSize: 14, background: "#ffffff", color: "#111827", fontWeight: 500,
-            }}>
-              <option value="">All cities</option>
-              {dynamicCities.map((c) => <option key={c} value={c}>{titleCase(c)}</option>)}
-            </select>
+            <input
+              value={city}
+              onChange={(e) => setCity(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") runSearch({ autoFill: false }); }}
+              placeholder="City, zip, or state"
+              style={{
+                padding: "10px 10px", borderRadius: 8, border: "1px solid #d1d5db",
+                fontSize: 14, background: "#ffffff", color: "#111827", fontWeight: 500,
+                outline: "none", width: "100%", boxSizing: "border-box",
+              }}
+            />
             <label style={{ display: "flex", gap: 8, alignItems: "center", fontWeight: 700, fontSize: 14, color: "#374151" }}>
               <input type="checkbox" checked={nearMe} onChange={async (e) => {
                 const on = e.target.checked;
@@ -379,15 +382,41 @@ export default function DiscoverPage() {
         </div>
       </div>
 
-      {/* MAP */}
-      <div style={{ height: 220, position: "relative", borderBottom: "1px solid #e5e7eb" }}>
-        <DiscoverMap
-          merchants={sortedItems}
-          nearMeEnabled={nearMe}
-          radiusMiles={radius}
-          onPickMerchant={(id) => (window.location.href = `/wheel?merchantId=${encodeURIComponent(id)}`)}
-        />
+      {/* MAP TOGGLE BUTTON */}
+      <div style={{ padding: "8px 12px", background: "#f9fafb", borderBottom: "1px solid #e5e7eb" }}>
+        <button
+          onClick={() => setShowMap(!showMap)}
+          style={{
+            width: "100%",
+            padding: "10px 14px",
+            borderRadius: 10,
+            border: "1px solid #d1d5db",
+            fontWeight: 700,
+            fontSize: 14,
+            cursor: "pointer",
+            background: showMap ? "#fef9c3" : "#ffffff",
+            color: "#374151",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 8,
+          }}
+        >
+          {showMap ? "🗺 Hide Map" : "🗺 Show Map"}
+        </button>
       </div>
+
+      {/* MAP */}
+      {showMap && (
+        <div style={{ height: 220, position: "relative", borderBottom: "1px solid #e5e7eb" }}>
+          <DiscoverMap
+            merchants={sortedItems}
+            nearMeEnabled={nearMe}
+            radiusMiles={radius}
+            onPickMerchant={(id) => (window.location.href = `/wheel?merchantId=${encodeURIComponent(id)}`)}
+          />
+        </div>
+      )}
 
       {/* MERCHANT CARDS - vertical scrollable list */}
       <div style={{
