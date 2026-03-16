@@ -22,6 +22,7 @@ import {
   getDocs,
   limit,
   serverTimestamp,
+  increment,
 } from "firebase/firestore";
 import { app, getDb } from "../../lib/firebase";
 import { blockAnonAuth, fullSignOut } from "../../lib/auth";
@@ -35,7 +36,6 @@ import {
   type MerchantDailyStat,
 } from "../../lib/merchantStats";
 
-const REVENUE_CENTS_PER_SPIN = 70; // ✅ merchant payout: $0.70 per spin (customer pays $1.35)
 const DAILY_LIMIT = 8;
 
 type MerchantDoc = {
@@ -85,12 +85,8 @@ function parseDateKeyToLocalDate(dateKey: string) {
 }
 
 function sumRevenueCents(stats: { spinsCount?: number; revenueCents?: number }[]) {
-  // Prefer stored revenueCents if present; otherwise fallback to spins * 70c
-  const centsStored = stats.reduce((c, s) => c + Number(s.revenueCents ?? 0), 0);
-  if (centsStored > 0) return centsStored;
-
-  const spins = stats.reduce((s, d) => s + Number(d.spinsCount ?? 0), 0);
-  return spins * REVENUE_CENTS_PER_SPIN;
+  // Use stored revenueCents (accurate per-tier payout) — no flat fallback
+  return stats.reduce((c, s) => c + Number(s.revenueCents ?? 0), 0);
 }
 
 /* ---------------- UI helpers ---------------- */
@@ -303,6 +299,8 @@ export default function MerchantDashboardPage() {
   const [revenue30dCents, setRevenue30dCents] = useState(0);
   const [spinsYtd, setSpinsYtd] = useState(0);
   const [revenueYtdCents, setRevenueYtdCents] = useState(0);
+  const [redemptionsYtd, setRedemptionsYtd] = useState(0);
+  const [redemptions30d, setRedemptions30d] = useState(0);
 
   // Calendar month data
   const [monthCursor, setMonthCursor] = useState(() => {
@@ -357,6 +355,8 @@ export default function MerchantDashboardPage() {
     setRevenue30dCents(0);
     setSpinsYtd(0);
     setRevenueYtdCents(0);
+    setRedemptionsYtd(0);
+    setRedemptions30d(0);
 
     setMonthKeys([]);
     setMonthMap({});
@@ -415,6 +415,36 @@ export default function MerchantDashboardPage() {
         const spinsY = statsY.reduce((s, d) => s + (d.spinsCount ?? 0), 0);
         setSpinsYtd(spinsY);
         setRevenueYtdCents(sumRevenueCents(statsY));
+
+        // Redemptions (count spins with status=redeemed)
+        try {
+          const ytdStart = `${new Date().getFullYear()}-01-01`;
+          const ytdEnd = todayKeyLocal();
+          const redeemedYtdSnap = await getDocs(
+            query(
+              collection(getDb(), "spins"),
+              where("merchantId", "==", mid),
+              where("status", "==", "redeemed"),
+              where("dateKey", ">=", ytdStart),
+              where("dateKey", "<=", ytdEnd)
+            )
+          );
+          setRedemptionsYtd(redeemedYtdSnap.size);
+
+          const days30Start = lastNDaysKeysLocal(30).at(-1) ?? ytdStart;
+          const redeemedSnap30 = await getDocs(
+            query(
+              collection(getDb(), "spins"),
+              where("merchantId", "==", mid),
+              where("status", "==", "redeemed"),
+              where("dateKey", ">=", days30Start),
+              where("dateKey", "<=", ytdEnd)
+            )
+          );
+          setRedemptions30d(redeemedSnap30.size);
+        } catch {
+          // Non-fatal — redemption count unavailable
+        }
       } catch (e: any) {
         setStatus(e?.message ?? "Failed loading merchant stats.");
       } finally {
@@ -611,7 +641,19 @@ export default function MerchantDashboardPage() {
         redeemedAt: serverTimestamp(),
       });
 
-      setRedeemMsg(`✅ Redeemed! Prize: ${data.prizeLabel ?? "—"}`);
+      // ✅ Increment daily redemptionsCount so conversion rate stays accurate
+      try {
+        const dayKey = data.dateKey ?? todayKeyLocal();
+        const dailyRef = doc(getDb(), "merchantStats", merchantId, "daily", dayKey);
+        await updateDoc(dailyRef, { redemptionsCount: increment(1) });
+        // Also bump local state so conversion card updates immediately
+        setRedemptionsYtd((n) => n + 1);
+        setRedemptions30d((n) => n + 1);
+      } catch {
+        // Non-fatal — stat increment failed silently
+      }
+
+      setRedeemMsg(`✅ Customer gained! Deal: ${data.prizeLabel ?? "—"}`);
       setRedeemCode("");
     } catch (e: any) {
       console.error(e);
@@ -680,10 +722,7 @@ export default function MerchantDashboardPage() {
   const padDays = firstDayDow;
 
   const selectedStat = selectedDateKey ? monthMap[selectedDateKey] : undefined;
-  const selectedRevenueCents =
-    selectedStat && (selectedStat.revenueCents ?? 0) > 0
-      ? selectedStat.revenueCents
-      : (selectedStat?.spinsCount ?? 0) * REVENUE_CENTS_PER_SPIN;
+  const selectedRevenueCents = selectedStat?.revenueCents ?? 0;
 
   return (
     <main style={{ padding: "14px 14px 40px", display: "grid", gap: 14, maxWidth: 600, margin: "0 auto", boxSizing: "border-box", width: "100%", overflowX: "hidden" }}>
@@ -910,16 +949,51 @@ export default function MerchantDashboardPage() {
       {/* Stats */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px,1fr))", gap: 10 }}>
         <Stat title="Spins today" value={String(spinsToday)} />
-        <Stat title="Revenue today" value={moneyFromCents(spinsToday * REVENUE_CENTS_PER_SPIN)} />
-
         <Stat title="Spins (7 days)" value={String(spins7d)} />
-        <Stat title="Revenue (7 days)" value={moneyFromCents(spins7d * REVENUE_CENTS_PER_SPIN)} />
-
         <Stat title="Spins (30 days)" value={String(spins30d)} />
         <Stat title="Revenue (30 days)" value={moneyFromCents(revenue30dCents)} />
-
         <Stat title="Spins (YTD)" value={String(spinsYtd)} />
         <Stat title="Revenue (YTD)" value={moneyFromCents(revenueYtdCents)} />
+      </div>
+
+      {/* Customer Conversion Rate */}
+      <div style={{ ...card(), background: "linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)", border: "1px solid #86efac" }}>
+        <div style={{ fontWeight: 1000, fontSize: 16, color: "#15803d", marginBottom: 8 }}>
+          👥 Customer Conversion
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <div style={{ background: "white", borderRadius: 12, padding: "12px 14px", border: "1px solid #bbf7d0" }}>
+            <div style={{ fontSize: 11, fontWeight: 900, color: "#166534", opacity: 0.8 }}>Customers Gained (30d)</div>
+            <div style={{ fontSize: 26, fontWeight: 1000, color: "#15803d" }}>{redemptions30d}</div>
+            <div style={{ fontSize: 11, fontWeight: 800, color: "#6b7280", marginTop: 2 }}>
+              out of {spins30d} spins
+            </div>
+          </div>
+          <div style={{ background: "white", borderRadius: 12, padding: "12px 14px", border: "1px solid #bbf7d0" }}>
+            <div style={{ fontSize: 11, fontWeight: 900, color: "#166534", opacity: 0.8 }}>Conversion Rate (30d)</div>
+            <div style={{ fontSize: 26, fontWeight: 1000, color: "#15803d" }}>
+              {spins30d > 0 ? `${Math.round((redemptions30d / spins30d) * 100)}%` : "—"}
+            </div>
+            <div style={{ fontSize: 11, fontWeight: 800, color: "#6b7280", marginTop: 2 }}>deals redeemed in store</div>
+          </div>
+          <div style={{ background: "white", borderRadius: 12, padding: "12px 14px", border: "1px solid #bbf7d0" }}>
+            <div style={{ fontSize: 11, fontWeight: 900, color: "#166534", opacity: 0.8 }}>Customers Gained (YTD)</div>
+            <div style={{ fontSize: 26, fontWeight: 1000, color: "#15803d" }}>{redemptionsYtd}</div>
+            <div style={{ fontSize: 11, fontWeight: 800, color: "#6b7280", marginTop: 2 }}>
+              out of {spinsYtd} spins
+            </div>
+          </div>
+          <div style={{ background: "white", borderRadius: 12, padding: "12px 14px", border: "1px solid #bbf7d0" }}>
+            <div style={{ fontSize: 11, fontWeight: 900, color: "#166534", opacity: 0.8 }}>Conversion Rate (YTD)</div>
+            <div style={{ fontSize: 26, fontWeight: 1000, color: "#15803d" }}>
+              {spinsYtd > 0 ? `${Math.round((redemptionsYtd / spinsYtd) * 100)}%` : "—"}
+            </div>
+            <div style={{ fontSize: 11, fontWeight: 800, color: "#6b7280", marginTop: 2 }}>deals redeemed in store</div>
+          </div>
+        </div>
+        <div style={{ marginTop: 10, fontSize: 12, fontWeight: 800, color: "#166534", opacity: 0.75, lineHeight: 1.5 }}>
+          Every redeemed deal = a real customer who walked into your store.
+        </div>
       </div>
 
       {/* Calendar */}
@@ -946,8 +1020,7 @@ export default function MerchantDashboardPage() {
         </div>
 
         <div style={{ marginTop: 6, fontSize: 12, opacity: 0.75, fontWeight: 800 }}>
-          Click a day to see totals. (Revenue uses stored <code>revenueCents</code> when available; otherwise spins ×
-          $0.70.)
+          Click a day to see totals.
         </div>
 
         <div
@@ -986,8 +1059,7 @@ export default function MerchantDashboardPage() {
             const s = monthMap[dateKey];
             const spins = s?.spinsCount ?? 0;
 
-            const revCents =
-              s && (s.revenueCents ?? 0) > 0 ? s.revenueCents : spins * REVENUE_CENTS_PER_SPIN;
+            const revCents = s?.revenueCents ?? 0;
 
             const isSelected = selectedDateKey === dateKey;
             const isToday = todayKeyLocal() === dateKey;

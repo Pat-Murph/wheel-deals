@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { FieldValue } from "firebase-admin/firestore";
+import { getTierByPrice } from "@/lib/payments";
 
 // No confusing characters: 0/O, 1/I
 function makeCode(len = 8) {
@@ -27,9 +28,6 @@ function dateKeyLA(d = new Date()) {
   return `${yyyy}-${mm}-${dd}`;
 }
 
-// ✅ This should match your merchant dashboard fallback PAY_PER_SPIN = 0.7
-const REVENUE_CENTS_PER_SPIN = 70;
-
 export async function POST(req: Request) {
   try {
     const { sessionId, merchantId, uid, prizeLabel } = await req.json();
@@ -53,6 +51,11 @@ export async function POST(req: Request) {
       if (paid.used) throw new Error("Entitlement already used");
       if (paid.merchantId !== merchantId) throw new Error("Merchant mismatch");
       if (paid.uid !== uid) throw new Error("User mismatch");
+
+      // ✅ Determine merchant payout based on actual spin price stored in paidSpins
+      const amountTotal: number = Number(paid.amountTotal ?? 135);
+      const tier = getTierByPrice(amountTotal);
+      const revenueCents = tier.merchantPayoutCents;
 
       // Create spin record
       const spinRef = spinsCol.doc(); // auto id
@@ -87,6 +90,8 @@ export async function POST(req: Request) {
         status: "issued",
         code,
         sessionId,
+        spinPriceCents: amountTotal,
+        revenueCents,
         createdAt: FieldValue.serverTimestamp(),
         expiresAt,
         dateKey: dayKey,
@@ -100,13 +105,13 @@ export async function POST(req: Request) {
         createdAt: FieldValue.serverTimestamp(),
       });
 
-      // ✅ Increment daily stats (merge so doc is created if missing)
+      // ✅ Increment daily stats with accurate revenue per spin tier
       tx.set(
         dailyStatsRef,
         {
           dateKey: dayKey,
           spinsCount: FieldValue.increment(1),
-          revenueCents: FieldValue.increment(REVENUE_CENTS_PER_SPIN),
+          revenueCents: FieldValue.increment(revenueCents),
           updatedAt: FieldValue.serverTimestamp(),
         },
         { merge: true }
