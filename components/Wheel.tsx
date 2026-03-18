@@ -1151,7 +1151,7 @@ export default function Wheel({
               const pct = totalWeight > 0
                 ? ((Number(item.weight) / totalWeight) * 100).toFixed(1)
                 : "0.0";
-              const color = ["#FF4D6D","#FFD93D","#34D399","#60A5FA","#A78BFA","#FB923C","#22C55E","#F472B6"][idx % 8];
+              const color = COLORS[idx % COLORS.length];
               return (
                 <div
                   key={idx}
