@@ -991,8 +991,8 @@ export default function Wheel({
         justifyItems: "center",
         padding: 20,
         borderRadius: 18,
-        background: "linear-gradient(160deg, #3B1F0A 0%, #5C3317 30%, #7A4520 55%, #5C3317 80%, #3B1F0A 100%)",
-        boxShadow: "0 8px 32px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,200,80,0.15), inset 0 -1px 0 rgba(0,0,0,0.4)",
+        background: "linear-gradient(160deg, #0D1B3E 0%, #1a2f5e 30%, #1e3a6e 55%, #1a2f5e 80%, #0D1B3E 100%)",
+        boxShadow: "0 8px 32px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,200,80,0.15), inset 0 -1px 0 rgba(0,0,0,0.4)",
         border: "2px solid #C8960C",
       }}
     >
@@ -1345,7 +1345,7 @@ export default function Wheel({
             padding: "12px 14px",
             borderRadius: 14,
             border: "1px solid rgba(200,150,12,0.5)",
-            background: "linear-gradient(180deg, rgba(90,50,15,0.9), rgba(60,30,5,0.9))",
+            background: "linear-gradient(180deg, rgba(13,27,62,0.95), rgba(26,47,94,0.95))",
             cursor: "pointer",
             fontWeight: 900,
             opacity: 0.95,
@@ -1369,7 +1369,7 @@ export default function Wheel({
           color: "#F5E6C8",
         }}
       >
-        By spinning, you agree all spins are final. No cash value. Must be 18+.
+        By unlocking, you agree all purchases are final. Deals have no cash value.
       </div>
 
       <style>{`
