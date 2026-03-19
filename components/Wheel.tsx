@@ -1003,8 +1003,8 @@ export default function Wheel({
         justifyItems: "center",
         padding: 20,
         borderRadius: 18,
-        background: "linear-gradient(160deg, #15803d 0%, #16a34a 35%, #166534 55%, #16a34a 80%, #15803d 100%)",
-        boxShadow: "0 8px 40px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,200,80,0.2), inset 0 -1px 0 rgba(0,0,0,0.3)",
+        background: "linear-gradient(160deg, #0B1220 0%, #0f1e3a 35%, #122040 55%, #0f1e3a 80%, #0B1220 100%)",
+        boxShadow: "0 8px 40px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,200,80,0.18), inset 0 -1px 0 rgba(0,0,0,0.5)",
         border: "2px solid #C8960C",
       }}
     >
@@ -1358,7 +1358,7 @@ export default function Wheel({
             padding: "12px 14px",
             borderRadius: 14,
             border: "1px solid rgba(200,150,12,0.5)",
-            background: "linear-gradient(180deg, rgba(10,70,30,0.97), rgba(15,90,40,0.97))",
+            background: "linear-gradient(180deg, rgba(15,30,58,0.97), rgba(18,32,64,0.97))",
             cursor: "pointer",
             fontWeight: 900,
             opacity: 0.95,
