@@ -62,16 +62,28 @@ function darkenHex(hex: string, amount: number): string {
   return rgbToHex(r - amount, g - amount, b - amount);
 }
 
-// Renaissance jewel-tone palette (cycles)
+// Bright, light-friendly palette — 20 colors (cycles for wheel segments & Deal List squares)
 const COLORS = [
-  "#C0392B", // bright crimson
-  "#2E5FA3", // vivid royal blue
-  "#27AE60", // bright emerald
-  "#D4880A", // warm amber gold
-  "#7D3C98", // vivid violet
-  "#CA6F1E", // bright sienna
-  "#1E8449", // bright malachite
-  "#922B5E", // vivid rose
+  "#FF6B6B", // coral red
+  "#4ECDC4", // turquoise
+  "#FFE66D", // sunny yellow
+  "#6BCB77", // fresh green
+  "#4D96FF", // sky blue
+  "#FF9F43", // warm orange
+  "#A29BFE", // soft lavender
+  "#FD79A8", // bubblegum pink
+  "#00CEC9", // teal
+  "#FDCB6E", // golden peach
+  "#55EFC4", // mint
+  "#E17055", // terracotta
+  "#74B9FF", // light blue
+  "#D63031", // bold red
+  "#00B894", // seafoam
+  "#E84393", // hot pink
+  "#BADC58", // lime green
+  "#F9CA24", // bright gold
+  "#6C5CE7", // purple
+  "#FFA502", // amber
 ];
 
 // ✅ price label is now dynamic (see spinPriceLabel() helper below)
@@ -991,8 +1003,8 @@ export default function Wheel({
         justifyItems: "center",
         padding: 20,
         borderRadius: 18,
-        background: "linear-gradient(160deg, #0D1B3E 0%, #1a2f5e 30%, #1e3a6e 55%, #1a2f5e 80%, #0D1B3E 100%)",
-        boxShadow: "0 8px 32px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,200,80,0.15), inset 0 -1px 0 rgba(0,0,0,0.4)",
+        background: "linear-gradient(160deg, #e8f5e9 0%, #f1faf2 40%, #e8f5e9 100%)",
+        boxShadow: "0 8px 32px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,200,80,0.2), inset 0 -1px 0 rgba(0,0,0,0.06)",
         border: "2px solid #C8960C",
       }}
     >
@@ -1035,11 +1047,11 @@ export default function Wheel({
             }}
           >
             {merchantName ? (
-              <span style={{ color: "#F5D060", textShadow: "0 2px 8px rgba(0,0,0,0.6)" }}>{merchantName}</span>
+              <span style={{ color: "#1a6b3c", textShadow: "0 2px 4px rgba(0,0,0,0.15)" }}>{merchantName}</span>
             ) : (
               <>
-                <span style={{ color: "#F5D060" }}>Wheel</span>{" "}
-                <span style={{ color: "#93C5FD" }}>Deals</span>
+                <span style={{ color: "#e67e22" }}>Wheel</span>{" "}
+                <span style={{ color: "#2980b9" }}>Deals</span>
               </>
             )}
           </div>
@@ -1050,10 +1062,11 @@ export default function Wheel({
             minHeight: 22,
             marginTop: 8,
             fontWeight: 800,
-            color: winnerText ? "#F5D060" : "rgba(245,208,96,0.65)",
+            color: winnerText ? "#1a6b3c" : "rgba(26,107,60,0.65)",
           }}
         >
           {winnerText || (spinning ? "Unlocking..." : "Spin to unlock a deal")}
+          {/* subtitle color handled by parent */}
         </div>
 
         {redeemCode && (
@@ -1085,7 +1098,7 @@ export default function Wheel({
           fontSize: 12,
           fontWeight: 800,
           opacity: 0.75,
-          color: "#F5D060",
+          color: "#1a6b3c",
           padding: "2px 6px",
           marginTop: -6,
           letterSpacing: 0.2,
@@ -1345,11 +1358,11 @@ export default function Wheel({
             padding: "12px 14px",
             borderRadius: 14,
             border: "1px solid rgba(200,150,12,0.5)",
-            background: "linear-gradient(180deg, rgba(13,27,62,0.95), rgba(26,47,94,0.95))",
+            background: "linear-gradient(180deg, rgba(232,245,233,0.97), rgba(220,240,222,0.97))",
             cursor: "pointer",
             fontWeight: 900,
             opacity: 0.95,
-            color: "#F5D060",
+            color: "#1a6b3c",
           }}
         >
           {musicOn ? "🔊 Music on" : "🔇 Music off"}
@@ -1366,7 +1379,7 @@ export default function Wheel({
           textAlign: "center",
           maxWidth: 520,
           lineHeight: 1.35,
-          color: "#F5E6C8",
+          color: "#2d6a4f",
         }}
       >
         By unlocking, you agree all purchases are final. Deals have no cash value.
