@@ -132,10 +132,10 @@ export default function DiscoverPage() {
     });
 
     return [...withDist].sort((a, b) => {
-      // A boost only elevates a merchant if the USER is within 50 miles of THAT merchant
+      // Boost only SORTS a merchant to the top if the user is within 50 miles of it.
+      // The badge always shows regardless.
       const aWithinBoost = a.boostActive && a.distanceMiles != null && a.distanceMiles <= BOOST_RADIUS_MILES;
       const bWithinBoost = b.boostActive && b.distanceMiles != null && b.distanceMiles <= BOOST_RADIUS_MILES;
-      // If we have no GPS, boost is suppressed entirely (distanceMiles is undefined)
       const aBoost = aWithinBoost ? 1 : 0;
       const bBoost = bWithinBoost ? 1 : 0;
       if (aBoost !== bBoost) return bBoost - aBoost;
@@ -456,8 +456,8 @@ export default function DiscoverPage() {
 
         {sortedItems.map((m) => {
           const photo = (m.photoProcessedUrls?.[0] ?? m.photoUrls?.[0]) || null;
-          // Only show boost badge if user is within 50 miles of this merchant
-          const showBoost = m.boostActive && m.distanceMiles != null && m.distanceMiles <= BOOST_RADIUS_MILES;
+          // Always show boost badge for boosted merchants
+          const showBoost = m.boostActive === true;
           return (
             <a
               key={m.id}
