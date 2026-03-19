@@ -25,6 +25,7 @@ export type Merchant = {
   cityLower?: string;
   state?: string;
   stateLower?: string;
+  zip?: string;
 
   active?: boolean;
   wheel?: Array<{ label: string; weight: number }>;
@@ -80,11 +81,17 @@ function expandLocation(q: string): string {
   return STATE_ABBR[lower] ?? lower;
 }
 
+/** Returns true if the string looks like a postal/zip code (digits, letters, spaces, hyphens) */
+function looksLikePostalCode(s: string): boolean {
+  // US zip: 5 digits or 5+4; UK/CA/AU style: alphanumeric 3-8 chars
+  return /^\d{4,6}(-\d{4})?$/.test(s.trim()) || /^[a-z]\d[a-z]\s?\d[a-z]\d$/i.test(s.trim());
+}
+
 function uniq(arr: string[]) {
   return Array.from(new Set(arr));
 }
 
-const CATEGORY_ALIASES: Record<string, string> = {
+export const CATEGORY_ALIASES: Record<string, string> = {
   // Food & Beverage
   "food and beverage": "food and beverage",
   food: "food and beverage",
@@ -110,6 +117,28 @@ const CATEGORY_ALIASES: Record<string, string> = {
   dessert: "food and beverage",
   "ice cream": "food and beverage",
   wings: "food and beverage",
+  boba: "food and beverage",
+  tea: "food and beverage",
+  ramen: "food and beverage",
+  pho: "food and beverage",
+  thai: "food and beverage",
+  chinese: "food and beverage",
+  japanese: "food and beverage",
+  korean: "food and beverage",
+  mexican: "food and beverage",
+  italian: "food and beverage",
+  indian: "food and beverage",
+  mediterranean: "food and beverage",
+  greek: "food and beverage",
+  vegan: "food and beverage",
+  vegetarian: "food and beverage",
+  halal: "food and beverage",
+  kosher: "food and beverage",
+  smoothie: "food and beverage",
+  juice: "food and beverage",
+  diner: "food and beverage",
+  steakhouse: "food and beverage",
+  grill: "food and beverage",
 
   // Health & Wellness
   "health and wellness": "health and wellness",
@@ -125,6 +154,10 @@ const CATEGORY_ALIASES: Record<string, string> = {
   nutrition: "health and wellness",
   vitamin: "health and wellness",
   supplements: "health and wellness",
+  pilates: "health and wellness",
+  crossfit: "health and wellness",
+  meditation: "health and wellness",
+  acupuncture: "health and wellness",
 
   // Tickets & Events
   "tickets and events": "tickets and events",
@@ -136,6 +169,8 @@ const CATEGORY_ALIASES: Record<string, string> = {
   comedy: "tickets and events",
   theater: "tickets and events",
   theatre: "tickets and events",
+  festival: "tickets and events",
+  sports: "tickets and events",
 
   // Things To Do
   "things to do": "things to do",
@@ -152,8 +187,15 @@ const CATEGORY_ALIASES: Record<string, string> = {
   "laser tag": "things to do",
   paintball: "things to do",
   "axe throwing": "things to do",
+  trampoline: "things to do",
+  climbing: "things to do",
+  kayak: "things to do",
+  kayaking: "things to do",
+  hiking: "things to do",
+  tour: "things to do",
+  tours: "things to do",
 
-  // Beauty & Spa (formerly Beauty & Hair)
+  // Beauty & Spa
   "beauty and spa": "beauty and spa",
   "beauty and hair": "beauty and spa",
   beauty: "beauty and spa",
@@ -169,6 +211,10 @@ const CATEGORY_ALIASES: Record<string, string> = {
   skincare: "beauty and spa",
   facial: "beauty and spa",
   tanning: "beauty and spa",
+  threading: "beauty and spa",
+  microblading: "beauty and spa",
+  tattoo: "beauty and spa",
+  piercing: "beauty and spa",
 
   // Others
   others: "others",
@@ -197,15 +243,145 @@ const CATEGORY_ALIASES: Record<string, string> = {
   handyman: "auto and home",
   flooring: "auto and home",
   painting: "auto and home",
+  moving: "auto and home",
+  storage: "auto and home",
+  pest: "auto and home",
 };
+
+// All category alias keys as a Set for fast lookup
+const CATEGORY_ALIAS_KEYS = new Set(Object.keys(CATEGORY_ALIASES));
 
 const CITY_ALIASES: Record<string, string> = {
   "las vegas": "las vegas",
   vegas: "las vegas",
   henderson: "henderson",
   summerlin: "summerlin",
+  laughlin: "laughlin",
+  mesquite: "mesquite",
+  boulder: "boulder city",
+  "boulder city": "boulder city",
+  reno: "reno",
+  "north las vegas": "north las vegas",
+  nlv: "north las vegas",
+  phoenix: "phoenix",
+  scottsdale: "scottsdale",
+  tempe: "tempe",
+  mesa: "mesa",
+  chandler: "chandler",
+  gilbert: "gilbert",
+  glendale: "glendale",
+  tucson: "tucson",
+  flagstaff: "flagstaff",
+  "los angeles": "los angeles",
+  la: "los angeles",
+  "san diego": "san diego",
+  "san francisco": "san francisco",
+  sf: "san francisco",
+  sacramento: "sacramento",
+  fresno: "fresno",
+  bakersfield: "bakersfield",
+  anaheim: "anaheim",
+  riverside: "riverside",
+  irvine: "irvine",
+  "long beach": "long beach",
+  seattle: "seattle",
+  portland: "portland",
+  denver: "denver",
+  "salt lake city": "salt lake city",
+  slc: "salt lake city",
+  dallas: "dallas",
+  houston: "houston",
+  austin: "austin",
+  "san antonio": "san antonio",
+  chicago: "chicago",
+  miami: "miami",
+  orlando: "orlando",
+  tampa: "tampa",
+  atlanta: "atlanta",
+  charlotte: "charlotte",
+  nashville: "nashville",
+  "new york": "new york",
+  nyc: "new york",
+  brooklyn: "brooklyn",
+  bronx: "bronx",
+  queens: "queens",
+  boston: "boston",
+  philadelphia: "philadelphia",
+  philly: "philadelphia",
+  minneapolis: "minneapolis",
+  "kansas city": "kansas city",
+  "st louis": "st louis",
+  "saint louis": "st louis",
+  detroit: "detroit",
+  cleveland: "cleveland",
+  pittsburgh: "pittsburgh",
+  baltimore: "baltimore",
+  "washington dc": "washington dc",
+  dc: "washington dc",
+  "new orleans": "new orleans",
+  memphis: "memphis",
+  louisville: "louisville",
+  indianapolis: "indianapolis",
+  columbus: "columbus",
+  cincinnati: "cincinnati",
+  milwaukee: "milwaukee",
+  omaha: "omaha",
+  albuquerque: "albuquerque",
+  "el paso": "el paso",
+  "fort worth": "fort worth",
+  "san jose": "san jose",
+  jacksonville: "jacksonville",
+  "fort lauderdale": "fort lauderdale",
+  "boca raton": "boca raton",
+  "west palm beach": "west palm beach",
+  honolulu: "honolulu",
+  anchorage: "anchorage",
+  "oklahoma city": "oklahoma city",
+  tulsa: "tulsa",
+  wichita: "wichita",
+  "little rock": "little rock",
+  "baton rouge": "baton rouge",
+  "virginia beach": "virginia beach",
+  richmond: "richmond",
+  raleigh: "raleigh",
+  durham: "durham",
+  greensboro: "greensboro",
+  columbia: "columbia",
+  charleston: "charleston",
+  savannah: "savannah",
+  birmingham: "birmingham",
+  montgomery: "montgomery",
+  jackson: "jackson",
+  knoxville: "knoxville",
+  chattanooga: "chattanooga",
+  lexington: "lexington",
+  "des moines": "des moines",
+  "sioux falls": "sioux falls",
+  "rapid city": "rapid city",
+  billings: "billings",
+  boise: "boise",
+  spokane: "spokane",
+  tacoma: "tacoma",
+  olympia: "olympia",
+  "salt lake": "salt lake city",
+  provo: "provo",
+  "las cruces": "las cruces",
+  "santa fe": "santa fe",
+  "colorado springs": "colorado springs",
+  aurora: "aurora",
+  lakewood: "lakewood",
+  "fort collins": "fort collins",
 };
 
+/**
+ * Given raw search text, split it into:
+ *  - category tokens (matched against CATEGORY_ALIASES)
+ *  - location tokens (zip codes, state abbrs, city names, or words not matching any category)
+ *  - keyword tokens (remaining words that are clearly about the business type/name)
+ *
+ * Strategy: any word/phrase that is NOT a known category keyword is treated as a potential
+ * location token. This means "Laughlin boba" → location="laughlin", keyword="boba".
+ */
 export function parseDiscoverQuery(raw: string): {
   text: string;
   category: string;
@@ -218,23 +394,46 @@ export function parseDiscoverQuery(raw: string): {
   let category = "";
   let city = "";
 
-  const cityPhrases = uniq([...Object.keys(CITY_ALIASES), ...DISCOVER_CITIES]).sort(
-    (a, b) => b.length - a.length
-  );
+  // 1. Extract zip codes first (they are unambiguous location signals)
+  const zipMatch = working.match(/\b(\d{4,6}(-\d{4})?)\b/);
+  if (zipMatch) {
+    city = zipMatch[1];
+    working = working.replace(zipMatch[0], " ");
+  }
 
-  for (const phrase of cityPhrases) {
-    const p = normalize(phrase);
-    if (p && working.includes(` ${p} `)) {
-      city = CITY_ALIASES[p] ?? p;
-      working = working.replaceAll(` ${p} `, " ");
-      break;
+  // 2. Extract known city phrases (longest match first)
+  if (!city) {
+    const cityPhrases = uniq([
+      ...Object.keys(CITY_ALIASES),
+      ...DISCOVER_CITIES,
+    ]).sort((a, b) => b.length - a.length);
+
+    for (const phrase of cityPhrases) {
+      const p = normalize(phrase);
+      if (p && working.includes(` ${p} `)) {
+        city = CITY_ALIASES[p] ?? p;
+        working = working.replaceAll(` ${p} `, " ");
+        break;
+      }
     }
   }
 
+  // 3. Extract state abbreviations (2-letter words that are state codes)
+  if (!city) {
+    const stateMatch = working.match(/\b([a-z]{2})\b/);
+    if (stateMatch) {
+      const expanded = STATE_ABBR[stateMatch[1]];
+      if (expanded) {
+        city = expanded;
+        working = working.replace(stateMatch[0], " ");
+      }
+    }
+  }
+
+  // 4. Extract known category phrases (longest match first)
   const catPhrases = uniq([
     ...Object.keys(CATEGORY_ALIASES),
     ...DISCOVER_CATEGORIES,
-    "italian/pizza",
   ]).sort((a, b) => b.length - a.length);
 
   for (const phrase of catPhrases) {
@@ -243,6 +442,26 @@ export function parseDiscoverQuery(raw: string): {
       category = CATEGORY_ALIASES[p] ?? p;
       working = working.replaceAll(` ${p} `, " ");
       break;
+    }
+  }
+
+  // 5. Any remaining single words that are NOT category keywords → treat as location
+  //    This handles unknown city names like "Laughlin" that aren't in CITY_ALIASES yet
+  if (!city) {
+    const remaining = working.trim().split(/\s+/).filter(Boolean);
+    const locationWords: string[] = [];
+    const keywordWords: string[] = [];
+    for (const word of remaining) {
+      if (CATEGORY_ALIAS_KEYS.has(word)) {
+        keywordWords.push(word);
+      } else {
+        // Could be a city name we don't know about — treat as location
+        locationWords.push(word);
+      }
+    }
+    if (locationWords.length > 0) {
+      city = locationWords.join(" ");
+      working = " " + keywordWords.join(" ") + " ";
     }
   }
 
@@ -292,6 +511,7 @@ export async function getActiveMerchants(): Promise<Merchant[]> {
       cityLower: data.cityLower,
       state: data.state,
       stateLower: data.stateLower,
+      zip: data.zip,
 
       wheel: safeArray<any>(data.wheel),
       wheels: Array.isArray(data.wheels) ? data.wheels : undefined,
@@ -317,7 +537,44 @@ export type SearchMerchantsParams = {
 
 export type MerchantResult = Merchant & {
   distanceMiles?: number;
+  /** 0–100 relevance score used for sorting */
+  _score?: number;
 };
+
+/**
+ * Check if a location query matches a merchant's location fields.
+ * Handles: city name, state name, state abbreviation, zip code, address substring.
+ * Also handles international: any partial match against city, state, address, or zip.
+ */
+function locationMatches(locationQuery: string, m: Merchant): boolean {
+  if (!locationQuery) return true;
+
+  const q = normalize(locationQuery);
+  const expanded = expandLocation(q); // expand state abbr if applicable
+
+  const cty = normalize(m.cityLower ?? m.city ?? "");
+  const st = normalize(m.stateLower ?? m.state ?? "");
+  const addr = normalize(m.address ?? "");
+  const zip = normalize(m.zip ?? "");
+
+  // Zip code match: check stored zip field and address string
+  if (looksLikePostalCode(q)) {
+    return addr.includes(q) || zip.includes(q) || zip === q;
+  }
+
+  // City partial match (both directions: query contains city or city contains query)
+  if (cty && (cty.includes(expanded) || expanded.includes(cty))) return true;
+  if (cty && (cty.includes(q) || q.includes(cty))) return true;
+
+  // State match (full name or abbreviation)
+  if (st && (st.includes(expanded) || expanded.includes(st))) return true;
+  if (st && (st.includes(q) || q.includes(st))) return true;
+
+  // Address contains the raw query (handles zip codes, street names, etc.)
+  if (addr.includes(q)) return true;
+
+  return false;
+}
 
 export async function searchMerchants(params: SearchMerchantsParams): Promise<MerchantResult[]> {
   const list = await getActiveMerchants();
@@ -327,92 +584,113 @@ export async function searchMerchants(params: SearchMerchantsParams): Promise<Me
   const city = normalize(params.city || "");
   const tokens = text ? text.split(/\s+/).filter(Boolean) : [];
 
-  let filtered = list.filter((m) => {
-    const name = normalize(m.nameLower ?? m.name ?? "");
-    const cat = normalize(m.categoryLower ?? m.category ?? "");
-    const cty = normalize(m.cityLower ?? m.city ?? "");
-    // Also search the business description (about field)
-    const about = normalize(m.about ?? "");
+  // Compute distances for ALL merchants if we have user position (even without "Near me" filter)
+  const near = params.near;
+  const hasNear = near?.lat != null && near?.lng != null;
 
-    // Normalize stored category: treat legacy "beauty and hair" as "beauty and spa"
-    const normalizedCat = cat === "beauty and hair" ? "beauty and spa" : cat;
-
-    if (category) {
-      const filterCat = category === "beauty and hair" ? "beauty and spa" : category;
-      if (normalizedCat !== filterCat) return false;
-    }
-    // Location filter: match city, state name, state abbreviation, or zip in address
-    if (city) {
-      // Expand abbreviations: "CA" → "california", "NV" → "nevada", etc.
-      const locationQuery = expandLocation(city);
-      const st = normalize(m.stateLower ?? m.state ?? "");
-      const addr = normalize(m.address ?? "");
-      // city field partial match
-      const cityMatch = cty.includes(locationQuery) || locationQuery.includes(cty);
-      // state field partial match (using expanded query)
-      const stateMatch = st.includes(locationQuery) || locationQuery.includes(st);
-      // address field contains the raw query (handles zip codes like "89029")
-      const addrMatch = addr.includes(city);
-      if (!cityMatch && !stateMatch && !addrMatch) return false;
-    }
-
-    for (const t of tokens) {
-      // Match against name, category, city, OR business description
-      const ok = name.includes(t) || normalizedCat.includes(t) || cty.includes(t) || about.includes(t);
-      if (!ok) return false;
-    }
-
-    return true;
-  });
-
-  if (params.near?.lat != null && params.near?.lng != null) {
-    const near = params.near;
-    const radius = params.radiusMiles ?? null;
-
-    const withDist: MerchantResult[] = filtered.map((m) => {
-      if (typeof m.lat === "number" && typeof m.lng === "number") {
-        const dist = distanceMiles(near.lat, near.lng, m.lat, m.lng);
-        return { ...m, distanceMiles: dist };
+  let filtered: MerchantResult[] = list
+    .map((m): MerchantResult => {
+      // Compute distance if we have GPS
+      let distanceMiles: number | undefined;
+      if (hasNear && typeof m.lat === "number" && typeof m.lng === "number") {
+        distanceMiles = haversine(near!.lat, near!.lng, m.lat, m.lng);
       }
-      return { ...m, distanceMiles: undefined };
+      return { ...m, distanceMiles };
+    })
+    .filter((m) => {
+      const name = normalize(m.nameLower ?? m.name ?? "");
+      const cat = normalize(m.categoryLower ?? m.category ?? "");
+      const cty = normalize(m.cityLower ?? m.city ?? "");
+      const about = normalize(m.about ?? "");
+
+      // Normalize stored category: treat legacy "beauty and hair" as "beauty and spa"
+      const normalizedCat = cat === "beauty and hair" ? "beauty and spa" : cat;
+
+      // Category filter
+      if (category) {
+        const filterCat = category === "beauty and hair" ? "beauty and spa" : category;
+        if (normalizedCat !== filterCat) return false;
+      }
+
+      // Location filter (city/zip/state/address)
+      if (city && !locationMatches(city, m)) return false;
+
+      // Near-me radius filter
+      if (hasNear && params.radiusMiles) {
+        if (m.distanceMiles == null) return false;
+        if (m.distanceMiles > params.radiusMiles) return false;
+      }
+
+      // Keyword tokens: match against name, category, city, or about
+      for (const t of tokens) {
+        const ok = name.includes(t) || normalizedCat.includes(t) || cty.includes(t) || about.includes(t);
+        if (!ok) return false;
+      }
+
+      return true;
     });
 
-    filtered = withDist
-      .filter((m) => {
-        if (!radius) return true;
-        if (m.distanceMiles == null) return false;
-        return m.distanceMiles <= radius;
-      })
-      .sort((a, b) => {
-        const da = a.distanceMiles;
-        const db = b.distanceMiles;
+  // Score each result for relevance + proximity
+  filtered = filtered.map((m) => {
+    let score = 0;
 
-        if (da == null && db == null) return 0;
-        if (da == null) return 1;
-        if (db == null) return -1;
+    // Boost active merchants get a big bonus (but only within 50 miles)
+    const BOOST_RADIUS = 50;
+    const withinBoost = m.boostActive && (m.distanceMiles == null || m.distanceMiles <= BOOST_RADIUS);
+    if (withinBoost) score += 1000;
 
-        return da - db;
-      }) as any;
-  }
+    // Location relevance: exact city match scores higher than partial/state match
+    if (city) {
+      const cty = normalize(m.cityLower ?? m.city ?? "");
+      const expanded = expandLocation(city);
+      if (cty === expanded || cty === city) score += 500;         // exact city match
+      else if (cty.includes(expanded) || expanded.includes(cty)) score += 300; // partial city
+      else score += 100; // matched via state or address
+    }
 
-  return filtered as MerchantResult[];
+    // Keyword relevance: name match scores higher than description match
+    for (const t of tokens) {
+      const name = normalize(m.nameLower ?? m.name ?? "");
+      const cat = normalize(m.categoryLower ?? m.category ?? "");
+      if (name.includes(t)) score += 50;
+      if (cat.includes(t)) score += 30;
+    }
+
+    // Proximity bonus: closer = higher score (max 200 pts for 0 miles, 0 pts at 200+ miles)
+    if (m.distanceMiles != null) {
+      score += Math.max(0, 200 - m.distanceMiles);
+    }
+
+    return { ...m, _score: score };
+  });
+
+  // Sort: highest score first; ties broken by distance
+  filtered.sort((a, b) => {
+    const sa = a._score ?? 0;
+    const sb = b._score ?? 0;
+    if (sb !== sa) return sb - sa;
+    // Tie-break by distance
+    const da = a.distanceMiles;
+    const db = b.distanceMiles;
+    if (da == null && db == null) return 0;
+    if (da == null) return 1;
+    if (db == null) return -1;
+    return da - db;
+  });
+
+  return filtered;
 }
 
-// Haversine
-function distanceMiles(lat1: number, lon1: number, lat2: number, lon2: number) {
+// Haversine distance in miles
+function haversine(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 3958.8;
   const dLat = deg2rad(lat2 - lat1);
   const dLon = deg2rad(lon2 - lon1);
-
   const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(deg2rad(lat1)) *
-      Math.cos(deg2rad(lat2)) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2);
-
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
+    Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
 function deg2rad(d: number) {

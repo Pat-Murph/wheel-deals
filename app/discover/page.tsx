@@ -6,7 +6,7 @@ const DiscoverMap = nextDynamic(() => import("../../components/DiscoverMap"), {
   ssr: false,
 });
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import {
   searchMerchants,
   type MerchantResult,
@@ -28,7 +28,7 @@ function fmtMiles(n?: number) {
   return `${Math.round(n * 10) / 10} mi`;
 }
 
-// Haversine distance in miles (client-side, for sorting without "Near me" filter)
+// Haversine distance in miles (client-side)
 function distanceMiles(lat1: number, lon1: number, lat2: number, lon2: number) {
   const R = 3958.8;
   const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -40,9 +40,11 @@ function distanceMiles(lat1: number, lon1: number, lat2: number, lon2: number) {
 }
 
 export default function DiscoverPage() {
+  // Single unified search query (handles keywords, city, zip, category all at once)
   const [q, setQ] = useState("");
+  // Category filter (separate from search box, via filter panel)
   const [category, setCategory] = useState("");
-  const [city, setCity] = useState("");
+  // Near-me filter
   const [nearMe, setNearMe] = useState(false);
   const [radius, setRadius] = useState<number>(10);
   const [pos, setPos] = useState<{ lat: number; lng: number } | null>(null);
@@ -52,6 +54,8 @@ export default function DiscoverPage() {
   const [foundingRemaining, setFoundingRemaining] = useState<number>(FOUNDING_MERCHANT_LIMIT);
   const [showFilters, setShowFilters] = useState(false);
   const [showMap, setShowMap] = useState(false);
+  // Track what was actually searched so we can show a label
+  const [searchLabel, setSearchLabel] = useState("All merchants");
 
   useEffect(() => {
     getFoundingMerchantCount()
@@ -59,21 +63,16 @@ export default function DiscoverPage() {
       .catch(() => {});
   }, []);
 
-  // Silently try to get location on load for distance sorting (no filter applied)
+  // Silently try to get location on load — used for distance display and sorting
   useEffect(() => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (p) => setPos({ lat: p.coords.latitude, lng: p.coords.longitude }),
-        () => {}, // silently ignore if denied
+        () => {},
         { enableHighAccuracy: false, timeout: 8000 }
       );
     }
   }, []);
-
-  const queryLabel = useMemo(() => {
-    const parts = [q.trim(), category, city].filter(Boolean);
-    return parts.length ? parts.join(" • ") : "All merchants";
-  }, [q, category, city]);
 
   async function requestLocationOnce() {
     return new Promise<{ lat: number; lng: number }>((resolve, reject) => {
@@ -92,18 +91,17 @@ export default function DiscoverPage() {
     setBusy(true);
     setError(null);
     try {
-      let nextQ = q;
-      let nextCategory = category;
-      let nextCity = city;
+      let searchQ = q.trim();
+      let searchCategory = category;
+      let searchCity = "";
 
-      if (autoFill) {
-        const parsed = parseDiscoverQuery(q);
-        if (!nextCategory && parsed.category) nextCategory = parsed.category;
-        if (!nextCity && parsed.city) nextCity = parsed.city;
-        nextQ = parsed.text;
-        if (nextQ !== q) setQ(nextQ);
-        if (nextCategory !== category) setCategory(nextCategory);
-        if (nextCity !== city) setCity(nextCity);
+      if (autoFill && searchQ) {
+        // Smart parse: extract city/zip/state and category from the single search box
+        const parsed = parseDiscoverQuery(searchQ);
+        if (!searchCategory && parsed.category) searchCategory = parsed.category;
+        if (parsed.city) searchCity = parsed.city;
+        // Keep remaining keyword text
+        searchQ = parsed.text;
       }
 
       let near = pos;
@@ -112,16 +110,24 @@ export default function DiscoverPage() {
         setPos(near);
       }
 
+      // Build a human-readable label for what was searched
+      const labelParts: string[] = [];
+      if (searchQ) labelParts.push(`"${searchQ}"`);
+      if (searchCategory) labelParts.push(titleCase(searchCategory));
+      if (searchCity) labelParts.push(titleCase(searchCity));
+      if (nearMe) labelParts.push(`within ${radius} mi`);
+      setSearchLabel(labelParts.length ? labelParts.join(" · ") : "All merchants");
+
       const res = await searchMerchants({
-        q: nextQ,
-        category: nextCategory,
-        city: nextCity,
-        near: nearMe ? near : null,
+        q: searchQ,
+        category: searchCategory,
+        city: searchCity,
+        // Always pass user position so server can compute distances + sort by proximity
+        near: near,
         radiusMiles: nearMe ? radius : null,
       });
 
       setItems(res);
-
     } catch (e: any) {
       setError(e?.message ?? "Search failed.");
     } finally {
@@ -129,28 +135,39 @@ export default function DiscoverPage() {
     }
   }
 
+  // Load all merchants on mount
   useEffect(() => {
     runSearch({ autoFill: false });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Sort items: boosted merchants within 50 miles come first, then normal merchants by proximity
+  // Re-sort on client side if pos arrives after initial load
+  // (searchMerchants already sorts, but pos may have arrived after the initial call)
   const BOOST_RADIUS_MILES = 50;
   const sortedItems = useMemo(() => {
-    const withDist = [...items].map((m) => {
+    // If we have GPS, recompute distances client-side and re-sort
+    // (this handles the case where pos arrived after the search call)
+    const withDist = items.map((m) => {
       if (pos && typeof m.lat === "number" && typeof m.lng === "number") {
-        return { ...m, distanceMiles: distanceMiles(pos.lat, pos.lng, m.lat, m.lng) };
+        const d = distanceMiles(pos.lat, pos.lng, m.lat, m.lng);
+        // Only update if not already set (searchMerchants may have set it)
+        return { ...m, distanceMiles: m.distanceMiles ?? d };
       }
       return m;
     });
-    return withDist.sort((a, b) => {
-      // A boost only elevates a merchant if they are within 50 miles of the user
-      const aWithinBoostRadius = a.boostActive && (a.distanceMiles == null || a.distanceMiles <= BOOST_RADIUS_MILES);
-      const bWithinBoostRadius = b.boostActive && (b.distanceMiles == null || b.distanceMiles <= BOOST_RADIUS_MILES);
-      const aBoost = aWithinBoostRadius ? 1 : 0;
-      const bBoost = bWithinBoostRadius ? 1 : 0;
+
+    return [...withDist].sort((a, b) => {
+      // Boosted merchants within 50 miles always first
+      const aBoost = (a.boostActive && (a.distanceMiles == null || a.distanceMiles <= BOOST_RADIUS_MILES)) ? 1 : 0;
+      const bBoost = (b.boostActive && (b.distanceMiles == null || b.distanceMiles <= BOOST_RADIUS_MILES)) ? 1 : 0;
       if (aBoost !== bBoost) return bBoost - aBoost;
-      // Within same tier, sort by proximity
+
+      // Use server-computed score if available
+      const sa = (a as any)._score ?? 0;
+      const sb = (b as any)._score ?? 0;
+      if (sb !== sa) return sb - sa;
+
+      // Fall back to distance
       const da = a.distanceMiles;
       const db = b.distanceMiles;
       if (da == null && db == null) return 0;
@@ -158,7 +175,7 @@ export default function DiscoverPage() {
       if (db == null) return -1;
       return da - db;
     });
-  }, [items, pos, nearMe]);
+  }, [items, pos]);
 
   return (
     <main style={{
@@ -183,13 +200,11 @@ export default function DiscoverPage() {
         flexShrink: 0,
         boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
       }}>
-        {/* Logo — left */}
         <img
           src="/wheel-deals-discover.png"
           alt="Wheel Deals Discover"
           style={{ height: 160, width: "auto", objectFit: "contain" }}
         />
-        {/* Merchant button — right */}
         <a href="/merchant" style={{
           fontSize: 14,
           fontWeight: 800,
@@ -257,12 +272,13 @@ export default function DiscoverPage() {
         display: "grid",
         gap: 8,
       }}>
+        {/* Single unified search input */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr auto auto", gap: 8 }}>
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") runSearch({ autoFill: true }); }}
-            placeholder='Search "boba", "pizza"...'
+            placeholder='City, zip, or "boba Laughlin"...'
             style={{
               minWidth: 0,
               padding: "11px 10px",
@@ -312,26 +328,21 @@ export default function DiscoverPage() {
           </button>
         </div>
 
+        {/* Search hint */}
+        <div style={{ fontSize: 12, color: "#9ca3af", fontWeight: 500, paddingLeft: 2 }}>
+          Tip: search by city, zip code, or business type — e.g. "89029", "Laughlin", "boba Las Vegas"
+        </div>
+
         {showFilters && (
           <div style={{ display: "grid", gap: 8, gridTemplateColumns: "1fr 1fr" }}>
             <select value={category} onChange={(e) => setCategory(e.target.value)} style={{
               padding: "10px 10px", borderRadius: 8, border: "1px solid #d1d5db",
               fontSize: 14, background: "#ffffff", color: "#111827", fontWeight: 500,
+              gridColumn: "span 2",
             }}>
               <option value="">All categories</option>
               {DISCOVER_CATEGORIES.map((c) => <option key={c} value={c}>{titleCase(c)}</option>)}
             </select>
-            <input
-              value={city}
-              onChange={(e) => setCity(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") runSearch({ autoFill: false }); }}
-              placeholder="City, zip, or state"
-              style={{
-                padding: "10px 10px", borderRadius: 8, border: "1px solid #d1d5db",
-                fontSize: 14, background: "#ffffff", color: "#111827", fontWeight: 500,
-                outline: "none", width: "100%", boxSizing: "border-box",
-              }}
-            />
             <label style={{ display: "flex", gap: 8, alignItems: "center", fontWeight: 700, fontSize: 14, color: "#374151" }}>
               <input type="checkbox" checked={nearMe} onChange={async (e) => {
                 const on = e.target.checked;
@@ -353,10 +364,14 @@ export default function DiscoverPage() {
                 padding: "10px 10px", borderRadius: 8, border: "1px solid #d1d5db",
                 fontSize: 14, background: "#ffffff", color: "#111827", fontWeight: 500,
               }}>
-                {[2, 5, 10, 15, 25].map((r) => <option key={r} value={r}>{r} mi</option>)}
+                {[2, 5, 10, 15, 25, 50].map((r) => <option key={r} value={r}>{r} mi</option>)}
               </select>
             )}
-            <button onClick={() => { setQ(""); setCategory(""); setCity(""); setNearMe(false); setTimeout(() => runSearch({ autoFill: false }), 0); }}
+            <button onClick={() => {
+              setQ(""); setCategory(""); setNearMe(false);
+              setSearchLabel("All merchants");
+              setTimeout(() => runSearch({ autoFill: false }), 0);
+            }}
               style={{
                 padding: "10px 12px", borderRadius: 8, border: "1px solid #d1d5db",
                 fontWeight: 700, fontSize: 14, cursor: "pointer",
@@ -378,7 +393,7 @@ export default function DiscoverPage() {
           </div>
         )}
         <div style={{ fontSize: 13, fontWeight: 600, color: "#6b7280" }}>
-          {sortedItems.length} wheel{sortedItems.length === 1 ? "" : "s"} found — {queryLabel}
+          {sortedItems.length} wheel{sortedItems.length === 1 ? "" : "s"} found — {searchLabel}
         </div>
       </div>
 
@@ -418,7 +433,7 @@ export default function DiscoverPage() {
         </div>
       )}
 
-      {/* MERCHANT CARDS - vertical scrollable list */}
+      {/* MERCHANT CARDS */}
       <div style={{
         padding: "12px 12px 32px",
         display: "flex",
@@ -434,87 +449,88 @@ export default function DiscoverPage() {
             fontWeight: 600,
             fontSize: 15,
           }}>
-            No merchants found. Try a different search.
+            No merchants found. Try a different search — city name, zip code, or business type.
           </div>
         )}
 
         {sortedItems.map((m) => {
           const photo = (m.photoProcessedUrls?.[0] ?? m.photoUrls?.[0]) || null;
           return (
-          <a
-            key={m.id}
-            href={`/wheel?merchantId=${encodeURIComponent(m.id)}`}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 14,
-              background: m.boostActive ? "#fff7ed" : "#ffffff",
-              border: m.boostActive ? "2px solid #f97316" : "1px solid #e5e7eb",
-              borderRadius: 16,
-              padding: "16px 16px",
-              textDecoration: "none",
-              color: "#111827",
-              boxShadow: m.boostActive ? "0 4px 16px rgba(249,115,22,0.18)" : "0 2px 8px rgba(0,0,0,0.08)",
-              minHeight: 90,
-              position: "relative",
-            }}
-          >
-            {/* Info */}
-            <div style={{ flex: 1, minWidth: 0 }}>  
-              <div style={{ fontSize: 20, fontWeight: 800, lineHeight: 1.2, color: "#111827", display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                {m.boostActive && <span style={{ fontSize: 18 }}>🔥</span>}
-                {m.name ?? m.id}
-                {m.boostActive && (
-                  <span style={{ fontSize: 11, fontWeight: 900, background: "#f97316", color: "#fff", borderRadius: 999, padding: "2px 8px", letterSpacing: 0.3 }}>
-                    FREE SPIN
-                  </span>
+            <a
+              key={m.id}
+              href={`/wheel?merchantId=${encodeURIComponent(m.id)}`}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 14,
+                background: m.boostActive ? "#fff7ed" : "#ffffff",
+                border: m.boostActive ? "2px solid #f97316" : "1px solid #e5e7eb",
+                borderRadius: 16,
+                padding: "16px 16px",
+                textDecoration: "none",
+                color: "#111827",
+                boxShadow: m.boostActive ? "0 4px 16px rgba(249,115,22,0.18)" : "0 2px 8px rgba(0,0,0,0.08)",
+                minHeight: 90,
+                position: "relative",
+              }}
+            >
+              {/* Info */}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 20, fontWeight: 800, lineHeight: 1.2, color: "#111827", display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                  {m.boostActive && <span style={{ fontSize: 18 }}>🔥</span>}
+                  {m.name ?? m.id}
+                  {m.boostActive && (
+                    <span style={{ fontSize: 11, fontWeight: 900, background: "#f97316", color: "#fff", borderRadius: 999, padding: "2px 8px", letterSpacing: 0.3 }}>
+                      FREE SPIN
+                    </span>
+                  )}
+                </div>
+                <div style={{ fontSize: 15, fontWeight: 500, color: "#6b7280", marginTop: 5 }}>
+                  {m.category ? titleCase(m.category) : ""}
+                  {m.city ? ` — ${titleCase(m.city)}` : ""}
+                  {m.state ? `, ${m.state.toUpperCase()}` : ""}
+                </div>
+                {m.distanceMiles != null && (
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "#16a34a", marginTop: 4 }}>
+                    {fmtMiles(m.distanceMiles)} away
+                  </div>
                 )}
               </div>
-              <div style={{ fontSize: 15, fontWeight: 500, color: "#6b7280", marginTop: 5 }}>
-                {m.category ? titleCase(m.category) : ""}
-                {m.city ? ` — ${titleCase(m.city)}` : ""}
-              </div>
-              {m.distanceMiles != null && (
-                <div style={{ fontSize: 13, fontWeight: 700, color: "#16a34a", marginTop: 4 }}>
-                  {fmtMiles(m.distanceMiles)} away
-                </div>
+
+              {/* Photo thumbnail */}
+              {photo && (
+                <img
+                  src={photo}
+                  alt={m.name ?? "merchant"}
+                  loading="lazy"
+                  decoding="async"
+                  style={{
+                    width: 130,
+                    height: 90,
+                    borderRadius: 8,
+                    objectFit: "cover",
+                    flexShrink: 0,
+                    border: "1px solid #e5e7eb",
+                  }}
+                />
               )}
-            </div>
 
-            {/* Photo thumbnail */}
-            {photo && (
-              <img
-                src={photo}
-                alt={m.name ?? "merchant"}
-                loading="lazy"
-                decoding="async"
-                style={{
-                  width: 130,
-                  height: 90,
-                  borderRadius: 8,
-                  objectFit: "cover",
-                  flexShrink: 0,
-                  border: "1px solid #e5e7eb",
-                }}
-              />
-            )}
-
-            {/* View button */}
-            <div style={{
-              padding: "8px 12px",
-              borderRadius: 10,
-              background: "linear-gradient(180deg, #FFD700, #FFA500)",
-              fontWeight: 800,
-              fontSize: 13,
-              color: "#1a1a1a",
-              whiteSpace: "nowrap",
-              flexShrink: 0,
-              border: "1px solid #d4a017",
-              boxShadow: "0 2px 6px rgba(0,0,0,0.12)",
-            }}>
-              View
-            </div>
-          </a>
+              {/* View button */}
+              <div style={{
+                padding: "8px 12px",
+                borderRadius: 10,
+                background: "linear-gradient(180deg, #FFD700, #FFA500)",
+                fontWeight: 800,
+                fontSize: 13,
+                color: "#1a1a1a",
+                whiteSpace: "nowrap",
+                flexShrink: 0,
+                border: "1px solid #d4a017",
+                boxShadow: "0 2px 6px rgba(0,0,0,0.12)",
+              }}>
+                View
+              </div>
+            </a>
           );
         })}
       </div>
