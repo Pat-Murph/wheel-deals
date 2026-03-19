@@ -634,9 +634,10 @@ export async function searchMerchants(params: SearchMerchantsParams): Promise<Me
   filtered = filtered.map((m) => {
     let score = 0;
 
-    // Boost active merchants get a big bonus (but only within 50 miles)
+    // Boost active merchants get a big bonus ONLY when user is within 50 miles of them.
+    // If distance is unknown (no GPS) or > 50 miles, no boost to score.
     const BOOST_RADIUS = 50;
-    const withinBoost = m.boostActive && (m.distanceMiles == null || m.distanceMiles <= BOOST_RADIUS);
+    const withinBoost = m.boostActive && m.distanceMiles != null && m.distanceMiles <= BOOST_RADIUS;
     if (withinBoost) score += 1000;
 
     // Location relevance: exact city match scores higher than partial/state match
