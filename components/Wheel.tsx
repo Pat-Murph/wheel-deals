@@ -1003,8 +1003,8 @@ export default function Wheel({
         justifyItems: "center",
         padding: 20,
         borderRadius: 18,
-        background: "linear-gradient(160deg, #e8f5e9 0%, #f1faf2 40%, #e8f5e9 100%)",
-        boxShadow: "0 8px 32px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,200,80,0.2), inset 0 -1px 0 rgba(0,0,0,0.06)",
+        background: "linear-gradient(160deg, #0B1220 0%, #0f1e3a 35%, #122040 55%, #0f1e3a 80%, #0B1220 100%)",
+        boxShadow: "0 8px 40px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,200,80,0.18), inset 0 -1px 0 rgba(0,0,0,0.5)",
         border: "2px solid #C8960C",
       }}
     >
@@ -1047,11 +1047,11 @@ export default function Wheel({
             }}
           >
             {merchantName ? (
-              <span style={{ color: "#1a6b3c", textShadow: "0 2px 4px rgba(0,0,0,0.15)" }}>{merchantName}</span>
+              <span style={{ color: "#F5D060", textShadow: "0 2px 10px rgba(0,0,0,0.7), 0 0 20px rgba(255,217,61,0.35)" }}>{merchantName}</span>
             ) : (
               <>
-                <span style={{ color: "#e67e22" }}>Wheel</span>{" "}
-                <span style={{ color: "#2980b9" }}>Deals</span>
+                <span style={{ color: "#F5D060" }}>Wheel</span>{" "}
+                <span style={{ color: "#93C5FD" }}>Deals</span>
               </>
             )}
           </div>
@@ -1062,7 +1062,7 @@ export default function Wheel({
             minHeight: 22,
             marginTop: 8,
             fontWeight: 800,
-            color: winnerText ? "#1a6b3c" : "rgba(26,107,60,0.65)",
+            color: winnerText ? "#F5D060" : "rgba(245,208,96,0.65)",
           }}
         >
           {winnerText || (spinning ? "Unlocking..." : "Spin to unlock a deal")}
@@ -1070,19 +1070,19 @@ export default function Wheel({
         </div>
 
         {redeemCode && (
-          <div style={{ marginTop: 8, fontWeight: 900, letterSpacing: 1 }}>
-            Code: <span style={{ userSelect: "all" }}>{redeemCode}</span>
+          <div style={{ marginTop: 8, fontWeight: 900, letterSpacing: 1, color: "#ffffff" }}>
+            Code: <span style={{ userSelect: "all", color: "#FFE066" }}>{redeemCode}</span>
           </div>
         )}
 
         {payStatus && (
-          <div style={{ marginTop: 8, fontWeight: 800, opacity: 0.85, color: "#F5E6C8" }}>
+          <div style={{ marginTop: 8, fontWeight: 800, opacity: 0.9, color: "#F5E6C8" }}>
             {payStatus}
           </div>
         )}
 
         {spinId && (
-          <div style={{ marginTop: 6, fontSize: 12, opacity: 0.6 }}>
+          <div style={{ marginTop: 6, fontSize: 12, opacity: 0.55, color: "#cbd5e1" }}>
             Spin ID: {spinId}
           </div>
         )}
@@ -1098,7 +1098,7 @@ export default function Wheel({
           fontSize: 12,
           fontWeight: 800,
           opacity: 0.75,
-          color: "#1a6b3c",
+          color: "#F5D060",
           padding: "2px 6px",
           marginTop: -6,
           letterSpacing: 0.2,
@@ -1358,11 +1358,11 @@ export default function Wheel({
             padding: "12px 14px",
             borderRadius: 14,
             border: "1px solid rgba(200,150,12,0.5)",
-            background: "linear-gradient(180deg, rgba(232,245,233,0.97), rgba(220,240,222,0.97))",
+            background: "linear-gradient(180deg, rgba(15,30,58,0.97), rgba(18,32,64,0.97))",
             cursor: "pointer",
             fontWeight: 900,
             opacity: 0.95,
-            color: "#1a6b3c",
+            color: "#F5D060",
           }}
         >
           {musicOn ? "🔊 Music on" : "🔇 Music off"}
@@ -1379,7 +1379,7 @@ export default function Wheel({
           textAlign: "center",
           maxWidth: 520,
           lineHeight: 1.35,
-          color: "#2d6a4f",
+          color: "#94a3b8",
         }}
       >
         By unlocking, you agree all purchases are final. Deals have no cash value.
