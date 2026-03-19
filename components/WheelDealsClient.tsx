@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Wheel, { WheelItem } from "./Wheel";
 import { QRCodeCanvas } from "qrcode.react";
 import { getActiveMerchants, type Merchant } from "../lib/merchants";
@@ -205,6 +205,16 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
   }, [selectedMerchant]);
 
   const [selectedWheelIdx, setSelectedWheelIdx] = useState(0);
+  const wheelContainerRef = useRef<HTMLDivElement>(null);
+  const [wheelContainerWidth, setWheelContainerWidth] = useState(0);
+  useEffect(() => {
+    if (!wheelContainerRef.current) return;
+    const ro = new ResizeObserver((entries) => {
+      for (const e of entries) setWheelContainerWidth(e.contentRect.width);
+    });
+    ro.observe(wheelContainerRef.current);
+    return () => ro.disconnect();
+  }, []);
 
   // Reset wheel selection when merchant changes
   useEffect(() => {
@@ -645,7 +655,7 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
       )}
 
       {/* Wheel — hidden behind geo gate if free spin and not within 200m */}
-      <div style={{ display: "flex", justifyContent: "center", position: "relative", width: "100%" }}>
+      <div ref={wheelContainerRef} style={{ display: "flex", justifyContent: "center", position: "relative", width: "100%" }}>
         {isFreeSpinWheel && userPos && !isWithin200m && (
           <div style={{
             position: "absolute",
@@ -666,7 +676,7 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
         )}
         <Wheel
           items={wheelItems}
-          size={Math.min(360, typeof window !== "undefined" ? window.innerWidth - 48 : 360)}
+          size={Math.min(360, wheelContainerWidth > 0 ? wheelContainerWidth - 40 : (typeof window !== "undefined" ? window.innerWidth - 48 : 320))}
           merchantId={selectedMerchant.id}
           merchantName={(selectedMerchant as any)?.name ?? undefined}
           uid={uid ?? undefined}
