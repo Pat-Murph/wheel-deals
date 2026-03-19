@@ -205,6 +205,8 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
   }, [selectedMerchant]);
 
   const [selectedWheelIdx, setSelectedWheelIdx] = useState(0);
+  // Locked to the tier that was actually paid — prevents switching to a different tier after payment
+  const [paidTierCents, setPaidTierCents] = useState<number | null>(null);
   const wheelContainerRef = useRef<HTMLDivElement>(null);
   const [wheelContainerWidth, setWheelContainerWidth] = useState(0);
   useEffect(() => {
@@ -216,9 +218,10 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
     return () => ro.disconnect();
   }, []);
 
-  // Reset wheel selection when merchant changes
+  // Reset wheel selection and payment lock when merchant changes
   useEffect(() => {
     setSelectedWheelIdx(0);
+    setPaidTierCents(null);
   }, [selectedMerchantId]);
 
   const activeWheel = merchantWheels[selectedWheelIdx] ?? merchantWheels[0];
@@ -532,22 +535,31 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
               : wc.spinPriceCents === 500 ? "$5.00"
               : `$${(wc.spinPriceCents / 100).toFixed(2)}`;
             const active = idx === selectedWheelIdx;
+            // If payment has been verified, only the paid tier is selectable
+            const isLocked = paidTierCents !== null && wc.spinPriceCents !== paidTierCents;
             return (
               <button
                 key={idx}
-                onClick={() => setSelectedWheelIdx(idx)}
+                onClick={() => {
+                  if (isLocked) return; // can't switch tiers after paying
+                  setSelectedWheelIdx(idx);
+                }}
+                disabled={isLocked}
                 style={{
                   padding: "10px 18px",
                   borderRadius: 12,
                   border: active ? "2px solid #F4B400" : "1px solid #e5e7eb",
                   fontWeight: 900,
                   fontSize: 14,
-                  cursor: "pointer",
-                  background: active
+                  cursor: isLocked ? "not-allowed" : "pointer",
+                  background: isLocked
+                    ? "linear-gradient(180deg, #f3f4f6, #e5e7eb)"
+                    : active
                     ? "linear-gradient(180deg, rgba(255,217,61,0.95), rgba(255,155,61,0.95))"
                     : "linear-gradient(180deg, #f9fafb, #fff)",
                   boxShadow: active ? "0 4px 12px rgba(244,180,0,0.25)" : "none",
-                  color: "#111",
+                  color: isLocked ? "#9ca3af" : "#111",
+                  opacity: isLocked ? 0.5 : 1,
                 }}
               >
                 🔒 {label}
@@ -682,6 +694,13 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
           uid={uid ?? undefined}
           spinPriceCents={isFreeSpinWheel && isWithin200m ? 0 : (activeWheel?.spinPriceCents ?? 135)}
           isFreeSpinBoost={isFreeSpinWheel && isWithin200m}
+          onPaymentVerified={(priceCents) => {
+            // Lock the tier tabs to the tier that was actually paid
+            setPaidTierCents(priceCents);
+            // Also auto-select the correct wheel tab for this tier
+            const idx = merchantWheels.findIndex((w) => w.spinPriceCents === priceCents);
+            if (idx >= 0) setSelectedWheelIdx(idx);
+          }}
           onResult={(label, extra) => {
             setLastPrize(label);
             setSpinError(null);
@@ -704,7 +723,7 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
         <div style={{ padding: 14, border: "2px solid #C8960C", borderRadius: 14, background: "white", display: "flex", flexDirection: "column", gap: 10, boxShadow: "0 4px 24px rgba(200,150,12,0.18), 0 2px 8px rgba(0,0,0,0.06)", width: "100%", boxSizing: "border-box" }}>
           <div style={{ fontWeight: 950, fontSize: 18 }}>Redeem Code</div>
           <div style={{ fontSize: 13, opacity: 0.75 }}>
-            Prize: <b>{lastPrize ?? "—"}</b> · Merchant: <b>{selectedMerchant.name}</b>
+            Deal: <b>{lastPrize ?? "—"}</b> · Merchant: <b>{selectedMerchant.name}</b>
           </div>
           <div style={{ fontSize: 26, fontWeight: 950, letterSpacing: 1 }}>{issuedCode}</div>
           <div style={{ opacity: 0.7, fontSize: 13 }}>Show this code (or QR) to the merchant to redeem (one-time use).</div>

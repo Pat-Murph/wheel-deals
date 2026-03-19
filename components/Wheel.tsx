@@ -35,6 +35,9 @@ type Props = {
 
   // ✅ when true, this is a free boost spin (no Stripe charge, calls boost/consume instead)
   isFreeSpinBoost?: boolean;
+
+  // ✅ called after payment is verified with the exact tier price that was paid
+  onPaymentVerified?: (spinPriceCents: number) => void;
 };
 
 function clamp(n: number, min: number, max: number) {
@@ -295,6 +298,7 @@ export default function Wheel({
   uid,
   spinPriceCents,
   isFreeSpinBoost = false,
+  onPaymentVerified,
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
@@ -350,6 +354,8 @@ export default function Wheel({
   );
   // ✅ uid from the verified Stripe session (may differ from prop uid after page reload)
   const [verifiedUid, setVerifiedUid] = useState<string | null>(null);
+  // ✅ the exact price tier that was paid — locks the wheel selector after payment
+  const [paidSpinPriceCents, setPaidSpinPriceCents] = useState<number | null>(null);
 
   // ✅ store redemption info returned from consume
   const [redeemCode, setRedeemCode] = useState<string | null>(null);
@@ -543,6 +549,10 @@ export default function Wheel({
           setPaidSpinReady(true);
           setVerifiedSessionId(sessionId);
           if (data.uid) setVerifiedUid(data.uid);
+          if (data.spinPriceCents) {
+            setPaidSpinPriceCents(data.spinPriceCents);
+            onPaymentVerified?.(data.spinPriceCents);
+          }
           setPayStatus("✅ Payment verified — spin now!");
           // Clean session_id from URL
           sp.delete("session_id");

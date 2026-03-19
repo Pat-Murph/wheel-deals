@@ -101,7 +101,7 @@ export async function POST(req: Request) {
       });
     });
 
-    return NextResponse.json({ ok: true, merchantId, uid });
+    return NextResponse.json({ ok: true, merchantId, uid, spinPriceCents: amountTotal });
   } catch (e: any) {
     console.error(e);
     return NextResponse.json(
