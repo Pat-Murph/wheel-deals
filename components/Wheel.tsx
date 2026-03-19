@@ -990,6 +990,7 @@ export default function Wheel({
     height: size,
     display: "grid",
     placeItems: "center",
+    margin: "0 auto",
     filter: spinning ? "drop-shadow(0 0 18px rgba(255,217,61,0.25))" : "none",
   };
 
