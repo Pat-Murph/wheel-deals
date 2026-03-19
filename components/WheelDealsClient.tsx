@@ -354,11 +354,11 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
 
       {/* Merchant info card */}
       <div style={{
-        border: "1px solid #e5e7eb",
+        border: "2px solid #C8960C",
         borderRadius: 16,
         background: "white",
         overflow: "hidden",
-        boxShadow: "0 4px 20px rgba(0,0,0,0.06)",
+        boxShadow: "0 4px 24px rgba(200,150,12,0.18), 0 2px 8px rgba(0,0,0,0.08)",
       }}>
         {/* Hero photo */}
         {heroPhoto && !heroBroken ? (
@@ -439,12 +439,12 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
                     gap: 6,
                     fontSize: 14,
                     fontWeight: 800,
-                    color: "#2563EB",
+                    color: "#111",
                     textDecoration: "none",
                     padding: "8px 12px",
                     borderRadius: 10,
-                    border: "1px solid rgba(37,99,235,0.25)",
-                    background: "rgba(37,99,235,0.06)",
+                    border: "1px solid rgba(0,0,0,0.12)",
+                    background: "#f9fafb",
                   }}
                 >
                   🌐 {website.replace(/^https?:\/\//, "")}
@@ -459,18 +459,50 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
                     gap: 6,
                     fontSize: 14,
                     fontWeight: 800,
-                    color: "#16a34a",
+                    color: "#111",
                     textDecoration: "none",
                     padding: "8px 12px",
                     borderRadius: 10,
-                    border: "1px solid rgba(22,163,74,0.25)",
-                    background: "rgba(22,163,74,0.06)",
+                    border: "1px solid rgba(0,0,0,0.12)",
+                    background: "#f9fafb",
                   }}
                 >
                   📞 {phone}
                 </a>
               )}
             </div>
+          )}
+
+          {/* Directions + distance */}
+          {(selectedMerchant as any)?.lat != null && (selectedMerchant as any)?.lng != null && (
+            <a
+              href={`https://www.google.com/maps/dir/?api=1&destination=${(selectedMerchant as any).lat},${(selectedMerchant as any).lng}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                fontSize: 14,
+                fontWeight: 800,
+                color: "#111",
+                textDecoration: "none",
+                padding: "8px 12px",
+                borderRadius: 10,
+                border: "1px solid rgba(0,0,0,0.12)",
+                background: "#f9fafb",
+                marginTop: 2,
+              }}
+            >
+              📍 Get Directions
+              {distanceToMerchantMeters != null && (
+                <span style={{ fontWeight: 700, fontSize: 12, opacity: 0.7, marginLeft: 4 }}>
+                  {distanceToMerchantMeters < 1000
+                    ? `${Math.round(distanceToMerchantMeters)} m away`
+                    : `${(distanceToMerchantMeters / 1609.34).toFixed(1)} mi away`}
+                </span>
+              )}
+            </a>
           )}
         </div>
       </div>
@@ -659,7 +691,7 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
       )}
 
       {issuedCode && (
-        <div style={{ padding: 14, border: "1px solid #ddd", borderRadius: 14, background: "white", display: "flex", flexDirection: "column", gap: 10 }}>
+        <div style={{ padding: 14, border: "2px solid #C8960C", borderRadius: 14, background: "white", display: "flex", flexDirection: "column", gap: 10, boxShadow: "0 4px 24px rgba(200,150,12,0.18), 0 2px 8px rgba(0,0,0,0.06)" }}>
           <div style={{ fontWeight: 950, fontSize: 18 }}>Redeem Code</div>
           <div style={{ fontSize: 13, opacity: 0.75 }}>
             Prize: <b>{lastPrize ?? "—"}</b> · Merchant: <b>{selectedMerchant.name}</b>
