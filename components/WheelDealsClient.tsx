@@ -645,7 +645,7 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
       )}
 
       {/* Wheel — hidden behind geo gate if free spin and not within 200m */}
-      <div style={{ display: "flex", justifyContent: "center", position: "relative" }}>
+      <div style={{ display: "flex", justifyContent: "center", position: "relative", width: "100%" }}>
         {isFreeSpinWheel && userPos && !isWithin200m && (
           <div style={{
             position: "absolute",
@@ -691,7 +691,7 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
       )}
 
       {issuedCode && (
-        <div style={{ padding: 14, border: "2px solid #C8960C", borderRadius: 14, background: "white", display: "flex", flexDirection: "column", gap: 10, boxShadow: "0 4px 24px rgba(200,150,12,0.18), 0 2px 8px rgba(0,0,0,0.06)" }}>
+        <div style={{ padding: 14, border: "2px solid #C8960C", borderRadius: 14, background: "white", display: "flex", flexDirection: "column", gap: 10, boxShadow: "0 4px 24px rgba(200,150,12,0.18), 0 2px 8px rgba(0,0,0,0.06)", width: "100%", boxSizing: "border-box" }}>
           <div style={{ fontWeight: 950, fontSize: 18 }}>Redeem Code</div>
           <div style={{ fontSize: 13, opacity: 0.75 }}>
             Prize: <b>{lastPrize ?? "—"}</b> · Merchant: <b>{selectedMerchant.name}</b>

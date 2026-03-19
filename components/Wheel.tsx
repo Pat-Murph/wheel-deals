@@ -1003,6 +1003,8 @@ export default function Wheel({
         justifyItems: "center",
         padding: 20,
         borderRadius: 18,
+        width: "100%",
+        boxSizing: "border-box" as const,
         background: "linear-gradient(160deg, #0B1220 0%, #0f1e3a 35%, #122040 55%, #0f1e3a 80%, #0B1220 100%)",
         boxShadow: "0 8px 40px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,200,80,0.18), inset 0 -1px 0 rgba(0,0,0,0.5)",
         border: "2px solid #C8960C",
