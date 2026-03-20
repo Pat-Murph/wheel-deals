@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Wheel, { WheelItem } from "./Wheel";
 import { QRCodeCanvas } from "qrcode.react";
 import { getActiveMerchants, type Merchant } from "../lib/merchants";
+import SpinCelebration from "./SpinCelebration";
 
 import { getAuth, onAuthStateChanged, signInAnonymously } from "firebase/auth";
 import { app } from "../lib/firebase";
@@ -78,6 +79,12 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
   const [issuedCode, setIssuedCode] = useState("");
   const [lastPrize, setLastPrize] = useState<string | null>(null);
   const [spinError, setSpinError] = useState<string | null>(null);
+  // Celebration overlay state
+  const [celebrationVisible, setCelebrationVisible] = useState(false);
+  const [celebrationWeightPct, setCelebrationWeightPct] = useState(50);
+  const [celebrationLabel, setCelebrationLabel] = useState("");
+  // Pending result — shown after celebration dismisses
+  const pendingResultRef = useRef<{ label: string; code: string } | null>(null);
   const [emailInput, setEmailInput] = useState("");
   const [emailSending, setEmailSending] = useState(false);
   const [emailStatus, setEmailStatus] = useState<string | null>(null);
@@ -702,12 +709,24 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
             if (idx >= 0) setSelectedWheelIdx(idx);
           }}
           onResult={(label, extra) => {
-            setLastPrize(label);
             setSpinError(null);
             setEmailInput("");
             setEmailStatus(null);
-            if (extra?.code) setIssuedCode(extra.code);
-            else setSpinError("Spin completed but no code returned.");
+            if (!extra?.code) {
+              setSpinError("Spin completed but no code returned.");
+              return;
+            }
+            // Calculate the winning slice's weight percentage
+            const totalWeight = wheelItems.reduce((s, it) => s + (Number(it.weight) || 0), 0);
+            const winningItem = wheelItems.find((it) => it.label === label);
+            const weightPct = totalWeight > 0 && winningItem
+              ? (Number(winningItem.weight) / totalWeight) * 100
+              : 50;
+            // Store result for after celebration
+            pendingResultRef.current = { label, code: extra.code };
+            setCelebrationLabel(label);
+            setCelebrationWeightPct(weightPct);
+            setCelebrationVisible(true);
           }}
         />
       </div>
@@ -772,6 +791,24 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
             {emailStatus && <div style={{ fontWeight: 800, fontSize: 13, opacity: 0.85 }}>{emailStatus}</div>}
           </div>
         </div>
+      )}
+
+      {/* Animal celebration overlay — shown immediately after spin, dismissed after ~2.8s or tap */}
+      {celebrationVisible && (
+        <SpinCelebration
+          sliceWeightPct={celebrationWeightPct}
+          dealLabel={celebrationLabel}
+          onDone={() => {
+            setCelebrationVisible(false);
+            // Now reveal the code card
+            const pending = pendingResultRef.current;
+            if (pending) {
+              setLastPrize(pending.label);
+              setIssuedCode(pending.code);
+              pendingResultRef.current = null;
+            }
+          }}
+        />
       )}
     </div>
   );
