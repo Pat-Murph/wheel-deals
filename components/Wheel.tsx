@@ -303,7 +303,7 @@ export default function Wheel({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
 
-  const size = sizeProp ?? 300;
+  const size = sizeProp ?? 260;
 
   // wrapper (scale only)
   const wheelWinWrapRef = useRef<HTMLDivElement | null>(null);
@@ -1012,7 +1012,7 @@ export default function Wheel({
         display: "grid",
         gap: 14,
         justifyItems: "center",
-        padding: 20,
+        padding: 12,
         borderRadius: 18,
         width: "100%",
         boxSizing: "border-box" as const,

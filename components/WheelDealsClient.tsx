@@ -695,7 +695,6 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
         )}
         <Wheel
           items={wheelItems}
-          size={Math.min(340, wheelContainerWidth > 0 ? wheelContainerWidth - 44 : (typeof window !== "undefined" ? window.innerWidth - 44 : 300))}
           merchantId={selectedMerchant.id}
           merchantName={(selectedMerchant as any)?.name ?? undefined}
           uid={uid ?? undefined}
