@@ -33,6 +33,7 @@ export const metadata: Metadata = {
   },
   other: {
     "mobile-web-app-capable": "yes",
+    "google-site-verification": "j2HPC-GzTO_v0z-o1lCMI2iCBjLPLjrTRrE58w1bH68",
   },
 };
 
