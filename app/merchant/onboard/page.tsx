@@ -765,6 +765,7 @@ export default function MerchantOnboardPage() {
         boxSizing: "border-box",
         width: "100%",
         overflowX: "hidden",
+        contain: "layout",
       }}
     >
       <div
@@ -1105,7 +1106,9 @@ export default function MerchantOnboardPage() {
               style={{
                 display: "grid",
                 gap: 10,
-                gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
+                gridTemplateColumns: "repeat(2, 1fr)",
+                width: "100%",
+                boxSizing: "border-box",
               }}
             >
               {photoPreviewUrls.map((src, i) => (
@@ -1116,12 +1119,13 @@ export default function MerchantOnboardPage() {
                     borderRadius: 14,
                     overflow: "hidden",
                     background: "#fff",
+                    minWidth: 0,
                   }}
                 >
                   <img
                     src={src}
                     alt={`preview-${i}`}
-                    style={{ width: "100%", height: 120, objectFit: "cover" }}
+                    style={{ width: "100%", height: 110, objectFit: "cover", display: "block" }}
                   />
                   <div
                     style={{
