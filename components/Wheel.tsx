@@ -1258,40 +1258,23 @@ export default function Wheel({
           title="Tap here to see promotional deals"
         />
 
-        {/* Static pointer — SVG pin centered at top of wheel, never rotates */}
-        <svg
+        {/* Pointer triangle — centered above wheel rim */}
+        <div
           style={{
             position: "absolute",
-            top: -2,
+            top: 0,
             left: "50%",
             transform: "translateX(-50%)",
+            width: 0,
+            height: 0,
+            borderLeft: "13px solid transparent",
+            borderRight: "13px solid transparent",
+            borderTop: "24px solid #111827",
             zIndex: 10,
             pointerEvents: "none",
-            overflow: "visible",
+            filter: "drop-shadow(0 3px 6px rgba(0,0,0,0.5))",
           }}
-          width="28"
-          height="36"
-          viewBox="0 0 28 36"
-        >
-          {/* Drop shadow filter */}
-          <defs>
-            <filter id="ptrShadow" x="-50%" y="-50%" width="200%" height="200%">
-              <feDropShadow dx="0" dy="2" stdDeviation="2" floodColor="#000" floodOpacity="0.5" />
-            </filter>
-            <radialGradient id="ptrGlow" cx="50%" cy="50%" r="50%">
-              <stop offset="0%" stopColor="#FFE566" />
-              <stop offset="100%" stopColor="#F4A800" />
-            </radialGradient>
-          </defs>
-          {/* Pin body — rounded rectangle */}
-          <rect x="9" y="0" width="10" height="22" rx="5" fill="#1a1a2e" filter="url(#ptrShadow)" />
-          {/* Pin tip — triangle pointing down */}
-          <polygon points="4,18 24,18 14,32" fill="#1a1a2e" filter="url(#ptrShadow)" />
-          {/* Gold accent stripe on pin */}
-          <rect x="11" y="3" width="6" height="3" rx="1.5" fill="url(#ptrGlow)" />
-          {/* Gold tip dot */}
-          <circle cx="14" cy="30" r="3.5" fill="url(#ptrGlow)" />
-        </svg>
+        />
       </div>
 
       {/* Buttons */}
