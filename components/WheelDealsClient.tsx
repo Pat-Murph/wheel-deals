@@ -344,7 +344,7 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
       width: "100%",
       maxWidth: 520,
       margin: "0 auto",
-      padding: "12px 12px 32px",
+      padding: "12px 6px 32px",
       display: "flex",
       flexDirection: "column",
       gap: 12,

@@ -303,7 +303,7 @@ export default function Wheel({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
 
-  const size = sizeProp ?? 260;
+  const size = sizeProp ?? 300;
 
   // wrapper (scale only)
   const wheelWinWrapRef = useRef<HTMLDivElement | null>(null);
