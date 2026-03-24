@@ -303,24 +303,7 @@ export default function Wheel({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
 
-  // Self-measured size: observe the inner content width of the wrapper card
-  // so the wheel always fills the available space exactly.
-  const innerRef = useRef<HTMLDivElement | null>(null);
-  const [measuredSize, setMeasuredSize] = useState<number>(sizeProp ?? 300);
-  useEffect(() => {
-    const el = innerRef.current;
-    if (!el) return;
-    const ro = new ResizeObserver((entries) => {
-      const w = entries[0]?.contentRect.width;
-      if (w && w > 50) setMeasuredSize(Math.min(w, 420));
-    });
-    ro.observe(el);
-    // Measure immediately
-    const w = el.getBoundingClientRect().width;
-    if (w > 50) setMeasuredSize(Math.min(w, 420));
-    return () => ro.disconnect();
-  }, []);
-  const size = sizeProp ?? measuredSize;
+  const size = sizeProp ?? 300;
 
   // wrapper (scale only)
   const wheelWinWrapRef = useRef<HTMLDivElement | null>(null);
@@ -1017,7 +1000,7 @@ export default function Wheel({
     position: "relative",
     width: size,
     height: size,
-    margin: "0 auto",
+    flexShrink: 0,
     filter: spinning ? "drop-shadow(0 0 18px rgba(255,217,61,0.25))" : "none",
   };
 
@@ -1038,9 +1021,6 @@ export default function Wheel({
         border: "2px solid #C8960C",
       }}
     >
-      {/* Full-width measurement anchor — innerRef reads this to know available canvas width */}
-      <div ref={innerRef} style={{ width: "100%", height: 0, overflow: "hidden" }} />
-
       {/* Title / winner */}
       <div style={{ textAlign: "center" }}>
         {/* Colored title + glow */}
@@ -1242,7 +1222,8 @@ export default function Wheel({
         </div>
       )}
 
-      {/* Wheel + pointer */}
+      {/* Wheel + pointer — wrapper centers the fixed-size canvas */}
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: "100%" }}>
       <div style={fancyContainerStyle}>
         {/* Rotating wheel */}
         <div
@@ -1297,6 +1278,7 @@ export default function Wheel({
             filter: "drop-shadow(0 3px 6px rgba(0,0,0,0.5))",
           }}
         />
+      </div>
       </div>
 
       {/* Buttons */}
