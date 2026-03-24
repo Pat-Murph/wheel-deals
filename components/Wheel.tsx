@@ -994,13 +994,18 @@ export default function Wheel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Extra top clearance so the pointer triangle (22px) + neon dot don't get clipped
+  const POINTER_CLEARANCE = 28;
   const fancyContainerStyle: React.CSSProperties = {
     position: "relative",
     width: size,
-    height: size,
-    display: "grid",
-    placeItems: "center",
+    // Taller than the wheel so the pointer above it is never clipped
+    height: size + POINTER_CLEARANCE,
+    display: "flex",
+    alignItems: "flex-end",
+    justifyContent: "center",
     margin: "0 auto",
+    overflow: "visible",
     filter: spinning ? "drop-shadow(0 0 18px rgba(255,217,61,0.25))" : "none",
   };
 
@@ -1228,11 +1233,11 @@ export default function Wheel({
         onClick={() => setShowPrizes(true)}
         title="Tap here to see promotional deals"
       >
-        {/* Pointer triangle (points UP) */}
+        {/* Pointer triangle (points DOWN into wheel) */}
         <div
           style={{
             position: "absolute",
-            top: -2,
+            top: 0,
             left: "50%",
             transform: "translateX(-50%)",
             width: 0,
@@ -1249,7 +1254,7 @@ export default function Wheel({
         <div
           style={{
             position: "absolute",
-            top: 18,
+            top: POINTER_CLEARANCE - 10,
             left: "50%",
             transform: "translateX(-50%)",
             width: 10,
@@ -1291,7 +1296,7 @@ export default function Wheel({
             onTransitionEnd={onSpinEnd}
             onClick={(e) => e.stopPropagation()}
           >
-            <canvas ref={canvasRef} />
+            <canvas ref={canvasRef} style={{ display: "block" }} />
           </div>
         </div>
       </div>

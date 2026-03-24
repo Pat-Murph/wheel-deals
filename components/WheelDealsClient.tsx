@@ -674,7 +674,7 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
       )}
 
       {/* Wheel — hidden behind geo gate if free spin and not within 200m */}
-      <div ref={wheelContainerRef} style={{ display: "flex", justifyContent: "center", position: "relative", width: "100%" }}>
+      <div ref={wheelContainerRef} style={{ display: "flex", justifyContent: "center", position: "relative", width: "100%", overflow: "visible" }}>
         {isFreeSpinWheel && userPos && !isWithin200m && (
           <div style={{
             position: "absolute",
