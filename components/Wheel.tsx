@@ -998,10 +998,7 @@ export default function Wheel({
     position: "relative",
     width: size,
     height: size,
-    display: "grid",
-    placeItems: "center",
     margin: "0 auto",
-    overflow: "visible",
     filter: spinning ? "drop-shadow(0 0 18px rgba(255,217,61,0.25))" : "none",
   };
 
@@ -1224,62 +1221,20 @@ export default function Wheel({
       )}
 
       {/* Wheel + pointer */}
-      <div
-        style={{ ...fancyContainerStyle, cursor: "pointer" }}
-        onClick={() => setShowPrizes(true)}
-        title="Tap here to see promotional deals"
-      >
-        {/* Pointer — sits flush on the top edge of the wheel */}
-        <div
-          style={{
-            position: "absolute",
-            top: 0,
-            left: "50%",
-            transform: "translateX(-50%)",
-            zIndex: 5,
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            pointerEvents: "none",
-          }}
-        >
-          {/* Triangle pointing down */}
-          <div style={{
-            width: 0,
-            height: 0,
-            borderLeft: "14px solid transparent",
-            borderRight: "14px solid transparent",
-            borderTop: "24px solid #1a1a2e",
-            filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.5))",
-          }} />
-          {/* Gold neon tip dot */}
-          <div style={{
-            width: 12,
-            height: 12,
-            borderRadius: "50%",
-            background: "#FFD93D",
-            boxShadow: "0 0 12px 4px rgba(255,217,61,0.8)",
-            marginTop: -6,
-            animation: "wdPulse 1.2s ease-in-out infinite",
-          }} />
-        </div>
-
-        {/* Win wrapper */}
+      <div style={fancyContainerStyle}>
+        {/* Rotating wheel */}
         <div
           ref={wheelWinWrapRef}
           key={winAnimKey}
           style={{
-            width: size,
-            height: size,
-            display: "grid",
-            placeItems: "center",
+            position: "absolute",
+            inset: 0,
             animation:
               !spinning && winAnimKey > 0
                 ? "wdWinPop 760ms cubic-bezier(0.16, 0.9, 0.2, 1)"
                 : "none",
           }}
         >
-          {/* Rotation element */}
           <div
             ref={wheelRotRef}
             style={{
@@ -1291,11 +1246,52 @@ export default function Wheel({
                 : "transform 0.2s ease-out",
             }}
             onTransitionEnd={onSpinEnd}
-            onClick={(e) => e.stopPropagation()}
           >
             <canvas ref={canvasRef} style={{ display: "block" }} />
           </div>
         </div>
+
+        {/* Tap-to-see-deals overlay (transparent, on top of wheel) */}
+        <div
+          style={{ position: "absolute", inset: 0, cursor: "pointer", zIndex: 3 }}
+          onClick={() => setShowPrizes(true)}
+          title="Tap here to see promotional deals"
+        />
+
+        {/* Static pointer — SVG pin centered at top of wheel, never rotates */}
+        <svg
+          style={{
+            position: "absolute",
+            top: -2,
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 10,
+            pointerEvents: "none",
+            overflow: "visible",
+          }}
+          width="28"
+          height="36"
+          viewBox="0 0 28 36"
+        >
+          {/* Drop shadow filter */}
+          <defs>
+            <filter id="ptrShadow" x="-50%" y="-50%" width="200%" height="200%">
+              <feDropShadow dx="0" dy="2" stdDeviation="2" floodColor="#000" floodOpacity="0.5" />
+            </filter>
+            <radialGradient id="ptrGlow" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stopColor="#FFE566" />
+              <stop offset="100%" stopColor="#F4A800" />
+            </radialGradient>
+          </defs>
+          {/* Pin body — rounded rectangle */}
+          <rect x="9" y="0" width="10" height="22" rx="5" fill="#1a1a2e" filter="url(#ptrShadow)" />
+          {/* Pin tip — triangle pointing down */}
+          <polygon points="4,18 24,18 14,32" fill="#1a1a2e" filter="url(#ptrShadow)" />
+          {/* Gold accent stripe on pin */}
+          <rect x="11" y="3" width="6" height="3" rx="1.5" fill="url(#ptrGlow)" />
+          {/* Gold tip dot */}
+          <circle cx="14" cy="30" r="3.5" fill="url(#ptrGlow)" />
+        </svg>
       </div>
 
       {/* Buttons */}
