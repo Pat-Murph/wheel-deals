@@ -994,16 +994,12 @@ export default function Wheel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Extra top clearance so the pointer triangle (22px) + neon dot don't get clipped
-  const POINTER_CLEARANCE = 28;
   const fancyContainerStyle: React.CSSProperties = {
     position: "relative",
     width: size,
-    // Taller than the wheel so the pointer above it is never clipped
-    height: size + POINTER_CLEARANCE,
-    display: "flex",
-    alignItems: "flex-end",
-    justifyContent: "center",
+    height: size,
+    display: "grid",
+    placeItems: "center",
     margin: "0 auto",
     overflow: "visible",
     filter: spinning ? "drop-shadow(0 0 18px rgba(255,217,61,0.25))" : "none",
@@ -1233,39 +1229,40 @@ export default function Wheel({
         onClick={() => setShowPrizes(true)}
         title="Tap here to see promotional deals"
       >
-        {/* Pointer triangle (points DOWN into wheel) */}
+        {/* Pointer — sits flush on the top edge of the wheel */}
         <div
           style={{
             position: "absolute",
             top: 0,
             left: "50%",
             transform: "translateX(-50%)",
+            zIndex: 5,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            pointerEvents: "none",
+          }}
+        >
+          {/* Triangle pointing down */}
+          <div style={{
             width: 0,
             height: 0,
-            borderLeft: "12px solid transparent",
-            borderRight: "12px solid transparent",
-            borderTop: "22px solid #111",
-            zIndex: 5,
-            filter: "drop-shadow(0 6px 10px rgba(0,0,0,0.18))",
-          }}
-        />
-
-        {/* neon dot on pointer */}
-        <div
-          style={{
-            position: "absolute",
-            top: POINTER_CLEARANCE - 10,
-            left: "50%",
-            transform: "translateX(-50%)",
-            width: 10,
-            height: 10,
-            borderRadius: 999,
-            background: "rgba(255,217,61,0.9)",
-            boxShadow: "0 0 18px rgba(255,217,61,0.75)",
-            zIndex: 6,
+            borderLeft: "14px solid transparent",
+            borderRight: "14px solid transparent",
+            borderTop: "24px solid #1a1a2e",
+            filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.5))",
+          }} />
+          {/* Gold neon tip dot */}
+          <div style={{
+            width: 12,
+            height: 12,
+            borderRadius: "50%",
+            background: "#FFD93D",
+            boxShadow: "0 0 12px 4px rgba(255,217,61,0.8)",
+            marginTop: -6,
             animation: "wdPulse 1.2s ease-in-out infinite",
-          }}
-        />
+          }} />
+        </div>
 
         {/* Win wrapper */}
         <div

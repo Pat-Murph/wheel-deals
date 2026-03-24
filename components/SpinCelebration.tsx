@@ -42,7 +42,7 @@ export const ANIMAL_TIERS: AnimalTier[] = [
     imagePath: "/animals/dragon-chains.png",
     minWeightPct: 0,
     maxWeightPct: 0.99,
-    label: "LEGENDARY!",
+    label: "UNLOCKED!",
     bgGradient: "linear-gradient(135deg, #1a0000 0%, #3d0000 50%, #1a0000 100%)",
     glowColor: "#ff2200",
   },
@@ -53,7 +53,7 @@ export const ANIMAL_TIERS: AnimalTier[] = [
     imagePath: "/animals/phoenix-chains.png",
     minWeightPct: 1,
     maxWeightPct: 1.99,
-    label: "ULTRA RARE!",
+    label: "UNLOCKED!",
     bgGradient: "linear-gradient(135deg, #1a0a00 0%, #4d1a00 50%, #1a0a00 100%)",
     glowColor: "#ff6600",
   },
@@ -64,7 +64,7 @@ export const ANIMAL_TIERS: AnimalTier[] = [
     imagePath: "/animals/eagle-chains.png",
     minWeightPct: 2,
     maxWeightPct: 4.99,
-    label: "VERY RARE!",
+    label: "UNLOCKED!",
     bgGradient: "linear-gradient(135deg, #000d1a 0%, #001a3d 50%, #000d1a 100%)",
     glowColor: "#0099ff",
   },
@@ -75,7 +75,7 @@ export const ANIMAL_TIERS: AnimalTier[] = [
     imagePath: "/animals/tiger-chains.png",
     minWeightPct: 5,
     maxWeightPct: 9.99,
-    label: "RARE!",
+    label: "UNLOCKED!",
     bgGradient: "linear-gradient(135deg, #1a0d00 0%, #3d2000 50%, #1a0d00 100%)",
     glowColor: "#ff8800",
   },
@@ -86,7 +86,7 @@ export const ANIMAL_TIERS: AnimalTier[] = [
     imagePath: "/animals/wolf-chains.png",
     minWeightPct: 10,
     maxWeightPct: 24.99,
-    label: "UNCOMMON!",
+    label: "UNLOCKED!",
     bgGradient: "linear-gradient(135deg, #0d0d1a 0%, #1a1a3d 50%, #0d0d1a 100%)",
     glowColor: "#9966ff",
   },
@@ -97,7 +97,7 @@ export const ANIMAL_TIERS: AnimalTier[] = [
     imagePath: "/animals/bull-chains.png",
     minWeightPct: 25,
     maxWeightPct: 49.99,
-    label: "SOLID WIN!",
+    label: "UNLOCKED!",
     bgGradient: "linear-gradient(135deg, #0d1a00 0%, #1a3d00 50%, #0d1a00 100%)",
     glowColor: "#44cc00",
   },
@@ -113,6 +113,24 @@ export const ANIMAL_TIERS: AnimalTier[] = [
     glowColor: "#F4B400",
   },
 ];
+
+/** Preload all animal images as soon as this module is imported (runs once) */
+if (typeof window !== "undefined") {
+  // Use requestIdleCallback so it doesn't block the main thread
+  const preload = () => {
+    ANIMAL_TIERS.forEach((tier) => {
+      if (tier.imagePath) {
+        const img = new window.Image();
+        img.src = tier.imagePath;
+      }
+    });
+  };
+  if ("requestIdleCallback" in window) {
+    (window as Window & { requestIdleCallback: (cb: () => void) => void }).requestIdleCallback(preload);
+  } else {
+    setTimeout(preload, 500);
+  }
+}
 
 /** Pick the right animal tier for a given slice weight percentage */
 export function getAnimalTier(sliceWeightPct: number): AnimalTier {
