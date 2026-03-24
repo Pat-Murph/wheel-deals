@@ -291,7 +291,7 @@ function spinPriceLabel(cents: number | undefined): string {
 
 export default function Wheel({
   items,
-  size = 420,
+  size: sizeProp,
   onResult,
   merchantId,
   merchantName,
@@ -302,6 +302,25 @@ export default function Wheel({
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
+
+  // Self-measured size: observe the inner content width of the wrapper card
+  // so the wheel always fills the available space exactly.
+  const innerRef = useRef<HTMLDivElement | null>(null);
+  const [measuredSize, setMeasuredSize] = useState<number>(sizeProp ?? 300);
+  useEffect(() => {
+    const el = innerRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver((entries) => {
+      const w = entries[0]?.contentRect.width;
+      if (w && w > 50) setMeasuredSize(Math.min(w, 420));
+    });
+    ro.observe(el);
+    // Measure immediately
+    const w = el.getBoundingClientRect().width;
+    if (w > 50) setMeasuredSize(Math.min(w, 420));
+    return () => ro.disconnect();
+  }, []);
+  const size = sizeProp ?? measuredSize;
 
   // wrapper (scale only)
   const wheelWinWrapRef = useRef<HTMLDivElement | null>(null);
@@ -1019,6 +1038,9 @@ export default function Wheel({
         border: "2px solid #C8960C",
       }}
     >
+      {/* Full-width measurement anchor — innerRef reads this to know available canvas width */}
+      <div ref={innerRef} style={{ width: "100%", height: 0, overflow: "hidden" }} />
+
       {/* Title / winner */}
       <div style={{ textAlign: "center" }}>
         {/* Colored title + glow */}
