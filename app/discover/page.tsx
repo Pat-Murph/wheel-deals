@@ -6,7 +6,7 @@ const DiscoverMap = nextDynamic(() => import("../../components/DiscoverMap"), {
   ssr: false,
 });
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   searchMerchants,
   type MerchantResult,
@@ -66,10 +66,6 @@ export default function DiscoverPage() {
   const [showFilters, setShowFilters] = useState(false);
   const [showMap, setShowMap] = useState(false);
   const [time, setTime] = useState(new Date());
-  // Track whether we have done the initial load (with or without GPS)
-  const initialLoadDone = useRef(false);
-  // Track whether GPS has arrived so we can re-run search with position
-  const posRef = useRef<{ lat: number; lng: number } | null>(null);
 
   useEffect(() => {
     const timer = setInterval(() => setTime(new Date()), 1000);
@@ -80,6 +76,18 @@ export default function DiscoverPage() {
     getFoundingMerchantCount()
       .then(({ remaining }) => setFoundingRemaining(remaining))
       .catch(() => {});
+  }, []);
+
+  // Get GPS position on mount — this ONLY sets state, does NOT trigger search.
+  // Distances are computed client-side in sortedItems below, so they react to pos changes automatically.
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (p) => setPos({ lat: p.coords.latitude, lng: p.coords.longitude }),
+        () => { /* GPS denied */ },
+        { enableHighAccuracy: false, timeout: 8000 }
+      );
+    }
   }, []);
 
   async function requestLocationOnce() {
@@ -94,15 +102,14 @@ export default function DiscoverPage() {
     });
   }
 
-  async function runSearch(nearOverride?: { lat: number; lng: number } | null) {
+  async function runSearch() {
     setBusy(true);
     setError(null);
     try {
-      let near = nearOverride !== undefined ? nearOverride : posRef.current;
+      let near = pos;
       if (nearMe && !near) {
         near = await requestLocationOnce();
         setPos(near);
-        posRef.current = near;
       }
 
       const res = await searchMerchants({
@@ -121,66 +128,41 @@ export default function DiscoverPage() {
     }
   }
 
-  // On mount: immediately load merchants (without GPS), then try to get GPS.
-  // If GPS arrives, re-run search so distances are computed.
-  // This guarantees merchants always show, and distances appear as soon as GPS is ready.
+  // Load merchants on mount — distances are computed client-side, not from searchMerchants
   useEffect(() => {
-    // 1. Fire initial search immediately (no GPS yet)
-    if (!initialLoadDone.current) {
-      initialLoadDone.current = true;
-      runSearch(null);
-    }
-
-    // 2. Try to get GPS in background
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (p) => {
-          const newPos = { lat: p.coords.latitude, lng: p.coords.longitude };
-          setPos(newPos);
-          posRef.current = newPos;
-          // Re-run search with GPS so distances are computed
-          runSearch(newPos);
-        },
-        () => { /* GPS denied — merchants already loaded without distances */ },
-        { enableHighAccuracy: false, timeout: 8000 }
-      );
-    }
+    runSearch();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // The boost radius: a boosted merchant only gets priority if user is within 50 miles of IT
   const BOOST_RADIUS_MILES = 50;
 
-  // Re-sort on client side if pos arrives after initial load
+  // Compute distances CLIENT-SIDE from pos state. This is reactive:
+  // when pos changes (GPS arrives), this memo re-runs and distances appear.
+  // No race condition possible because it's purely derived from state.
   const sortedItems = useMemo(() => {
     const withDist = items.map((m) => {
-      if (pos && typeof m.lat === "number" && typeof m.lng === "number") {
-        let d = m.distanceMiles;
-        if (m.isMobile && m.mobileActiveUntil && m.mobileActiveUntil.toDate() > time && typeof m.mobileLat === 'number' && typeof m.mobileLng === 'number') {
-          d = distanceMiles(pos.lat, pos.lng, m.mobileLat, m.mobileLng);
-        } else if (typeof m.lat === 'number' && typeof m.lng === 'number') {
-          d = distanceMiles(pos.lat, pos.lng, m.lat, m.lng);
-        }
-        return { ...m, distanceMiles: d };
+      if (!pos) return m; // No GPS yet — no distances
+      let d: number | undefined;
+      const isActiveMobile = m.isMobile && m.mobileActiveUntil &&
+        m.mobileActiveUntil.toDate && m.mobileActiveUntil.toDate() > time;
+      if (isActiveMobile && typeof m.mobileLat === 'number' && typeof m.mobileLng === 'number') {
+        d = distanceMiles(pos.lat, pos.lng, m.mobileLat, m.mobileLng);
+      } else if (typeof m.lat === 'number' && typeof m.lng === 'number') {
+        d = distanceMiles(pos.lat, pos.lng, m.lat, m.lng);
       }
-      return m;
+      return { ...m, distanceMiles: d ?? m.distanceMiles };
     });
 
     return [...withDist].sort((a, b) => {
       // Boost only SORTS a merchant to the top if the user is within 50 miles of it.
-      // The badge always shows regardless.
       const aWithinBoost = a.boostActive && a.distanceMiles != null && a.distanceMiles <= BOOST_RADIUS_MILES;
       const bWithinBoost = b.boostActive && b.distanceMiles != null && b.distanceMiles <= BOOST_RADIUS_MILES;
       const aBoost = aWithinBoost ? 1 : 0;
       const bBoost = bWithinBoost ? 1 : 0;
       if (aBoost !== bBoost) return bBoost - aBoost;
 
-      // Use server-computed relevance score if available
-      const sa = (a as any)._score ?? 0;
-      const sb = (b as any)._score ?? 0;
-      if (sb !== sa) return sb - sa;
-
-      // Fall back to distance
+      // Fall back to distance (closest first)
       const da = a.distanceMiles;
       const db = b.distanceMiles;
       if (da == null && db == null) return 0;
@@ -188,7 +170,7 @@ export default function DiscoverPage() {
       if (db == null) return -1;
       return da - db;
     });
-  }, [items, pos]);
+  }, [items, pos, time]);
 
   const queryLabel = useMemo(() => {
     const parts = [keyword.trim(), category, location.trim()].filter(Boolean);
@@ -528,12 +510,18 @@ export default function DiscoverPage() {
                   {m.city ? ` — ${titleCase(m.city)}` : ""}
                   {m.state ? `, ${m.state.toUpperCase()}` : ""}
                 </div>
-                                {m.isMobile && m.mobileActiveUntil && m.mobileActiveUntil.toDate && m.mobileActiveUntil.toDate() > time && (
+                {/* Mobile merchant badges */}
+                {m.isMobile && m.mobileActiveUntil && m.mobileActiveUntil.toDate && m.mobileActiveUntil.toDate() > time ? (
                   <div style={{ fontSize: 13, fontWeight: 800, color: "#d97706", marginTop: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
                     <span>🚚</span>
                     <span>Available Now — {formatDuration(m.mobileActiveUntil.toDate().getTime() - time.getTime())} left</span>
                   </div>
-                )}
+                ) : m.isMobile ? (
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "#16a34a", marginTop: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span>🚚</span>
+                    <span>Mobile</span>
+                  </div>
+                ) : null}
 
                 {m.distanceMiles != null && (
                   <div style={{ fontSize: 13, fontWeight: 700, color: "#16a34a", marginTop: 4 }}>

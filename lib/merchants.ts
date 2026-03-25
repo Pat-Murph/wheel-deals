@@ -665,11 +665,6 @@ export async function searchMerchants(params: SearchMerchantsParams): Promise<Me
   filtered = filtered.map((m) => {
     let score = 0;
 
-    // Active mobile merchants get a high-priority score so they appear near the top
-    const isActiveMobile = m.isMobile && m.mobileActiveUntil &&
-      m.mobileActiveUntil.toDate && m.mobileActiveUntil.toDate() > new Date();
-    if (isActiveMobile) score += 800;
-
     // Boost active merchants get a big bonus ONLY when user is within 50 miles of them.
     // If distance is unknown (no GPS) or > 50 miles, no boost to score.
     const BOOST_RADIUS = 50;
