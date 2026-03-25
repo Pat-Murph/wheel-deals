@@ -6,7 +6,7 @@ const DiscoverMap = nextDynamic(() => import("../../components/DiscoverMap"), {
   ssr: false,
 });
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   searchMerchants,
   type MerchantResult,
@@ -59,7 +59,6 @@ export default function DiscoverPage() {
   const [nearMe, setNearMe] = useState(false);
   const [radius, setRadius] = useState<number>(10);
   const [pos, setPos] = useState<{ lat: number; lng: number } | null>(null);
-  const [posReady, setPosReady] = useState(false);
   const [busy, setBusy] = useState(false);
   const [items, setItems] = useState<MerchantResult[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -67,6 +66,10 @@ export default function DiscoverPage() {
   const [showFilters, setShowFilters] = useState(false);
   const [showMap, setShowMap] = useState(false);
   const [time, setTime] = useState(new Date());
+  // Track whether we have done the initial load (with or without GPS)
+  const initialLoadDone = useRef(false);
+  // Track whether GPS has arrived so we can re-run search with position
+  const posRef = useRef<{ lat: number; lng: number } | null>(null);
 
   useEffect(() => {
     const timer = setInterval(() => setTime(new Date()), 1000);
@@ -77,23 +80,6 @@ export default function DiscoverPage() {
     getFoundingMerchantCount()
       .then(({ remaining }) => setFoundingRemaining(remaining))
       .catch(() => {});
-  }, []);
-
-  // Silently try to get location on load — used for distance display and sorting
-  // We set posReady=true whether or not we get a location, so the search always fires
-  useEffect(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (p) => {
-          setPos({ lat: p.coords.latitude, lng: p.coords.longitude });
-          setPosReady(true);
-        },
-        () => { setPosReady(true); }, // location denied — still run search
-        { enableHighAccuracy: false, timeout: 5000 }
-      );
-    } else {
-      setPosReady(true);
-    }
   }, []);
 
   async function requestLocationOnce() {
@@ -108,21 +94,21 @@ export default function DiscoverPage() {
     });
   }
 
-  async function runSearch(overridePos?: { lat: number; lng: number } | null) {
+  async function runSearch(nearOverride?: { lat: number; lng: number } | null) {
     setBusy(true);
     setError(null);
     try {
-      let near = overridePos !== undefined ? overridePos : pos;
+      let near = nearOverride !== undefined ? nearOverride : posRef.current;
       if (nearMe && !near) {
         near = await requestLocationOnce();
         setPos(near);
+        posRef.current = near;
       }
 
       const res = await searchMerchants({
         q: keyword.trim(),
         category,
         city: location.trim(),
-        // Always pass user position so distances are computed + results sorted by proximity
         near: near,
         radiusMiles: nearMe ? radius : null,
       });
@@ -135,13 +121,32 @@ export default function DiscoverPage() {
     }
   }
 
-  // Load all merchants once GPS position is resolved (or denied)
-  // This ensures distances are always computed on the first load
+  // On mount: immediately load merchants (without GPS), then try to get GPS.
+  // If GPS arrives, re-run search so distances are computed.
+  // This guarantees merchants always show, and distances appear as soon as GPS is ready.
   useEffect(() => {
-    if (!posReady) return;
-    runSearch(pos);
+    // 1. Fire initial search immediately (no GPS yet)
+    if (!initialLoadDone.current) {
+      initialLoadDone.current = true;
+      runSearch(null);
+    }
+
+    // 2. Try to get GPS in background
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (p) => {
+          const newPos = { lat: p.coords.latitude, lng: p.coords.longitude };
+          setPos(newPos);
+          posRef.current = newPos;
+          // Re-run search with GPS so distances are computed
+          runSearch(newPos);
+        },
+        () => { /* GPS denied — merchants already loaded without distances */ },
+        { enableHighAccuracy: false, timeout: 8000 }
+      );
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [posReady]);
+  }, []);
 
   // The boost radius: a boosted merchant only gets priority if user is within 50 miles of IT
   const BOOST_RADIUS_MILES = 50;
@@ -523,14 +528,14 @@ export default function DiscoverPage() {
                   {m.city ? ` — ${titleCase(m.city)}` : ""}
                   {m.state ? `, ${m.state.toUpperCase()}` : ""}
                 </div>
-                                {m.isMobile && m.mobileActiveUntil && m.mobileActiveUntil.toDate() > time && (
-                  <div style={{ fontSize: 13, fontWeight: 700, color: "#16a34a", marginTop: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span>📍</span>
-                    <span>Active Now — ends in {formatDuration(m.mobileActiveUntil.toDate().getTime() - time.getTime())}</span>
+                                {m.isMobile && m.mobileActiveUntil && m.mobileActiveUntil.toDate && m.mobileActiveUntil.toDate() > time && (
+                  <div style={{ fontSize: 13, fontWeight: 800, color: "#d97706", marginTop: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span>🚚</span>
+                    <span>Available Now — {formatDuration(m.mobileActiveUntil.toDate().getTime() - time.getTime())} left</span>
                   </div>
                 )}
 
-                {m.distanceMiles != null && !m.isMobile && (
+                {m.distanceMiles != null && (
                   <div style={{ fontSize: 13, fontWeight: 700, color: "#16a34a", marginTop: 4 }}>
                     {fmtMiles(m.distanceMiles)} away
                   </div>

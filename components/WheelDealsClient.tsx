@@ -493,37 +493,86 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
             </div>
           )}
 
-          {/* Directions + distance */}
-          {(selectedMerchant as any)?.lat != null && (selectedMerchant as any)?.lng != null && (
-            <a
-              href={`https://www.google.com/maps/dir/?api=1&destination=${(selectedMerchant as any).lat},${(selectedMerchant as any).lng}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 6,
-                fontSize: 14,
-                fontWeight: 800,
-                color: "#111",
-                textDecoration: "none",
-                padding: "8px 12px",
-                borderRadius: 10,
-                border: "1px solid rgba(0,0,0,0.12)",
-                background: "#f9fafb",
-                marginTop: 2,
-              }}
-            >
-              📍 Get Directions
-              {distanceToMerchantMeters != null && (
-                <span style={{ fontWeight: 700, fontSize: 12, opacity: 0.7, marginLeft: 4 }}>
-                  {distanceToMerchantMeters < 1000
-                    ? `${Math.round(distanceToMerchantMeters)} m away`
-                    : `${(distanceToMerchantMeters / 1609.34).toFixed(1)} mi away`}
-                </span>
-              )}
-            </a>
+          {/* Mobile merchant "Available Now" badge */}
+          {(selectedMerchant as any)?.isMobile && (selectedMerchant as any)?.mobileActiveUntil?.toDate && (selectedMerchant as any).mobileActiveUntil.toDate() > new Date() && (
+            <div style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              padding: "10px 14px",
+              borderRadius: 12,
+              background: "linear-gradient(135deg, #fef3c7, #fde68a)",
+              border: "1px solid #f59e0b",
+              marginTop: 4,
+            }}>
+              <span style={{ fontSize: 20 }}>🚚</span>
+              <div>
+                <div style={{ fontWeight: 900, fontSize: 14, color: "#92400e" }}>Available Now</div>
+                <div style={{ fontWeight: 700, fontSize: 12, color: "#b45309" }}>
+                  {(() => {
+                    const ms = (selectedMerchant as any).mobileActiveUntil.toDate().getTime() - Date.now();
+                    const totalSec = Math.floor(ms / 1000);
+                    const h = Math.floor(totalSec / 3600);
+                    const m = Math.floor((totalSec % 3600) / 60);
+                    const s = totalSec % 60;
+                    if (h > 0) return `${h}h ${m}m remaining`;
+                    if (m > 0) return `${m}m ${s}s remaining`;
+                    return `${s}s remaining`;
+                  })()}
+                </div>
+              </div>
+            </div>
           )}
+
+          {/* Directions + distance */}
+          {(() => {
+            const m = selectedMerchant as any;
+            const isActiveMobile = m?.isMobile && m?.mobileActiveUntil?.toDate && m.mobileActiveUntil.toDate() > new Date();
+            const dirLat = isActiveMobile && typeof m.mobileLat === 'number' ? m.mobileLat : m?.lat;
+            const dirLng = isActiveMobile && typeof m.mobileLng === 'number' ? m.mobileLng : m?.lng;
+            if (dirLat == null || dirLng == null) return null;
+
+            let distLabel = "";
+            if (distanceToMerchantMeters != null && !isActiveMobile) {
+              distLabel = distanceToMerchantMeters < 1000
+                ? `${Math.round(distanceToMerchantMeters)} m away`
+                : `${(distanceToMerchantMeters / 1609.34).toFixed(1)} mi away`;
+            } else if (isActiveMobile && userPos && typeof m.mobileLat === 'number' && typeof m.mobileLng === 'number') {
+              const d = haversineMeters(userPos.lat, userPos.lng, m.mobileLat, m.mobileLng);
+              distLabel = d < 1000
+                ? `${Math.round(d)} m away`
+                : `${(d / 1609.34).toFixed(1)} mi away`;
+            }
+
+            return (
+              <a
+                href={`https://www.google.com/maps/dir/?api=1&destination=${dirLat},${dirLng}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  fontSize: 14,
+                  fontWeight: 800,
+                  color: "#111",
+                  textDecoration: "none",
+                  padding: "8px 12px",
+                  borderRadius: 10,
+                  border: "1px solid rgba(0,0,0,0.12)",
+                  background: "#f9fafb",
+                  marginTop: 2,
+                }}
+              >
+                📍 Get Directions
+                {distLabel && (
+                  <span style={{ fontWeight: 700, fontSize: 12, opacity: 0.7, marginLeft: 4 }}>
+                    {distLabel}
+                  </span>
+                )}
+              </a>
+            );
+          })()}
         </div>
       </div>
 
