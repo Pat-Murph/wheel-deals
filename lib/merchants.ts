@@ -602,8 +602,15 @@ export async function searchMerchants(params: SearchMerchantsParams): Promise<Me
     .map((m): MerchantResult => {
       // Compute distance if we have GPS
       let distanceMiles: number | undefined;
-      if (hasNear && typeof m.lat === "number" && typeof m.lng === "number") {
-        distanceMiles = haversine(near!.lat, near!.lng, m.lat, m.lng);
+      if (hasNear) {
+        const isActiveMobile = m.isMobile && m.mobileActiveUntil &&
+          m.mobileActiveUntil.toDate && m.mobileActiveUntil.toDate() > new Date();
+        if (isActiveMobile && typeof m.mobileLat === 'number' && typeof m.mobileLng === 'number') {
+          // Use check-in location for distance calculation
+          distanceMiles = haversine(near!.lat, near!.lng, m.mobileLat, m.mobileLng);
+        } else if (typeof m.lat === "number" && typeof m.lng === "number") {
+          distanceMiles = haversine(near!.lat, near!.lng, m.lat, m.lng);
+        }
       }
       return { ...m, distanceMiles };
     })
@@ -626,15 +633,21 @@ export async function searchMerchants(params: SearchMerchantsParams): Promise<Me
       if (city && !locationMatches(city, m)) return false;
 
       // Near-me radius filter
-            // Mobile merchant check-in radius (25 miles)
-      if (m.isMobile && m.mobileActiveUntil && m.mobileActiveUntil.toDate() > new Date()) {
+      // Mobile merchants that are actively checked-in always appear on Discover.
+      // If user GPS is available, filter by 25-mile radius from check-in location.
+      // If user GPS is NOT available, still show them (don't exclude).
+      const isActiveMobile = m.isMobile && m.mobileActiveUntil &&
+        m.mobileActiveUntil.toDate && m.mobileActiveUntil.toDate() > new Date();
+
+      if (isActiveMobile) {
+        // Active mobile merchant: apply 25-mile radius only if we have user GPS
         if (hasNear && typeof m.mobileLat === 'number' && typeof m.mobileLng === 'number') {
           const mobileDistance = haversine(near!.lat, near!.lng, m.mobileLat, m.mobileLng);
-          if (mobileDistance > 25) return false; // Exclude if outside 25-mile mobile radius
-        } else {
-          return false; // Exclude active mobile merchants if user location is unknown
+          if (mobileDistance > 25) return false;
         }
+        // If no GPS, always include active mobile merchants
       } else if (hasNear && params.radiusMiles) {
+        // Standard near-me radius filter for non-mobile merchants
         if (m.distanceMiles == null) return false;
         if (m.distanceMiles > params.radiusMiles) return false;
       }
@@ -651,6 +664,11 @@ export async function searchMerchants(params: SearchMerchantsParams): Promise<Me
   // Score each result for relevance + proximity
   filtered = filtered.map((m) => {
     let score = 0;
+
+    // Active mobile merchants get a high-priority score so they appear near the top
+    const isActiveMobile = m.isMobile && m.mobileActiveUntil &&
+      m.mobileActiveUntil.toDate && m.mobileActiveUntil.toDate() > new Date();
+    if (isActiveMobile) score += 800;
 
     // Boost active merchants get a big bonus ONLY when user is within 50 miles of them.
     // If distance is unknown (no GPS) or > 50 miles, no boost to score.

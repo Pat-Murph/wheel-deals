@@ -59,6 +59,7 @@ export default function DiscoverPage() {
   const [nearMe, setNearMe] = useState(false);
   const [radius, setRadius] = useState<number>(10);
   const [pos, setPos] = useState<{ lat: number; lng: number } | null>(null);
+  const [posReady, setPosReady] = useState(false);
   const [busy, setBusy] = useState(false);
   const [items, setItems] = useState<MerchantResult[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -79,13 +80,19 @@ export default function DiscoverPage() {
   }, []);
 
   // Silently try to get location on load — used for distance display and sorting
+  // We set posReady=true whether or not we get a location, so the search always fires
   useEffect(() => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
-        (p) => setPos({ lat: p.coords.latitude, lng: p.coords.longitude }),
-        () => {},
-        { enableHighAccuracy: false, timeout: 8000 }
+        (p) => {
+          setPos({ lat: p.coords.latitude, lng: p.coords.longitude });
+          setPosReady(true);
+        },
+        () => { setPosReady(true); }, // location denied — still run search
+        { enableHighAccuracy: false, timeout: 5000 }
       );
+    } else {
+      setPosReady(true);
     }
   }, []);
 
@@ -101,11 +108,11 @@ export default function DiscoverPage() {
     });
   }
 
-  async function runSearch() {
+  async function runSearch(overridePos?: { lat: number; lng: number } | null) {
     setBusy(true);
     setError(null);
     try {
-      let near = pos;
+      let near = overridePos !== undefined ? overridePos : pos;
       if (nearMe && !near) {
         near = await requestLocationOnce();
         setPos(near);
@@ -128,11 +135,13 @@ export default function DiscoverPage() {
     }
   }
 
-  // Load all merchants on mount
+  // Load all merchants once GPS position is resolved (or denied)
+  // This ensures distances are always computed on the first load
   useEffect(() => {
-    runSearch();
+    if (!posReady) return;
+    runSearch(pos);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [posReady]);
 
   // The boost radius: a boosted merchant only gets priority if user is within 50 miles of IT
   const BOOST_RADIUS_MILES = 50;
