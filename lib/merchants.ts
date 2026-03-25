@@ -40,6 +40,12 @@ export type Merchant = {
   boostActive?: boolean;
   boostFreeSpinsRemaining?: number;
   boostWheelPriceCents?: number;
+
+  // Mobile merchant fields
+  isMobile?: boolean;
+  mobileLat?: number;
+  mobileLng?: number;
+  mobileActiveUntil?: any; // Firestore Timestamp
 };
 
 export const DISCOVER_CATEGORIES = [
@@ -521,6 +527,10 @@ export async function getActiveMerchants(): Promise<Merchant[]> {
       boostActive: data.boostActive === true && (data.boostFreeSpinsRemaining ?? 0) > 0,
       boostFreeSpinsRemaining: typeof data.boostFreeSpinsRemaining === "number" ? data.boostFreeSpinsRemaining : 0,
       boostWheelPriceCents: typeof data.boostWheelPriceCents === "number" ? data.boostWheelPriceCents : undefined,
+      isMobile: data.isMobile ?? false,
+      mobileLat: typeof data.mobileLat === 'number' ? data.mobileLat : undefined,
+      mobileLng: typeof data.mobileLng === 'number' ? data.mobileLng : undefined,
+      mobileActiveUntil: data.mobileActiveUntil ?? undefined,
     } satisfies Merchant;
   });
 }
@@ -616,7 +626,15 @@ export async function searchMerchants(params: SearchMerchantsParams): Promise<Me
       if (city && !locationMatches(city, m)) return false;
 
       // Near-me radius filter
-      if (hasNear && params.radiusMiles) {
+            // Mobile merchant check-in radius (25 miles)
+      if (m.isMobile && m.mobileActiveUntil && m.mobileActiveUntil.toDate() > new Date()) {
+        if (hasNear && typeof m.mobileLat === 'number' && typeof m.mobileLng === 'number') {
+          const mobileDistance = haversine(near!.lat, near!.lng, m.mobileLat, m.mobileLng);
+          if (mobileDistance > 25) return false; // Exclude if outside 25-mile mobile radius
+        } else {
+          return false; // Exclude active mobile merchants if user location is unknown
+        }
+      } else if (hasNear && params.radiusMiles) {
         if (m.distanceMiles == null) return false;
         if (m.distanceMiles > params.radiusMiles) return false;
       }

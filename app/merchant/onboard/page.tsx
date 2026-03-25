@@ -163,6 +163,10 @@ async function saveMerchantForUser(args: {
   wheels: WheelConfig[];
   photoUrls: string[];
   termsAccepted: boolean;
+  isMobile?: boolean;
+  mobileLat?: number | null;
+  mobileLng?: number | null;
+  mobileActiveUntil?: Date | null;
 }) {
   const {
     uid,
@@ -181,6 +185,10 @@ async function saveMerchantForUser(args: {
     wheels,
     photoUrls,
     termsAccepted,
+    isMobile = false,
+    mobileLat,
+    mobileLng,
+    mobileActiveUntil,
   } = args;
 
   const wheelItems = (Array.isArray(wheel) ? wheel : [])
@@ -235,6 +243,9 @@ async function saveMerchantForUser(args: {
     termsAcceptedVersion: 1,
     termsAcceptedAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
+    isMobile: !!isMobile,
+    mobileLat: typeof mobileLat === 'number' ? mobileLat : null,
+    mobileLng: typeof mobileLng === 'number' ? mobileLng : null,
   };
 
   if (isEdit) {
@@ -302,6 +313,12 @@ type MerchantDoc = {
   termsAccepted?: boolean;
   termsAcceptedVersion?: number;
   termsAcceptedAt?: any;
+
+  // Mobile merchant fields
+  isMobile?: boolean;
+  mobileLat?: number | null;
+  mobileLng?: number | null;
+  mobileActiveUntil?: any;
 };
 
 export default function MerchantOnboardPage() {
@@ -317,12 +334,18 @@ export default function MerchantOnboardPage() {
   const [city, setCity] = useState("");
   const [stateName, setStateName] = useState(""); // ✅ new (optional)
   const [address, setAddress] = useState("");
+  const [mobileLat, setMobileLat] = useState<number | null>(null);
+  const [mobileLng, setMobileLng] = useState<number | null>(null);
 
   const [about, setAbout] = useState("");
   const [website, setWebsite] = useState("");
   const [phone, setPhone] = useState("");
+  const [isMobile, setIsMobile] = useState(false);
+  const [mobileActiveUntil, setMobileActiveUntil] = useState<Date | null>(null);
+  const [mobileDurationHours, setMobileDurationHours] = useState<number>(2);
   const [photoFiles, setPhotoFiles] = useState<File[]>([]);
   const [photoPreviewUrls, setPhotoPreviewUrls] = useState<string[]>([]);
+  const [photosToRemove, setPhotosToRemove] = useState<string[]>([]);
   const [uploadedPhotoUrls, setUploadedPhotoUrls] = useState<string[]>([]);
 
   const [lat, setLat] = useState<string>("");
@@ -377,11 +400,16 @@ export default function MerchantOnboardPage() {
         setAbout(m.about ?? "");
         setWebsite(m.website ?? "");
         setPhone(m.phone ?? "");
+        setIsMobile(m.isMobile ?? false);
+        setMobileActiveUntil(m.mobileActiveUntil?.toDate() ?? null);
 
         setLat(typeof m.lat === "number" ? String(m.lat) : "");
         setLng(typeof m.lng === "number" ? String(m.lng) : "");
+        setMobileLat(m.mobileLat ?? null);
+        setMobileLng(m.mobileLng ?? null);
 
         setUploadedPhotoUrls(Array.isArray(m.photoUrls) ? m.photoUrls : []);
+        setPhotoPreviewUrls(Array.isArray(m.photoUrls) ? m.photoUrls : []);
 
         // Prefill multi-wheel config if available, else fall back to legacy single wheel
         if (Array.isArray(m.wheels) && m.wheels.length) {
@@ -606,6 +634,11 @@ export default function MerchantOnboardPage() {
     return urls;
   }
 
+  function removePhoto(url: string) {
+    setPhotosToRemove(prev => [...prev, url]);
+    setPhotoPreviewUrls(prev => prev.filter(u => u !== url));
+  }
+
   function resetSelectedPhotos() {
     setPhotoFiles([]);
     // IMPORTANT: do NOT wipe uploadedPhotoUrls here; merchants may want to keep existing.
@@ -628,6 +661,53 @@ export default function MerchantOnboardPage() {
       window.location.href = data.url;
     } catch (e: any) {
       setStatus(e?.message ?? "Stripe connect failed.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function checkInMobile() {
+    if (!user || !merchantId) return;
+    setBusy(true);
+    setStatus("Getting your location...");
+    try {
+      if (!navigator.geolocation) throw new Error("Geolocation not supported.");
+      const p = await new Promise<GeolocationPosition>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 10000 });
+      });
+      const lat = p.coords.latitude;
+      const lng = p.coords.longitude;
+      const activeUntil = new Date(Date.now() + mobileDurationHours * 60 * 60 * 1000);
+
+      const merchantRef = doc(getDb(), "merchants", merchantId);
+      await runTransaction(getDb(), async (tx) => {
+        tx.update(merchantRef, { mobileLat: lat, mobileLng: lng, mobileActiveUntil: activeUntil });
+      });
+
+      setMobileLat(lat);
+      setMobileLng(lng);
+      setMobileActiveUntil(activeUntil);
+      setStatus(`✅ Checked in! You are active until ${activeUntil.toLocaleTimeString()}`);
+    } catch (e: any) {
+      setStatus(e?.message ?? "Could not check in.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function deactivateMobile() {
+    if (!user || !merchantId) return;
+    setBusy(true);
+    setStatus("Deactivating mobile session...");
+    try {
+      const merchantRef = doc(getDb(), "merchants", merchantId);
+      await runTransaction(getDb(), async (tx) => {
+        tx.update(merchantRef, { mobileActiveUntil: new Date() });
+      });
+      setMobileActiveUntil(new Date());
+      setStatus("✅ Mobile session deactivated.");
+    } catch (e: any) {
+      setStatus(e?.message ?? "Could not deactivate.");
     } finally {
       setBusy(false);
     }
@@ -674,10 +754,14 @@ export default function MerchantOnboardPage() {
       // - If they didn't, keep existing uploadedPhotoUrls (from merchant doc)
       let urls = uploadedPhotoUrls;
 
+      let finalUrls = uploadedPhotoUrls.filter(u => !photosToRemove.includes(u));
+
       if (photoFiles.length) {
         setStatus("📸 Uploading photos…");
         urls = await uploadPhotos(user.uid);
-        setUploadedPhotoUrls(urls);
+        const newUrls = await uploadPhotos(user.uid);
+        finalUrls = [...finalUrls, ...newUrls];
+        setUploadedPhotoUrls(finalUrls);
       }
 
       setStatus(merchantId ? "💾 Saving changes…" : "🏪 Creating merchant profile…");
@@ -697,7 +781,11 @@ export default function MerchantOnboardPage() {
         lng: lngNum,
         wheel: cleanedWheel,
         wheels,
-        photoUrls: urls,
+        photoUrls: finalUrls,
+        mobileLat,
+        mobileLng,
+        mobileActiveUntil,
+        isMobile,
 
         // ✅ NEW
         termsAccepted: true,
@@ -974,6 +1062,45 @@ export default function MerchantOnboardPage() {
       {/* Step 2: Business */}
       <div style={{ ...card(), opacity: locked ? 0.6 : 1 }}>
         <div style={{ fontWeight: 950, fontSize: 18 }}>Step 2 — Business info</div>
+        <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 12, fontWeight: 800 }}>
+          <input type="checkbox" checked={isMobile} onChange={e => setIsMobile(e.target.checked)} disabled={!user || busy} style={{ width: 18, height: 18 }} />
+          <span>This is a mobile business (e.g., food truck)</span>
+        </label>
+
+        {isMobile && (
+          <div style={{ marginTop: 14, padding: 14, border: '1px solid #ddd', borderRadius: 12, background: '#f9fafb' }}>
+            <div style={{ fontWeight: 900, fontSize: 16 }}>Mobile Check-in</div>
+            {mobileActiveUntil && mobileActiveUntil > new Date() ? (
+              <div>
+                <div style={{ marginTop: 8, fontWeight: 700, color: '#16a34a' }}>
+                  Active until {mobileActiveUntil.toLocaleTimeString()}
+                </div>
+                <button onClick={deactivateMobile} disabled={busy} style={{...btnRed(busy), marginTop: 10}}>
+                  Deactivate Mobile Session
+                </button>
+              </div>
+            ) : (
+              <div>
+                <div style={{ marginTop: 4, opacity: 0.8, fontSize: 14 }}>
+                  Check in at your current location to appear on the Discover map for a set duration.
+                </div>
+                <div style={{ marginTop: 10, display: 'flex', gap: 10, alignItems: 'center' }}>
+                  <input 
+                    type="number" 
+                    value={mobileDurationHours}
+                    onChange={e => setMobileDurationHours(Number(e.target.value))}
+                    style={{...inputStyle(), width: '80px'}} 
+                    disabled={!user || busy}
+                  />
+                  <span style={{fontWeight: 700}}>hours</span>
+                  <button onClick={checkInMobile} disabled={!user || busy} style={btnGold(busy)}>
+                    Check-in Now
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         <div
           style={{
@@ -1122,11 +1249,14 @@ export default function MerchantOnboardPage() {
                     minWidth: 0,
                   }}
                 >
-                  <img
+<img
                     src={src}
                     alt={`preview-${i}`}
                     style={{ width: "100%", height: 110, objectFit: "cover", display: "block" }}
                   />
+                  <button onClick={() => removePhoto(src)} style={{...btnRed(false), position:"absolute", top:5, right:5, padding: "2px 6px", fontSize:12}}>
+                    Remove
+                  </button>
                   <div
                     style={{
                       padding: 10,

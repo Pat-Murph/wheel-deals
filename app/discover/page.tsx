@@ -28,6 +28,16 @@ function fmtMiles(n?: number) {
 }
 
 // Haversine distance in miles (client-side)
+function formatDuration(ms: number) {
+  const totalSeconds = Math.floor(ms / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  if (minutes > 0) return `${minutes}m ${seconds}s`;
+  return `${seconds}s`;
+}
+
 function distanceMiles(lat1: number, lon1: number, lat2: number, lon2: number) {
   const R = 3958.8;
   const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -55,6 +65,12 @@ export default function DiscoverPage() {
   const [foundingRemaining, setFoundingRemaining] = useState<number>(FOUNDING_MERCHANT_LIMIT);
   const [showFilters, setShowFilters] = useState(false);
   const [showMap, setShowMap] = useState(false);
+  const [time, setTime] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => setTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     getFoundingMerchantCount()
@@ -125,8 +141,13 @@ export default function DiscoverPage() {
   const sortedItems = useMemo(() => {
     const withDist = items.map((m) => {
       if (pos && typeof m.lat === "number" && typeof m.lng === "number") {
-        const d = distanceMiles(pos.lat, pos.lng, m.lat, m.lng);
-        return { ...m, distanceMiles: m.distanceMiles ?? d };
+        let d = m.distanceMiles;
+        if (m.isMobile && m.mobileActiveUntil && m.mobileActiveUntil.toDate() > time && typeof m.mobileLat === 'number' && typeof m.mobileLng === 'number') {
+          d = distanceMiles(pos.lat, pos.lng, m.mobileLat, m.mobileLng);
+        } else if (typeof m.lat === 'number' && typeof m.lng === 'number') {
+          d = distanceMiles(pos.lat, pos.lng, m.lat, m.lng);
+        }
+        return { ...m, distanceMiles: d };
       }
       return m;
     });
@@ -493,7 +514,14 @@ export default function DiscoverPage() {
                   {m.city ? ` — ${titleCase(m.city)}` : ""}
                   {m.state ? `, ${m.state.toUpperCase()}` : ""}
                 </div>
-                {m.distanceMiles != null && (
+                                {m.isMobile && m.mobileActiveUntil && m.mobileActiveUntil.toDate() > time && (
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "#16a34a", marginTop: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span>📍</span>
+                    <span>Active Now — ends in {formatDuration(m.mobileActiveUntil.toDate().getTime() - time.getTime())}</span>
+                  </div>
+                )}
+
+                {m.distanceMiles != null && !m.isMobile && (
                   <div style={{ fontSize: 13, fontWeight: 700, color: "#16a34a", marginTop: 4 }}>
                     {fmtMiles(m.distanceMiles)} away
                   </div>
