@@ -58,7 +58,20 @@ export default function DiscoverPage() {
   // Near-me filter
   const [nearMe, setNearMe] = useState(false);
   const [radius, setRadius] = useState<number>(10);
-  const [pos, setPos] = useState<{ lat: number; lng: number } | null>(null);
+  // --- GPS POSITION: cached in sessionStorage so it survives back-navigation ---
+  const [pos, setPos] = useState<{ lat: number; lng: number } | null>(() => {
+    // Initialize from sessionStorage cache (instant on return visits)
+    if (typeof window !== 'undefined') {
+      try {
+        const cached = sessionStorage.getItem('wd_gps');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed?.lat && parsed?.lng) return parsed;
+        }
+      } catch {}
+    }
+    return null;
+  });
   const [busy, setBusy] = useState(false);
   const [items, setItems] = useState<MerchantResult[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -66,6 +79,12 @@ export default function DiscoverPage() {
   const [showFilters, setShowFilters] = useState(false);
   const [showMap, setShowMap] = useState(false);
   const [time, setTime] = useState(new Date());
+
+  // Helper: update pos state AND persist to sessionStorage
+  function updatePos(newPos: { lat: number; lng: number }) {
+    setPos(newPos);
+    try { sessionStorage.setItem('wd_gps', JSON.stringify(newPos)); } catch {}
+  }
 
   useEffect(() => {
     const timer = setInterval(() => setTime(new Date()), 1000);
@@ -78,13 +97,13 @@ export default function DiscoverPage() {
       .catch(() => {});
   }, []);
 
-  // Get GPS position on mount — this ONLY sets state, does NOT trigger search.
-  // Distances are computed client-side in sortedItems below, so they react to pos changes automatically.
+  // Request fresh GPS on every mount. If we already have a cached position,
+  // distances show instantly; fresh GPS updates the cache in the background.
   useEffect(() => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
-        (p) => setPos({ lat: p.coords.latitude, lng: p.coords.longitude }),
-        () => { /* GPS denied */ },
+        (p) => updatePos({ lat: p.coords.latitude, lng: p.coords.longitude }),
+        () => { /* GPS denied — cached position (if any) still works */ },
         { enableHighAccuracy: false, timeout: 8000 }
       );
     }
@@ -109,7 +128,7 @@ export default function DiscoverPage() {
       let near = pos;
       if (nearMe && !near) {
         near = await requestLocationOnce();
-        setPos(near);
+        updatePos(near);
       }
 
       const res = await searchMerchants({
@@ -128,7 +147,7 @@ export default function DiscoverPage() {
     }
   }
 
-  // Load merchants on mount — distances are computed client-side, not from searchMerchants
+  // Load merchants on mount
   useEffect(() => {
     runSearch();
     // eslint-disable-next-line react-hooks/exhaustive-deps
