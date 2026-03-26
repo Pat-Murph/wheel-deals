@@ -639,13 +639,27 @@ export async function searchMerchants(params: SearchMerchantsParams): Promise<Me
       const isActiveMobile = m.isMobile && m.mobileActiveUntil &&
         m.mobileActiveUntil.toDate && m.mobileActiveUntil.toDate() > new Date();
 
-      if (isActiveMobile) {
-        // Active mobile merchant: apply 25-mile radius only if we have user GPS
-        if (hasNear && typeof m.mobileLat === 'number' && typeof m.mobileLng === 'number') {
-          const mobileDistance = haversine(near!.lat, near!.lng, m.mobileLat, m.mobileLng);
-          if (mobileDistance > 25) return false;
+      if (m.isMobile) {
+        // Mobile merchants: always filter by 25-mile service radius
+        if (isActiveMobile) {
+          // Active: use check-in location
+          if (hasNear && typeof m.mobileLat === 'number' && typeof m.mobileLng === 'number') {
+            const mobileDistance = haversine(near!.lat, near!.lng, m.mobileLat, m.mobileLng);
+            if (mobileDistance > 25) return false;
+          }
+          // If no user GPS, still show active mobile merchants
+        } else {
+          // Not checked in: use service location (set when they first checked "mobile")
+          const svcLat = (m as any).mobileServiceLat;
+          const svcLng = (m as any).mobileServiceLng;
+          if (hasNear && typeof svcLat === 'number' && typeof svcLng === 'number') {
+            const svcDist = haversine(near!.lat, near!.lng, svcLat, svcLng);
+            if (svcDist > 25) return false;
+          } else if (hasNear) {
+            // No service location set — fall back to regular lat/lng with 25mi
+            if (m.distanceMiles == null || m.distanceMiles > 25) return false;
+          }
         }
-        // If no GPS, always include active mobile merchants
       } else if (hasNear && params.radiusMiles) {
         // Standard near-me radius filter for non-mobile merchants
         if (m.distanceMiles == null) return false;
