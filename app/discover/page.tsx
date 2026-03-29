@@ -97,16 +97,52 @@ export default function DiscoverPage() {
       .catch(() => {});
   }, []);
 
-  // Request fresh GPS on every mount. If we already have a cached position,
-  // distances show instantly; fresh GPS updates the cache in the background.
+  // Request fresh GPS on every mount with retry logic + IP fallback.
+  // If we already have a cached position, distances show instantly;
+  // fresh GPS updates the cache in the background.
   useEffect(() => {
-    if (navigator.geolocation) {
+    let cancelled = false;
+
+    function tryGps(attempt: number) {
+      if (cancelled || !navigator.geolocation) {
+        // No geolocation API — try IP fallback
+        if (!cancelled) ipFallback();
+        return;
+      }
       navigator.geolocation.getCurrentPosition(
-        (p) => updatePos({ lat: p.coords.latitude, lng: p.coords.longitude }),
-        () => { /* GPS denied — cached position (if any) still works */ },
-        { enableHighAccuracy: false, timeout: 5000, maximumAge: 300000 }
+        (p) => {
+          if (!cancelled) updatePos({ lat: p.coords.latitude, lng: p.coords.longitude });
+        },
+        () => {
+          if (cancelled) return;
+          if (attempt < 3) {
+            // Retry after a short delay
+            setTimeout(() => tryGps(attempt + 1), 1000);
+          } else {
+            // All GPS attempts failed — try IP-based fallback
+            ipFallback();
+          }
+        },
+        { enableHighAccuracy: attempt > 1, timeout: 5000, maximumAge: 300000 }
       );
     }
+
+    function ipFallback() {
+      if (cancelled) return;
+      // Only use IP fallback if we don't already have a cached position
+      if (pos) return;
+      fetch('https://ipapi.co/json/', { signal: AbortSignal.timeout(5000) })
+        .then(r => r.json())
+        .then(data => {
+          if (!cancelled && data?.latitude && data?.longitude) {
+            updatePos({ lat: data.latitude, lng: data.longitude });
+          }
+        })
+        .catch(() => { /* IP fallback also failed — no distances */ });
+    }
+
+    tryGps(1);
+    return () => { cancelled = true; };
   }, []);
 
   async function requestLocationOnce() {
