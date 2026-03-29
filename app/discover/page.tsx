@@ -104,7 +104,7 @@ export default function DiscoverPage() {
       navigator.geolocation.getCurrentPosition(
         (p) => updatePos({ lat: p.coords.latitude, lng: p.coords.longitude }),
         () => { /* GPS denied — cached position (if any) still works */ },
-        { enableHighAccuracy: false, timeout: 8000 }
+        { enableHighAccuracy: false, timeout: 5000, maximumAge: 300000 }
       );
     }
   }, []);
@@ -244,7 +244,7 @@ export default function DiscoverPage() {
       {/* FOUNDING BANNER */}
       {foundingRemaining > 0 && (
         <div style={{
-          background: "linear-gradient(135deg, #15803d, #16a34a, #22c55e)",
+          background: "linear-gradient(135deg, #0f172a, #1e3a5f, #1e40af)",
           padding: "12px 14px",
           display: "flex",
           alignItems: "center",
@@ -267,7 +267,7 @@ export default function DiscoverPage() {
           <a href="/merchant/onboard" style={{
             fontSize: 12,
             fontWeight: 800,
-            color: "#15803d",
+            color: "#1e3a5f",
             background: "#ffffff",
             padding: "9px 13px",
             borderRadius: 9,
@@ -542,11 +542,15 @@ export default function DiscoverPage() {
                   </div>
                 ) : null}
 
-                {m.distanceMiles != null && (
-                  <div style={{ fontSize: 13, fontWeight: 700, color: "#16a34a", marginTop: 4 }}>
-                    {fmtMiles(m.distanceMiles)} away
-                  </div>
-                )}
+                {(() => {
+                  const isActiveMobile = m.isMobile && m.mobileActiveUntil && m.mobileActiveUntil.toDate && m.mobileActiveUntil.toDate() > time;
+                  const showDist = m.distanceMiles != null && (!m.isMobile || isActiveMobile);
+                  return showDist ? (
+                    <div style={{ fontSize: 13, fontWeight: 700, color: "#16a34a", marginTop: 4 }}>
+                      {fmtMiles(m.distanceMiles)} away
+                    </div>
+                  ) : null;
+                })()}
               </div>
 
               {/* Photo thumbnail */}
