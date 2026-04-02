@@ -258,7 +258,7 @@ export default function DiscoverMap({
                     href={`/wheel?merchantId=${encodeURIComponent(m.id)}`}
                     style={{ fontWeight: 900, textDecoration: "none" }}
                   >
-                    Spin this wheel →
+                    Unlock deals →
                   </a>
                 </div>
               </Popup>

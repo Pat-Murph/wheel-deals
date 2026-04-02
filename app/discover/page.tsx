@@ -556,7 +556,7 @@ export default function DiscoverPage() {
                   {m.name ?? m.id}
                   {showBoost && (
                     <span style={{ fontSize: 11, fontWeight: 900, background: "#f97316", color: "#fff", borderRadius: 999, padding: "2px 8px", letterSpacing: 0.3 }}>
-                      FREE SPIN
+                      FREE DEAL
                     </span>
                   )}
                 </div>
@@ -586,6 +586,30 @@ export default function DiscoverPage() {
                       {fmtMiles(m.distanceMiles)} away
                     </div>
                   ) : null;
+                })()}
+
+                {/* Business hours */}
+                {(() => {
+                  const bh = (m as any).businessHours;
+                  if (!bh || typeof bh !== "object") return null;
+                  const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+                  const today = dayNames[time.getDay()];
+                  const todayHours = bh[today];
+                  if (!todayHours) return null;
+                  if (todayHours.closed) return (
+                    <div style={{ fontSize: 12, fontWeight: 700, color: "#dc2626", marginTop: 3 }}>Closed today</div>
+                  );
+                  const fmtTime = (t: string) => {
+                    const [h, mi] = t.split(":").map(Number);
+                    const ampm = h >= 12 ? "PM" : "AM";
+                    const h12 = h % 12 || 12;
+                    return `${h12}:${String(mi).padStart(2, "0")} ${ampm}`;
+                  };
+                  return (
+                    <div style={{ fontSize: 12, fontWeight: 700, color: "#6b7280", marginTop: 3 }}>
+                      🕒 {fmtTime(todayHours.open)} – {fmtTime(todayHours.close)}
+                    </div>
+                  );
                 })()}
               </div>
 

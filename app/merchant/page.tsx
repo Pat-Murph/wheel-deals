@@ -48,7 +48,7 @@ type MerchantDoc = {
   // Founding tier
   foundingMerchant?: boolean;
   foundingNumber?: number;
-  // Boost / free spin fields
+  // Boost / free deal fields
   boostActive?: boolean;
   boostFreeSpinsRemaining?: number;
   boostWheelPriceCents?: number;
@@ -517,7 +517,7 @@ export default function MerchantDashboardPage() {
     // Handle boost return
     if (params.get("boost_success") === "1") {
       reloadMerchant(merchantId).catch(() => {});
-      setStatus("🔥 Boost activated! You have 10 free spins ready. Your listing now shows a fire badge.");
+      setStatus("🔥 Boost activated! You have 10 free deals ready. Your listing now shows a fire badge.");
       window.history.replaceState({}, "", window.location.pathname);
     }
     if (params.get("boost_error")) {
@@ -756,7 +756,7 @@ export default function MerchantDashboardPage() {
               </span>
             ) : null;
           })()}
-          <span style={{ fontSize: 11, opacity: 0.65, fontWeight: 850 }}>Limit: {DAILY_LIMIT} spins/day</span>
+          <span style={{ fontSize: 11, opacity: 0.65, fontWeight: 850 }}>Limit: {DAILY_LIMIT} unlocks/day</span>
           {busy && <span style={{ opacity: 0.7, fontWeight: 800, fontSize: 12 }}>Loading…</span>}
         </div>
       </div>
@@ -849,7 +849,7 @@ export default function MerchantDashboardPage() {
 
         <div style={{ marginTop: 10, fontSize: 12, opacity: 0.72, fontWeight: 800 }}>
           If you see “Missing or insufficient permissions” here, it means the current user is not recognized as staff
-          for this merchant, or your spins update rule is too strict for updating only <code>status</code>.
+          for this merchant, or your unlocks update rule is too strict for updating only <code>status</code>.
         </div>
       </div>
 
@@ -896,31 +896,31 @@ export default function MerchantDashboardPage() {
         </div>
       </div>
 
-      {/* Free Spin Boost */}
+      {/* Free Deal Boost */}
       <div style={{ ...card(), border: merchant.boostActive ? "2px solid #f97316" : "1px solid rgba(0,0,0,0.10)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 950, fontSize: 16 }}>
           <span style={{ fontSize: 22 }}>🔥</span>
-          Free Spin Boost
+          Free Deal Boost
           {merchant.boostActive && (
             <span style={{ marginLeft: 4, background: "#fff7ed", border: "1px solid #fed7aa", color: "#c2410c", borderRadius: 999, padding: "2px 10px", fontSize: 12, fontWeight: 900 }}>
-              ACTIVE — {merchant.boostFreeSpinsRemaining ?? 0} spins left
+              ACTIVE — {merchant.boostFreeSpinsRemaining ?? 0} deals left
             </span>
           )}
         </div>
 
         <div style={{ marginTop: 8, fontSize: 13, color: "#374151", lineHeight: 1.6 }}>
-          Pay <b>$5.00</b> to unlock <b>10 free spins</b> on a wheel of your choice.
+          Pay <b>$5.00</b> to unlock <b>10 free deals</b> on a wheel of your choice.
           Your listing gets a <b>fire badge</b> and appears at the top of the Discover page
-          (sorted by proximity to each customer). Customers must be within <b>200 meters</b> of your store to claim the free spin — driving foot traffic directly to you.
+          (sorted by proximity to each customer). Customers must be within <b>200 meters</b> of your store to claim the free deal — driving foot traffic directly to you.
         </div>
 
         {merchant.boostActive ? (
           <div style={{ marginTop: 10, padding: "10px 14px", background: "#fff7ed", borderRadius: 10, fontSize: 13, fontWeight: 800, color: "#c2410c" }}>
-            Boost is active! Once all {10} free spins are claimed, your listing returns to normal. Purchase another boost anytime.
+            Boost is active! Once all {10} free deals are claimed, your listing returns to normal. Purchase another boost anytime.
           </div>
         ) : (
           <div style={{ marginTop: 12, display: "grid", gap: 10 }}>
-            <div style={{ fontSize: 13, fontWeight: 800 }}>Choose which wheel to unlock for free spins:</div>
+            <div style={{ fontSize: 13, fontWeight: 800 }}>Choose which wheel to unlock for free deals:</div>
             <select
               value={boostWheelPriceCents}
               onChange={(e) => setBoostWheelPriceCents(Number(e.target.value))}
@@ -931,7 +931,7 @@ export default function MerchantDashboardPage() {
                 { spinPriceCents: merchant.wheel && merchant.wheel.length > 0 ? 135 : 135 }
               ]).map((w: { spinPriceCents: number }) => (
                 <option key={w.spinPriceCents} value={w.spinPriceCents}>
-                  ${(w.spinPriceCents / 100).toFixed(2)} spin wheel
+                  ${(w.spinPriceCents / 100).toFixed(2)} wheel
                 </option>
               ))}
             </select>
@@ -940,7 +940,7 @@ export default function MerchantDashboardPage() {
               disabled={boostBusy}
               style={{ ...btnPrimary(boostBusy), display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
             >
-              {boostBusy ? "Redirecting to payment…" : "🔥 Unlock 10 Free Spins — $5.00"}
+              {boostBusy ? "Redirecting to payment…" : "🔥 Unlock 10 Free Deals — $5.00"}
             </button>
           </div>
         )}
@@ -948,11 +948,11 @@ export default function MerchantDashboardPage() {
 
       {/* Stats */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px,1fr))", gap: 10 }}>
-        <Stat title="Spins today" value={String(spinsToday)} />
-        <Stat title="Spins (7 days)" value={String(spins7d)} />
-        <Stat title="Spins (30 days)" value={String(spins30d)} />
+        <Stat title="Unlocks today" value={String(spinsToday)} />
+        <Stat title="Unlocks (7 days)" value={String(spins7d)} />
+        <Stat title="Unlocks (30 days)" value={String(spins30d)} />
         <Stat title="Revenue (30 days)" value={moneyFromCents(revenue30dCents)} />
-        <Stat title="Spins (YTD)" value={String(spinsYtd)} />
+        <Stat title="Unlocks (YTD)" value={String(spinsYtd)} />
         <Stat title="Revenue (YTD)" value={moneyFromCents(revenueYtdCents)} />
       </div>
 
@@ -966,7 +966,7 @@ export default function MerchantDashboardPage() {
             <div style={{ fontSize: 11, fontWeight: 900, color: "#166534", opacity: 0.8 }}>Customers Gained (30d)</div>
             <div style={{ fontSize: 26, fontWeight: 1000, color: "#15803d" }}>{redemptions30d}</div>
             <div style={{ fontSize: 11, fontWeight: 800, color: "#6b7280", marginTop: 2 }}>
-              out of {spins30d} spins
+              out of {spins30d} unlocks
             </div>
           </div>
           <div style={{ background: "white", borderRadius: 12, padding: "12px 14px", border: "1px solid #bbf7d0" }}>
@@ -980,7 +980,7 @@ export default function MerchantDashboardPage() {
             <div style={{ fontSize: 11, fontWeight: 900, color: "#166534", opacity: 0.8 }}>Customers Gained (YTD)</div>
             <div style={{ fontSize: 26, fontWeight: 1000, color: "#15803d" }}>{redemptionsYtd}</div>
             <div style={{ fontSize: 11, fontWeight: 800, color: "#6b7280", marginTop: 2 }}>
-              out of {spinsYtd} spins
+              out of {spinsYtd} unlocks
             </div>
           </div>
           <div style={{ background: "white", borderRadius: 12, padding: "12px 14px", border: "1px solid #bbf7d0" }}>
@@ -999,7 +999,7 @@ export default function MerchantDashboardPage() {
       {/* Calendar */}
       <div style={{ ...card(), padding: "14px 8px" }}>
         <div style={{ display: "grid", gap: 8 }}>
-          <div style={{ fontWeight: 1000, fontSize: 16 }}>Daily spins calendar</div>
+          <div style={{ fontWeight: 1000, fontSize: 16 }}>Daily unlocks calendar</div>
           <div style={{ display: "flex", gap: 8, alignItems: "center", justifyContent: "center" }}>
             <button
               onClick={() => setMonthCursor((d) => new Date(d.getFullYear(), d.getMonth() - 1, 1))}
@@ -1082,13 +1082,13 @@ export default function MerchantDashboardPage() {
                   gap: 2,
                   minHeight: 60,
                 }}
-                title={`${dateKey} • Spins: ${spins} • Revenue: ${moneyFromCents(revCents)}`}
+                title={`${dateKey} • Unlocks: ${spins} • Revenue: ${moneyFromCents(revCents)}`}
               >
                 <div style={{ fontWeight: 1000, fontSize: 13, lineHeight: 1 }}>
                   {dayNum}{isToday ? " •" : ""}
                 </div>
                 <div style={{ fontSize: 9, fontWeight: 950, opacity: 0.8, lineHeight: 1 }}>
-                  {spins}sp
+                  {spins}u
                 </div>
                 <div style={{ fontSize: 9, fontWeight: 900, opacity: 0.65, lineHeight: 1 }}>
                   {moneyFromCents(revCents)}
@@ -1116,7 +1116,7 @@ export default function MerchantDashboardPage() {
           </div>
 
           <div style={{ display: "flex", gap: 14, flexWrap: "wrap", fontWeight: 850 }}>
-            <span>Spins: {selectedStat?.spinsCount ?? 0}</span>
+            <span>Unlocks: {selectedStat?.spinsCount ?? 0}</span>
             <span>Revenue: {moneyFromCents(selectedRevenueCents)}</span>
           </div>
         </div>

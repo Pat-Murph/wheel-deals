@@ -26,10 +26,10 @@ type WheelRow = { label: string; weight: number };
 type WheelConfig = { spinPriceCents: number; items: WheelRow[] };
 
 const SPIN_PRICE_OPTIONS = [
-  { cents: 135, label: "$1.35 spin" },
-  { cents: 200, label: "$2.00 spin" },
-  { cents: 300, label: "$3.00 spin" },
-  { cents: 500, label: "$5.00 spin" },
+  { cents: 135, label: "$1.35 unlock" },
+  { cents: 200, label: "$2.00 unlock" },
+  { cents: 300, label: "$3.00 unlock" },
+  { cents: 500, label: "$5.00 unlock" },
 ];
 
 const DEFAULT_PRIZES: WheelRow[] = [
@@ -170,6 +170,7 @@ async function saveMerchantForUser(args: {
   mobileServiceLat?: number | null;
   mobileServiceLng?: number | null;
   mobileServiceRadiusMiles?: number | null;
+  businessHours?: Record<string, { open: string; close: string; closed?: boolean }>;
 }) {
   const {
     uid,
@@ -195,6 +196,7 @@ async function saveMerchantForUser(args: {
     mobileServiceLat,
     mobileServiceLng,
     mobileServiceRadiusMiles,
+    businessHours,
   } = args;
 
   const wheelItems = (Array.isArray(wheel) ? wheel : [])
@@ -255,6 +257,7 @@ async function saveMerchantForUser(args: {
     mobileServiceLat: typeof mobileServiceLat === 'number' ? mobileServiceLat : null,
     mobileServiceLng: typeof mobileServiceLng === 'number' ? mobileServiceLng : null,
     mobileServiceRadiusMiles: typeof mobileServiceRadiusMiles === 'number' ? mobileServiceRadiusMiles : 25,
+    businessHours: businessHours ?? {},
   };
 
   if (isEdit) {
@@ -331,6 +334,9 @@ type MerchantDoc = {
   mobileServiceLat?: number | null;
   mobileServiceLng?: number | null;
   mobileServiceRadiusMiles?: number | null;
+
+  // Business hours
+  businessHours?: Record<string, { open: string; close: string; closed?: boolean }>;
 };
 
 export default function MerchantOnboardPage() {
@@ -358,6 +364,10 @@ export default function MerchantOnboardPage() {
   const [mobileServiceSet, setMobileServiceSet] = useState(false);
   const [mobileActiveUntil, setMobileActiveUntil] = useState<Date | null>(null);
   const [mobileDurationHours, setMobileDurationHours] = useState<number>(2);
+  const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"] as const;
+  const defaultHours = () => Object.fromEntries(DAYS.map(d => [d, { open: "09:00", close: "17:00", closed: false }]));
+  const [businessHours, setBusinessHours] = useState<Record<string, { open: string; close: string; closed: boolean }>>(defaultHours());
+
   const [photoFiles, setPhotoFiles] = useState<File[]>([]);
   const [photoPreviewUrls, setPhotoPreviewUrls] = useState<string[]>([]);
   const [photosToRemove, setPhotosToRemove] = useState<string[]>([]);
@@ -418,6 +428,23 @@ export default function MerchantOnboardPage() {
         setIsMobile(m.isMobile ?? false);
         setMobileActiveUntil(m.mobileActiveUntil?.toDate() ?? null);
         setMobileServiceLat(m.mobileServiceLat ?? null);
+
+        // Load business hours
+        if (m.businessHours && typeof m.businessHours === "object") {
+          setBusinessHours(prev => {
+            const merged = { ...prev };
+            for (const day of DAYS) {
+              if (m.businessHours![day]) {
+                merged[day] = {
+                  open: m.businessHours![day].open ?? "09:00",
+                  close: m.businessHours![day].close ?? "17:00",
+                  closed: m.businessHours![day].closed ?? false,
+                };
+              }
+            }
+            return merged;
+          });
+        }
         setMobileServiceLng(m.mobileServiceLng ?? null);
         if (m.mobileServiceLat != null && m.mobileServiceLng != null) setMobileServiceSet(true);
 
@@ -807,6 +834,7 @@ export default function MerchantOnboardPage() {
         mobileServiceLat,
         mobileServiceLng,
         mobileServiceRadiusMiles: 25,
+        businessHours,
 
         // ✅ NEW
         termsAccepted: true,
@@ -1181,6 +1209,49 @@ export default function MerchantOnboardPage() {
             Website and phone are optional — if added, customers can tap to visit your site or call you directly from the wheel page.
           </div>
 
+          {/* Business Hours */}
+          <div style={{ marginTop: 8 }}>
+            <div style={{ fontWeight: 950, marginBottom: 8 }}>Business Hours</div>
+            <div style={{ display: "grid", gap: 6 }}>
+              {DAYS.map((day) => (
+                <div key={day} style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                  <label style={{ width: 90, fontWeight: 800, fontSize: 14 }}>{day.slice(0, 3)}</label>
+                  <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 13, fontWeight: 700 }}>
+                    <input
+                      type="checkbox"
+                      checked={businessHours[day]?.closed ?? false}
+                      onChange={(e) => setBusinessHours(prev => ({ ...prev, [day]: { ...prev[day], closed: e.target.checked } }))}
+                      disabled={!user || busy}
+                    />
+                    Closed
+                  </label>
+                  {!businessHours[day]?.closed && (
+                    <>
+                      <input
+                        type="time"
+                        value={businessHours[day]?.open ?? "09:00"}
+                        onChange={(e) => setBusinessHours(prev => ({ ...prev, [day]: { ...prev[day], open: e.target.value } }))}
+                        style={{ ...inputStyle(), width: 110, padding: "6px 8px", fontSize: 13 }}
+                        disabled={!user || busy}
+                      />
+                      <span style={{ fontWeight: 700, fontSize: 13 }}>to</span>
+                      <input
+                        type="time"
+                        value={businessHours[day]?.close ?? "17:00"}
+                        onChange={(e) => setBusinessHours(prev => ({ ...prev, [day]: { ...prev[day], close: e.target.value } }))}
+                        style={{ ...inputStyle(), width: 110, padding: "6px 8px", fontSize: 13 }}
+                        disabled={!user || busy}
+                      />
+                    </>
+                  )}
+                </div>
+              ))}
+            </div>
+            <div style={{ fontWeight: 800, opacity: 0.6, fontSize: 13, marginTop: 6 }}>
+              Set your hours so customers know when you're open. Shown on Discover and your wheel page.
+            </div>
+          </div>
+
           <div
             style={{
               display: "flex",
@@ -1367,7 +1438,7 @@ export default function MerchantOnboardPage() {
       <div style={{ ...card(), opacity: locked ? 0.6 : 1 }}>
         <div style={{ fontWeight: 950, fontSize: 18 }}>Step 3 — Wheels (up to 3)</div>
         <div style={{ opacity: 0.7, fontWeight: 800, marginTop: 4, fontSize: 14 }}>
-          Each wheel has its own spin price and deal list. Higher weight = more likely.
+          Each wheel has its own unlock price and deal list. Higher weight = more likely.
         </div>
 
         {wheels.map((wc, wi) => {
@@ -1453,7 +1524,7 @@ export default function MerchantOnboardPage() {
         {/* Terms summary bullets */}
         <ul style={{ fontSize: 13, lineHeight: 1.7, marginTop: 12, paddingLeft: 18, color: "#374151" }}>
           <li>Deals are <b>not cash</b> and have no cash value.</li>
-          <li>A <b>deal is always awarded</b> on every spin — no "no deal" outcomes.</li>
+          <li>A <b>deal is always awarded</b> on every unlock — no "no deal" outcomes.</li>
           <li>Your business handles all <b>customer disputes</b> related to redemption.</li>
           <li><b>Free to sign up</b> — WheelDeals earns only from the platform split per deal unlocked.</li>
         </ul>

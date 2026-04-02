@@ -202,7 +202,7 @@ export async function GET(
     <img class="logo" src="${appUrl}/wheel-deals-discover.png" alt="Wheel Deals Discover" />
   </div>
 
-  <div class="headline">Spin to Unlock Deals!</div>
+  <div class="headline">Unlock Exclusive Deals!</div>
   <div class="sub">Exclusive promotional deals — right here at ${merchantName}</div>
 
   <div class="wheel-graphic">🎡</div>

@@ -555,7 +555,7 @@ export default function Wheel({
             setPaidSpinPriceCents(data.spinPriceCents);
             onPaymentVerified?.(data.spinPriceCents);
           }
-          setPayStatus("✅ Payment verified — spin now!");
+          setPayStatus("✅ Payment verified — unlock now!");
           // Clean session_id from URL
           sp.delete("session_id");
           const next = sp.toString();
@@ -581,7 +581,7 @@ export default function Wheel({
           setPaidSpinReady(true);
           setVerifiedSessionId(payload.sessionId);
           if (payload.uid) setVerifiedUid(payload.uid);
-          setPayStatus("✅ Payment verified — spin now!");
+          setPayStatus("✅ Payment verified — unlock now!");
         }
       }
     } catch { /* ignore */ }
@@ -828,13 +828,13 @@ export default function Wheel({
           body: JSON.stringify({ merchantId, uid, deviceFingerprint }),
         });
         const data = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(data?.error ?? "Could not claim free spin");
+        if (!res.ok) throw new Error(data?.error ?? "Could not claim free deal");
         // Grant entitlement so spin() can proceed
         setPaidSpinReady(true);
         setVerifiedSessionId(data.sessionId ?? "free-boost-" + Date.now());
         setPayStatus(null);
       } catch (e: any) {
-        setPayStatus(e?.message ?? "Could not claim free spin.");
+        setPayStatus(e?.message ?? "Could not claim free deal.");
       } finally {
         setPayBusy(false);
       }
@@ -871,7 +871,7 @@ export default function Wheel({
 
     // ✅ require verified entitlement
     if (!paidSpinReady || !verifiedSessionId) {
-      setPayStatus(`Pay ${spinPriceLabel(spinPriceCents)} to spin.`);
+      setPayStatus(`Pay ${spinPriceLabel(spinPriceCents)} to unlock.`);
       return;
     }
 
@@ -968,14 +968,14 @@ export default function Wheel({
 
       const consumeData = await consumeRes.json().catch(() => ({}));
       if (!consumeRes.ok)
-        throw new Error(consumeData?.error ?? "Failed to finalize spin");
+        throw new Error(consumeData?.error ?? "Failed to finalize unlock");
 
       const nextSpinId = consumeData?.spinId ?? null;
       const nextCode = consumeData?.code ?? null;
 
       setSpinId(nextSpinId);
       setRedeemCode(nextCode);
-      setPayStatus("✅ Spin saved. Show your code to redeem!");
+      setPayStatus("✅ Deal unlocked! Show your code to redeem!");
       setVerifiedSessionId(null); // prevent reuse
       setVerifiedUid(null); // clear verified uid after use
 
@@ -983,7 +983,7 @@ export default function Wheel({
       onResult?.(resLabel, { code: nextCode, spinId: nextSpinId });
     } catch (e: any) {
       setPayStatus(
-        e?.message ?? "Spin finalize failed. Please contact support."
+        e?.message ?? "Unlock failed. Please contact support."
       );
     }
   };
@@ -1078,7 +1078,7 @@ export default function Wheel({
             color: winnerText ? "#F5D060" : "rgba(245,208,96,0.65)",
           }}
         >
-          {winnerText || (spinning ? "Unlocking..." : "Spin to unlock a deal")}
+          {winnerText || (spinning ? "Unlocking..." : "Tap to unlock a deal")}
           {/* subtitle color handled by parent */}
         </div>
 
@@ -1096,7 +1096,7 @@ export default function Wheel({
 
         {spinId && (
           <div style={{ marginTop: 6, fontSize: 12, opacity: 0.55, color: "#cbd5e1" }}>
-            Spin ID: {spinId}
+            Unlock ID: {spinId}
           </div>
         )}
       </div>
@@ -1311,7 +1311,7 @@ export default function Wheel({
                 : "0 12px 30px rgba(0,0,0,0.12), 0 0 20px rgba(255,217,61,0.22)",
             }}
           >
-            {payBusy ? (isFreeSpinBoost ? "Claiming free spin…" : "Opening checkout…") : (isFreeSpinBoost ? "🔥 Claim Free Spin" : `Unlock Deal — Pay ${spinPriceLabel(spinPriceCents)}`)}
+            {payBusy ? (isFreeSpinBoost ? "Claiming free deal…" : "Opening checkout…") : (isFreeSpinBoost ? "🔥 Claim Free Deal" : `Unlock Deal — Pay ${spinPriceLabel(spinPriceCents)}`)}
           </button>
         ) : (
           <button
@@ -1333,7 +1333,7 @@ export default function Wheel({
                 : "0 12px 30px rgba(0,0,0,0.12), 0 0 20px rgba(255,217,61,0.22)",
             }}
           >
-            {spinning ? "Unlocking..." : `Spin (${spinPriceLabel(spinPriceCents)})`}
+            {spinning ? "Unlocking..." : `Unlock (${spinPriceLabel(spinPriceCents)})`}
           </button>
         )}
 

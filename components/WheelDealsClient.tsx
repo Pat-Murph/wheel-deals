@@ -278,7 +278,7 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
           resolve();
         },
         (err) => {
-          setGeoError("Location permission denied. Please allow location access to claim your free spin.");
+          setGeoError("Location permission denied. Please allow location access to claim your free deal.");
           setGeoChecking(false);
           resolve();
         },
@@ -524,6 +524,41 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
             </div>
           )}
 
+          {/* Business Hours */}
+          {(() => {
+            const bh = (selectedMerchant as any)?.businessHours;
+            if (!bh || typeof bh !== "object") return null;
+            const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+            const now = new Date();
+            const todayIdx = now.getDay();
+            return (
+              <div style={{ marginTop: 4, padding: "10px 14px", borderRadius: 12, background: "#f9fafb", border: "1px solid #e5e7eb" }}>
+                <div style={{ fontWeight: 900, fontSize: 14, marginBottom: 6, color: "#111" }}>🕒 Business Hours</div>
+                <div style={{ display: "grid", gap: 3 }}>
+                  {dayNames.map((day, i) => {
+                    const dh = bh[day];
+                    const isToday = i === todayIdx;
+                    if (!dh) return null;
+                    const fmtTime = (t: string) => {
+                      const [h, mi] = t.split(":").map(Number);
+                      const ampm = h >= 12 ? "PM" : "AM";
+                      const h12 = h % 12 || 12;
+                      return `${h12}:${String(mi).padStart(2, "0")} ${ampm}`;
+                    };
+                    return (
+                      <div key={day} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, fontWeight: isToday ? 900 : 600, color: isToday ? "#111" : "#6b7280" }}>
+                        <span>{day.slice(0, 3)}{isToday ? " (Today)" : ""}</span>
+                        <span style={{ color: dh.closed ? "#dc2626" : undefined }}>
+                          {dh.closed ? "Closed" : `${fmtTime(dh.open)} – ${fmtTime(dh.close)}`}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
+
           {/* Directions + distance */}
           {(() => {
             const m = selectedMerchant as any;
@@ -576,9 +611,9 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
         </div>
       </div>
 
-      {/* Spin limit note */}
+      {/* Unlock limit note */}
       <div style={{ fontSize: 12, opacity: 0.6, fontWeight: 700, textAlign: "center" }}>
-        Limit: <b>8 spins/day</b> per merchant
+        Limit: <b>8 unlocks/day</b> per merchant
       </div>
 
       {/* Wheel selector tabs (only shown when merchant has multiple wheels) */}
@@ -625,7 +660,7 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
         </div>
       )}
 
-      {/* Free spin proximity gate banner */}
+      {/* Free deal proximity gate banner */}
       {isFreeSpinWheel && (
         <div style={{
           background: "linear-gradient(135deg, #fff7ed, #ffedd5)",
@@ -638,15 +673,15 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
           gap: 8,
         }}>
           <div style={{ fontSize: 15, fontWeight: 900, color: "#c2410c" }}>
-            🔥 Free Spin Available!
+            🔥 Free Deal Available!
           </div>
           <div style={{ fontSize: 13, fontWeight: 600, color: "#7c2d12" }}>
-            {(selectedMerchant as any)?.boostFreeSpinsRemaining ?? 0} free spins remaining
+            {(selectedMerchant as any)?.boostFreeSpinsRemaining ?? 0} free deals remaining
           </div>
           {!userPos && (
             <>
               <div style={{ fontSize: 13, color: "#92400e", fontWeight: 600 }}>
-                You must be within 200m of the store to claim your free spin.
+                You must be within 200m of the store to claim your free deal.
               </div>
               <button
                 onClick={requestLocationForFreeSpin}
@@ -673,7 +708,7 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
           {userPos && !isWithin200m && (
             <>
               <div style={{ fontSize: 13, color: "#dc2626", fontWeight: 700 }}>
-                You are {distanceToMerchantMeters != null ? `${Math.round(distanceToMerchantMeters)}m` : "too far"} away. Drive to {selectedMerchant.name} to unlock your free spin!
+                You are {distanceToMerchantMeters != null ? `${Math.round(distanceToMerchantMeters)}m` : "too far"} away. Drive to {selectedMerchant.name} to unlock your free deal!
               </div>
               {(selectedMerchant as any)?.lat != null && (selectedMerchant as any)?.lng != null && (
                 <a
@@ -716,13 +751,13 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
           )}
           {userPos && isWithin200m && (
             <div style={{ fontSize: 13, color: "#16a34a", fontWeight: 800 }}>
-              ✅ You&apos;re here! Spin the wheel below for your free spin!
+              ✅ You&apos;re here! Unlock the wheel below for your free deal!
             </div>
           )}
         </div>
       )}
 
-      {/* Wheel — hidden behind geo gate if free spin and not within 200m */}
+      {/* Wheel — hidden behind geo gate if free deal and not within 200m */}
       <div ref={wheelContainerRef} style={{ display: "flex", justifyContent: "center", position: "relative", width: "100%", overflow: "visible" }}>
         {isFreeSpinWheel && userPos && !isWithin200m && (
           <div style={{
@@ -761,7 +796,7 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
             setEmailInput("");
             setEmailStatus(null);
             if (!extra?.code) {
-              setSpinError("Spin completed but no code returned.");
+              setSpinError("Unlock completed but no code returned.");
               return;
             }
             // Calculate the winning slice's weight percentage
@@ -841,7 +876,7 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
         </div>
       )}
 
-      {/* Animal celebration overlay — shown immediately after spin, dismissed after ~2.8s or tap */}
+      {/* Animal celebration overlay — shown immediately after unlock, dismissed after ~2.8s or tap */}
       {celebrationVisible && (
         <SpinCelebration
           sliceWeightPct={celebrationWeightPct}

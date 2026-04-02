@@ -39,8 +39,8 @@ export async function POST(req: Request) {
             currency: "usd",
             unit_amount: BOOST_PRICE_CENTS,
             product_data: {
-              name: "Wheel Deals Free Spin Boost — 10 Free Spins",
-              description: `Unlock 10 free spins on your $${(boostWheelPriceCents / 100).toFixed(2)} wheel. Your listing gets a fire badge and proximity-first placement.`,
+              name: "Wheel Deals Free Deal Boost — 10 Free Deals",
+              description: `Unlock 10 free deals on your $${(boostWheelPriceCents / 100).toFixed(2)} wheel. Your listing gets a fire badge and proximity-first placement.`,
             },
           },
         },

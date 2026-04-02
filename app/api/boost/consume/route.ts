@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
           const usageData = usageSnap.data()!;
           if (usageData.lastUsedDate === today) {
             return NextResponse.json(
-              { error: "You have already used your free spin today. Come back tomorrow!" },
+              { error: "You have already used your free deal today. Come back tomorrow!" },
               { status: 429 }
             );
           }
@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
       });
 
       if (!result.allowed) {
-        return NextResponse.json({ error: "No free spins remaining for this merchant" }, { status: 403 });
+        return NextResponse.json({ error: "No free deals remaining for this merchant" }, { status: 403 });
       }
 
       return NextResponse.json(result);
@@ -92,7 +92,7 @@ export async function POST(req: NextRequest) {
       const boostActive = Boolean(data.boostActive);
 
       if (!boostActive || remaining <= 0) {
-        throw new Error("No free spins remaining");
+        throw new Error("No free deals remaining");
       }
 
       // Double-check device fingerprint inside transaction (re-read for consistency)
@@ -104,7 +104,7 @@ export async function POST(req: NextRequest) {
           .doc(deviceFingerprint);
         const usageSnap = await tx.get(usageRef);
         if (usageSnap.exists && usageSnap.data()!.lastUsedDate === today) {
-          throw new Error("You have already used your free spin today. Come back tomorrow!");
+          throw new Error("You have already used your free deal today. Come back tomorrow!");
         }
         // Mark device as used today
         tx.set(usageRef, { lastUsedDate: today, uid, updatedAt: FieldValue.serverTimestamp() });
