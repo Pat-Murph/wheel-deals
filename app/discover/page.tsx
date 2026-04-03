@@ -530,16 +530,19 @@ export default function DiscoverPage() {
           const photo = (m.photoProcessedUrls?.[0] ?? m.photoUrls?.[0]) || null;
           // Always show boost badge for boosted merchants
           const showBoost = m.boostActive === true;
+          // Coming Soon: merchant onboarded but hasn't connected Stripe yet
+          const isComingSoon = !m.stripeAccountId;
           return (
             <a
               key={m.id}
-              href={`/wheel?merchantId=${encodeURIComponent(m.id)}`}
+              href={isComingSoon ? undefined : `/wheel?merchantId=${encodeURIComponent(m.id)}`}
+              onClick={isComingSoon ? (e: React.MouseEvent) => e.preventDefault() : undefined}
               style={{
                 display: "flex",
                 alignItems: "center",
                 gap: 14,
-                background: showBoost ? "#fff7ed" : "#ffffff",
-                border: showBoost ? "2px solid #f97316" : "1px solid #e5e7eb",
+                background: isComingSoon ? "#f9fafb" : showBoost ? "#fff7ed" : "#ffffff",
+                border: isComingSoon ? "1px solid #d1d5db" : showBoost ? "2px solid #f97316" : "1px solid #e5e7eb",
                 borderRadius: 16,
                 padding: "16px 16px",
                 textDecoration: "none",
@@ -547,6 +550,8 @@ export default function DiscoverPage() {
                 boxShadow: showBoost ? "0 4px 16px rgba(249,115,22,0.18)" : "0 2px 8px rgba(0,0,0,0.08)",
                 minHeight: 90,
                 position: "relative",
+                opacity: isComingSoon ? 0.8 : 1,
+                cursor: isComingSoon ? "default" : "pointer",
               }}
             >
               {/* Info */}
@@ -557,6 +562,11 @@ export default function DiscoverPage() {
                   {showBoost && (
                     <span style={{ fontSize: 11, fontWeight: 900, background: "#f97316", color: "#fff", borderRadius: 999, padding: "2px 8px", letterSpacing: 0.3 }}>
                       FREE DEAL
+                    </span>
+                  )}
+                  {isComingSoon && (
+                    <span style={{ fontSize: 11, fontWeight: 900, background: "#6366f1", color: "#fff", borderRadius: 999, padding: "2px 8px", letterSpacing: 0.3 }}>
+                      COMING SOON
                     </span>
                   )}
                 </div>
@@ -631,20 +641,22 @@ export default function DiscoverPage() {
                 />
               )}
 
-              {/* View button */}
+              {/* View / Coming Soon button */}
               <div style={{
                 padding: "8px 12px",
                 borderRadius: 10,
-                background: "linear-gradient(180deg, #FFD700, #FFA500)",
+                background: isComingSoon
+                  ? "linear-gradient(180deg, #e0e7ff, #c7d2fe)"
+                  : "linear-gradient(180deg, #FFD700, #FFA500)",
                 fontWeight: 800,
                 fontSize: 13,
-                color: "#1a1a1a",
+                color: isComingSoon ? "#4338ca" : "#1a1a1a",
                 whiteSpace: "nowrap",
                 flexShrink: 0,
-                border: "1px solid #d4a017",
+                border: isComingSoon ? "1px solid #a5b4fc" : "1px solid #d4a017",
                 boxShadow: "0 2px 6px rgba(0,0,0,0.12)",
               }}>
-                View
+                {isComingSoon ? "Soon" : "View"}
               </div>
             </a>
           );
