@@ -290,9 +290,9 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
   const reportHref = useMemo(() => {
     const mid = selectedMerchant?.id ?? "";
     const name = selectedMerchant?.name ?? "";
-    const subject = encodeURIComponent("Wheel Deals — Report a merchant");
+    const subject = encodeURIComponent("Wheel Deals — Support");
     const body = encodeURIComponent(`Please describe the issue.\n\nMerchant Name: ${name}\nMerchant ID: ${mid}\n\nWhat happened:\n`);
-    return `mailto:support@wheeldeals.app?subject=${subject}&body=${body}`;
+    return `mailto:support@wheeldealsapp.com?subject=${subject}&body=${body}`;
   }, [selectedMerchant?.id, selectedMerchant?.name]);
 
   if (loadingMerchants) {
@@ -367,7 +367,7 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
             padding: "8px 12px", borderRadius: 10, border: "1px solid rgba(0,0,0,0.12)",
             background: "linear-gradient(180deg, #f3f4f6, #fff)", fontSize: 13,
           }}>
-            Report
+            Support
           </a>
         </div>
       </div>
