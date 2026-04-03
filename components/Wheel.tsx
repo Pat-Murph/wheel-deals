@@ -560,6 +560,11 @@ export default function Wheel({
           sp.delete("session_id");
           const next = sp.toString();
           window.history.replaceState({}, "", `${window.location.pathname}${next ? `?${next}` : ""}`);
+          // ✅ Scroll to the wheel section so user doesn't land at top of page
+          setTimeout(() => {
+            const wheelEl = document.getElementById("wheel-section");
+            if (wheelEl) wheelEl.scrollIntoView({ behavior: "smooth", block: "center" });
+          }, 100);
         } catch (e: any) {
           setPayStatus(e?.message ?? "Payment verify failed.");
           setPaidSpinReady(false);
@@ -582,6 +587,11 @@ export default function Wheel({
           setVerifiedSessionId(payload.sessionId);
           if (payload.uid) setVerifiedUid(payload.uid);
           setPayStatus("✅ Payment verified — unlock now!");
+          // ✅ Scroll to the wheel section
+          setTimeout(() => {
+            const wheelEl = document.getElementById("wheel-section");
+            if (wheelEl) wheelEl.scrollIntoView({ behavior: "smooth", block: "center" });
+          }, 100);
         }
       }
     } catch { /* ignore */ }
@@ -872,6 +882,12 @@ export default function Wheel({
     // ✅ require verified entitlement
     if (!paidSpinReady || !verifiedSessionId) {
       setPayStatus(`Pay ${spinPriceLabel(spinPriceCents)} to unlock.`);
+      return;
+    }
+
+    // ✅ Prevent spinning a different tier's wheel than what was paid for (race condition fix)
+    if (paidSpinPriceCents !== null && paidSpinPriceCents !== (spinPriceCents ?? 135) && !isFreeSpinBoost) {
+      setPayStatus(`You paid for the ${spinPriceLabel(paidSpinPriceCents)} tier. Please select that wheel.`);
       return;
     }
 

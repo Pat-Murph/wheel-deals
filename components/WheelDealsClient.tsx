@@ -613,7 +613,7 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
 
       {/* Unlock limit note */}
       <div style={{ fontSize: 12, opacity: 0.6, fontWeight: 700, textAlign: "center" }}>
-        Limit: <b>8 unlocks/day</b> per merchant
+        Limit: <b>3 unlocks/day</b> per merchant
       </div>
 
       {/* Wheel selector tabs (only shown when merchant has multiple wheels) */}
@@ -627,7 +627,9 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
               : `$${(wc.spinPriceCents / 100).toFixed(2)}`;
             const active = idx === selectedWheelIdx;
             // If payment has been verified, only the paid tier is selectable
-            const isLocked = paidTierCents !== null && wc.spinPriceCents !== paidTierCents;
+            // Also lock tabs while a session_id is present (payment being verified)
+            const isVerifying = typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('session_id');
+            const isLocked = isVerifying || (paidTierCents !== null && wc.spinPriceCents !== paidTierCents);
             return (
               <button
                 key={idx}
@@ -758,7 +760,7 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
       )}
 
       {/* Wheel — hidden behind geo gate if free deal and not within 200m */}
-      <div ref={wheelContainerRef} style={{ display: "flex", justifyContent: "center", position: "relative", width: "100%", overflow: "visible" }}>
+      <div id="wheel-section" ref={wheelContainerRef} style={{ display: "flex", justifyContent: "center", position: "relative", width: "100%", overflow: "visible" }}>
         {isFreeSpinWheel && userPos && !isWithin200m && (
           <div style={{
             position: "absolute",

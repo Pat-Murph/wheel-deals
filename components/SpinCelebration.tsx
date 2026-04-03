@@ -155,7 +155,7 @@ type Props = {
 
 export default function SpinCelebration({ sliceWeightPct, dealLabel, onDone }: Props) {
   const tier = getAnimalTier(sliceWeightPct);
-  const [phase, setPhase] = useState<"enter" | "hold" | "exit">("enter");
+  const [phase, setPhase] = useState<"enter" | "hold" | "exit">("hold");
   const [particles, setParticles] = useState<{ id: number; x: number; y: number; size: number; color: string; vx: number; vy: number }[]>([]);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const rafRef = useRef<number | null>(null);
@@ -196,12 +196,7 @@ export default function SpinCelebration({ sliceWeightPct, dealLabel, onDone }: P
     return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
   }, []);
 
-  // Phase transitions: enter → hold → exit → onDone
-  useEffect(() => {
-    // enter for 300ms, hold for 2000ms, exit for 500ms
-    timerRef.current = setTimeout(() => setPhase("hold"), 300);
-    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
-  }, []);
+  // Phase transitions: hold → exit → onDone (no enter delay — appears instantly)
 
   useEffect(() => {
     if (phase === "hold") {
