@@ -487,13 +487,15 @@ export default function MerchantOnboardPage() {
   }, [user]);
 
   useEffect(() => {
-    // revoke old previews
-    photoPreviewUrls.forEach((u) => URL.revokeObjectURL(u));
-    const next = photoFiles.map((f) => URL.createObjectURL(f));
-    setPhotoPreviewUrls(next);
+    // Create blob URLs for newly selected files
+    const newBlobUrls = photoFiles.map((f) => URL.createObjectURL(f));
+
+    // Combine: existing uploaded photos (minus removed) + new blob previews
+    const existingKept = uploadedPhotoUrls.filter(u => !photosToRemove.includes(u));
+    setPhotoPreviewUrls([...existingKept, ...newBlobUrls]);
 
     return () => {
-      next.forEach((u) => URL.revokeObjectURL(u));
+      newBlobUrls.forEach((u) => URL.revokeObjectURL(u));
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [photoFiles]);
@@ -682,6 +684,7 @@ export default function MerchantOnboardPage() {
   function removePhoto(url: string) {
     setPhotosToRemove(prev => [...prev, url]);
     setPhotoPreviewUrls(prev => prev.filter(u => u !== url));
+    setUploadedPhotoUrls(prev => prev.filter(u => u !== url));
   }
 
   function resetSelectedPhotos() {
@@ -803,7 +806,6 @@ export default function MerchantOnboardPage() {
 
       if (photoFiles.length) {
         setStatus("📸 Uploading photos…");
-        urls = await uploadPhotos(user.uid);
         const newUrls = await uploadPhotos(user.uid);
         finalUrls = [...finalUrls, ...newUrls];
         setUploadedPhotoUrls(finalUrls);
@@ -1299,15 +1301,39 @@ export default function MerchantOnboardPage() {
                     overflow: "hidden",
                     background: "#fff",
                     minWidth: 0,
+                    position: "relative",
                   }}
                 >
-<img
+                  <img
                     src={src}
                     alt={`preview-${i}`}
                     style={{ width: "100%", height: 110, objectFit: "cover", display: "block" }}
                   />
-                  <button onClick={() => removePhoto(src)} style={{...btnRed(false), position:"absolute", top:5, right:5, padding: "2px 6px", fontSize:12}}>
-                    Remove
+                  <button
+                    onClick={() => removePhoto(src)}
+                    disabled={busy}
+                    style={{
+                      position: "absolute",
+                      top: 6,
+                      right: 6,
+                      width: 28,
+                      height: 28,
+                      borderRadius: "50%",
+                      border: "none",
+                      background: "rgba(0,0,0,0.65)",
+                      color: "#fff",
+                      fontSize: 16,
+                      fontWeight: 900,
+                      cursor: busy ? "not-allowed" : "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      lineHeight: 1,
+                      padding: 0,
+                    }}
+                    title="Remove photo"
+                  >
+                    ×
                   </button>
                   <div
                     style={{
@@ -1317,19 +1343,14 @@ export default function MerchantOnboardPage() {
                       opacity: 0.7,
                     }}
                   >
-                    New Photo {i + 1}
+                    Photo {i + 1}
                   </div>
                 </div>
               ))}
             </div>
           )}
 
-          {/* show existing uploaded photos when editing */}
-          {uploadedPhotoUrls.length > 0 && photoPreviewUrls.length === 0 && (
-            <div style={{ fontWeight: 900, opacity: 0.75 }}>
-              ✅ Using {uploadedPhotoUrls.length} existing uploaded photo(s)
-            </div>
-          )}
+          {/* Note: existing uploaded photos are now shown in the preview grid above with delete buttons */}
         </div>
 
         <div
