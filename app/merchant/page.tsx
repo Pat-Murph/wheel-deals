@@ -36,7 +36,6 @@ import {
   type MerchantDailyStat,
 } from "../../lib/merchantStats";
 
-const DAILY_LIMIT = 8;
 
 type MerchantDoc = {
   name?: string;
@@ -760,7 +759,7 @@ export default function MerchantDashboardPage() {
               </span>
             ) : null;
           })()}
-          <span style={{ fontSize: 11, opacity: 0.65, fontWeight: 850 }}>Limit: {DAILY_LIMIT} unlocks/day</span>
+
           {busy && <span style={{ opacity: 0.7, fontWeight: 800, fontSize: 12 }}>Loading…</span>}
         </div>
       </div>
