@@ -28,12 +28,29 @@ export async function POST(req: NextRequest) {
 
     // ── Step 1: entitlement grant (no prizeLabel yet) ──────────────────────
     if (!finalize) {
-      // ── Device fingerprint rate-limit check ──────────────────────────────
-      // We track per-device usage in a sub-collection:
+      // ── 1-per-customer-EVER enforcement ─────────────────────────────────
+      // Track by BOTH device fingerprint AND uid to prevent:
+      //   - Same device, new account → caught by device fingerprint
+      //   - Same account, new device (reinstall) → caught by uid
+      // Sub-collections:
       //   merchants/{merchantId}/boostDeviceUsage/{fingerprint}
-      //   { lastUsedDate: "YYYY-MM-DD", count: N }
-      //
-      // If the device has already used a free boost today for this merchant, block it.
+      //   merchants/{merchantId}/boostUserUsage/{uid}
+
+      // Check UID usage (survives app reinstall)
+      const userUsageRef = adminDb
+        .collection("merchants")
+        .doc(merchantId)
+        .collection("boostUserUsage")
+        .doc(uid);
+      const userUsageSnap = await userUsageRef.get();
+      if (userUsageSnap.exists) {
+        return NextResponse.json(
+          { error: "You have already claimed your free deal from this merchant. Limit: 1 per customer." },
+          { status: 429 }
+        );
+      }
+
+      // Check device fingerprint usage (catches new accounts on same device)
       if (deviceFingerprint) {
         const usageRef = adminDb
           .collection("merchants")
@@ -42,16 +59,12 @@ export async function POST(req: NextRequest) {
           .doc(deviceFingerprint);
 
         const usageSnap = await usageRef.get();
-        const today = todayUTC();
 
         if (usageSnap.exists) {
-          const usageData = usageSnap.data()!;
-          if (usageData.lastUsedDate === today) {
-            return NextResponse.json(
-              { error: "You have already used your free deal today. Come back tomorrow!" },
-              { status: 429 }
-            );
-          }
+          return NextResponse.json(
+            { error: "You have already claimed your free deal from this merchant. Limit: 1 per customer." },
+            { status: 429 }
+          );
         }
       }
 
@@ -95,7 +108,20 @@ export async function POST(req: NextRequest) {
         throw new Error("No free deals remaining");
       }
 
-      // Double-check device fingerprint inside transaction (re-read for consistency)
+      // Double-check UID usage inside transaction (re-read for consistency)
+      const userUsageRef = adminDb
+        .collection("merchants")
+        .doc(merchantId)
+        .collection("boostUserUsage")
+        .doc(uid);
+      const userUsageSnap = await tx.get(userUsageRef);
+      if (userUsageSnap.exists) {
+        throw new Error("You have already claimed your free deal from this merchant. Limit: 1 per customer.");
+      }
+      // Mark UID as used permanently
+      tx.set(userUsageRef, { uid, usedAt: FieldValue.serverTimestamp() });
+
+      // Double-check device fingerprint inside transaction
       if (deviceFingerprint) {
         const usageRef = adminDb
           .collection("merchants")
@@ -103,11 +129,11 @@ export async function POST(req: NextRequest) {
           .collection("boostDeviceUsage")
           .doc(deviceFingerprint);
         const usageSnap = await tx.get(usageRef);
-        if (usageSnap.exists && usageSnap.data()!.lastUsedDate === today) {
-          throw new Error("You have already used your free deal today. Come back tomorrow!");
+        if (usageSnap.exists) {
+          throw new Error("You have already claimed your free deal from this merchant. Limit: 1 per customer.");
         }
-        // Mark device as used today
-        tx.set(usageRef, { lastUsedDate: today, uid, updatedAt: FieldValue.serverTimestamp() });
+        // Mark device as used permanently
+        tx.set(usageRef, { uid, usedAt: FieldValue.serverTimestamp() });
       }
 
       const newRemaining = remaining - 1;

@@ -114,22 +114,15 @@ export const ANIMAL_TIERS: AnimalTier[] = [
   },
 ];
 
-/** Preload all animal images as soon as this module is imported (runs once) */
+/** Preload all animal images IMMEDIATELY when this module is imported (runs once).
+ *  This ensures images are in the browser cache before the celebration popup appears. */
 if (typeof window !== "undefined") {
-  // Use requestIdleCallback so it doesn't block the main thread
-  const preload = () => {
-    ANIMAL_TIERS.forEach((tier) => {
-      if (tier.imagePath) {
-        const img = new window.Image();
-        img.src = tier.imagePath;
-      }
-    });
-  };
-  if ("requestIdleCallback" in window) {
-    (window as Window & { requestIdleCallback: (cb: () => void) => void }).requestIdleCallback(preload);
-  } else {
-    setTimeout(preload, 500);
-  }
+  ANIMAL_TIERS.forEach((tier) => {
+    if (tier.imagePath) {
+      const img = new window.Image();
+      img.src = tier.imagePath;
+    }
+  });
 }
 
 /** Pick the right animal tier for a given slice weight percentage */

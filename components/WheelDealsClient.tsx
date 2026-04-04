@@ -706,6 +706,9 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
           <div style={{ fontSize: 13, fontWeight: 600, color: "#7c2d12" }}>
             {(selectedMerchant as any)?.boostFreeSpinsRemaining ?? 0} free deals remaining
           </div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "#9a3412", opacity: 0.8 }}>
+            Limit: 1 free deal per customer
+          </div>
           {!userPos && (
             <>
               <div style={{ fontSize: 13, color: "#92400e", fontWeight: 600 }}>
