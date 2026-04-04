@@ -8,7 +8,7 @@ const FREE_SPINS_GRANTED = 10;
 
 export async function POST(req: Request) {
   try {
-    const { merchantId, uid, boostWheelPriceCents } = await req.json();
+    const { merchantId, uid, boostWheelPriceCents, boostMode } = await req.json();
 
     if (!merchantId || !uid) {
       return NextResponse.json({ error: "Missing merchantId/uid" }, { status: 400 });
@@ -49,6 +49,7 @@ export async function POST(req: Request) {
         merchantId,
         uid,
         boostWheelPriceCents: String(boostWheelPriceCents ?? 135),
+        boostMode: boostMode === 'always' ? 'always' : 'checkin',
         type: "boost",
       },
       success_url: `${origin}/api/stripe/boost/verify?session_id={CHECKOUT_SESSION_ID}&merchantId=${encodeURIComponent(merchantId)}`,

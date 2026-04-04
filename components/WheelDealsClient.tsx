@@ -251,7 +251,7 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
     return boostPrice != null && activeWheel?.spinPriceCents === boostPrice;
   }, [selectedMerchant, activeWheel]);
 
-  // Distance from user to merchant in meters
+  // Distance from user to merchant in meters (uses storefront lat/lng)
   const distanceToMerchantMeters = useMemo(() => {
     if (!userPos) return null;
     const m = selectedMerchant as any;
@@ -259,7 +259,29 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
     return haversineMeters(userPos.lat, userPos.lng, m.lat, m.lng);
   }, [userPos, selectedMerchant]);
 
+  // Distance from user to mobile check-in point (for mobile merchants)
+  const distanceToMobileCheckinMeters = useMemo(() => {
+    if (!userPos) return null;
+    const m = selectedMerchant as any;
+    if (!m?.isMobile) return null;
+    if (typeof m?.mobileLat !== "number" || typeof m?.mobileLng !== "number") return null;
+    return haversineMeters(userPos.lat, userPos.lng, m.mobileLat, m.mobileLng);
+  }, [userPos, selectedMerchant]);
+
   const isWithin200m = distanceToMerchantMeters != null && distanceToMerchantMeters <= 200;
+  const isWithin200mOfCheckin = distanceToMobileCheckinMeters != null && distanceToMobileCheckinMeters <= 200;
+  const isWithin25mi = distanceToMerchantMeters != null && distanceToMerchantMeters <= 25 * 1609.34;
+
+  // For mobile merchants with boostMode='always', the free deal is available within 25mi with no geo-gate.
+  // For boostMode='checkin' (default), the 200m proximity gate applies to the check-in location.
+  const boostMode = (selectedMerchant as any)?.boostMode as string | undefined;
+  const isMobileAlwaysBoost = (selectedMerchant as any)?.isMobile && boostMode === 'always';
+  // Whether the free spin geo-gate is satisfied
+  const freeSpinGatePassed = isMobileAlwaysBoost
+    ? isWithin25mi
+    : (selectedMerchant as any)?.isMobile
+      ? isWithin200mOfCheckin
+      : isWithin200m;
 
   async function requestLocationForFreeSpin() {
     setGeoChecking(true);
@@ -563,6 +585,10 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
           {(() => {
             const m = selectedMerchant as any;
             const isActiveMobile = m?.isMobile && m?.mobileActiveUntil?.toDate && m.mobileActiveUntil.toDate() > new Date();
+
+            // Hide directions for mobile merchants unless they are checked in
+            if (m?.isMobile && !isActiveMobile) return null;
+
             const dirLat = isActiveMobile && typeof m.mobileLat === 'number' ? m.mobileLat : m?.lat;
             const dirLng = isActiveMobile && typeof m.mobileLng === 'number' ? m.mobileLng : m?.lng;
             if (dirLat == null || dirLng == null) return null;
@@ -683,7 +709,9 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
           {!userPos && (
             <>
               <div style={{ fontSize: 13, color: "#92400e", fontWeight: 600 }}>
-                You must be within 200m of the store to claim your free deal.
+                {isMobileAlwaysBoost
+                  ? "Allow location access to claim your free deal (within 25 miles)."
+                  : "You must be within 200m of the store to claim your free deal."}
               </div>
               <button
                 onClick={requestLocationForFreeSpin}
@@ -707,12 +735,17 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
               )}
             </>
           )}
-          {userPos && !isWithin200m && (
+          {userPos && !freeSpinGatePassed && (
             <>
               <div style={{ fontSize: 13, color: "#dc2626", fontWeight: 700 }}>
-                You are {distanceToMerchantMeters != null ? `${Math.round(distanceToMerchantMeters)}m` : "too far"} away. Drive to {selectedMerchant.name} to unlock your free deal!
+                {isMobileAlwaysBoost
+                  ? `You are ${distanceToMerchantMeters != null ? `${(distanceToMerchantMeters / 1609.34).toFixed(1)} mi` : "too far"} away. You must be within 25 miles to claim the free deal.`
+                  : `You are ${(() => {
+                      const d = (selectedMerchant as any)?.isMobile ? distanceToMobileCheckinMeters : distanceToMerchantMeters;
+                      return d != null ? `${Math.round(d)}m` : "too far";
+                    })()} away. Drive to ${selectedMerchant.name} to unlock your free deal!`}
               </div>
-              {(selectedMerchant as any)?.lat != null && (selectedMerchant as any)?.lng != null && (
+              {!isMobileAlwaysBoost && (selectedMerchant as any)?.lat != null && (selectedMerchant as any)?.lng != null && (
                 <a
                   href={`https://www.google.com/maps/dir/?api=1&destination=${(selectedMerchant as any).lat},${(selectedMerchant as any).lng}`}
                   target="_blank"
@@ -751,17 +784,19 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
               </button>
             </>
           )}
-          {userPos && isWithin200m && (
+          {userPos && freeSpinGatePassed && (
             <div style={{ fontSize: 13, color: "#16a34a", fontWeight: 800 }}>
-              ✅ You&apos;re here! Unlock the wheel below for your free deal!
+              {isMobileAlwaysBoost
+                ? "✅ You're within range! Unlock the wheel below for your free deal!"
+                : "✅ You're here! Unlock the wheel below for your free deal!"}
             </div>
           )}
         </div>
       )}
 
-      {/* Wheel — hidden behind geo gate if free deal and not within 200m */}
+      {/* Wheel — hidden behind geo gate if free deal and not within range */}
       <div id="wheel-section" ref={wheelContainerRef} style={{ display: "flex", justifyContent: "center", position: "relative", width: "100%", overflow: "visible" }}>
-        {isFreeSpinWheel && userPos && !isWithin200m && (
+        {isFreeSpinWheel && userPos && !freeSpinGatePassed && (
           <div style={{
             position: "absolute",
             inset: 0,
@@ -776,7 +811,7 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
             fontWeight: 900,
             color: "#c2410c",
           }}>
-            🔒 Drive to the store to unlock
+            {isMobileAlwaysBoost ? "🔒 Get within 25 miles to unlock" : "🔒 Drive to the store to unlock"}
           </div>
         )}
         <Wheel
@@ -784,8 +819,8 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
           merchantId={selectedMerchant.id}
           merchantName={(selectedMerchant as any)?.name ?? undefined}
           uid={uid ?? undefined}
-          spinPriceCents={isFreeSpinWheel && isWithin200m ? 0 : (activeWheel?.spinPriceCents ?? 135)}
-          isFreeSpinBoost={isFreeSpinWheel && isWithin200m}
+          spinPriceCents={isFreeSpinWheel && freeSpinGatePassed ? 0 : (activeWheel?.spinPriceCents ?? 135)}
+          isFreeSpinBoost={isFreeSpinWheel && freeSpinGatePassed}
           onPaymentVerified={(priceCents) => {
             // Lock the tier tabs to the tier that was actually paid
             setPaidTierCents(priceCents);

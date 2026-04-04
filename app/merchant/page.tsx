@@ -53,6 +53,9 @@ type MerchantDoc = {
   boostFreeSpinsRemaining?: number;
   boostWheelPriceCents?: number;
   boostPurchasedAt?: string;
+  boostMode?: 'checkin' | 'always';
+  // Mobile
+  isMobile?: boolean;
   // Wheels
   wheels?: Array<{ spinPriceCents: number; items: Array<{ label: string; weight: number }> }>;
   wheel?: Array<{ label: string; weight: number }>;
@@ -320,6 +323,7 @@ export default function MerchantDashboardPage() {
 
   // Boost
   const [boostWheelPriceCents, setBoostWheelPriceCents] = useState<number>(135);
+  const [boostMode, setBoostMode] = useState<'checkin' | 'always'>('checkin');
   const [boostBusy, setBoostBusy] = useState(false);
 
   /* ---------- AUTH ---------- */
@@ -534,7 +538,7 @@ export default function MerchantDashboardPage() {
       const res = await fetch("/api/stripe/boost", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ merchantId, uid: user.uid, boostWheelPriceCents }),
+        body: JSON.stringify({ merchantId, uid: user.uid, boostWheelPriceCents, boostMode: merchant?.isMobile ? boostMode : undefined }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error ?? "Could not create boost checkout");
@@ -917,6 +921,11 @@ export default function MerchantDashboardPage() {
         {merchant.boostActive ? (
           <div style={{ marginTop: 10, padding: "10px 14px", background: "#fff7ed", borderRadius: 10, fontSize: 13, fontWeight: 800, color: "#c2410c" }}>
             Boost is active! Once all {10} free deals are claimed, your listing returns to normal. Purchase another boost anytime.
+            {merchant.isMobile && merchant.boostMode && (
+              <div style={{ marginTop: 6, fontSize: 12, fontWeight: 700, color: "#92400e" }}>
+                Mode: {merchant.boostMode === 'always' ? '25-mile radius (always available)' : 'Check-in only (200m proximity)'}
+              </div>
+            )}
           </div>
         ) : (
           <div style={{ marginTop: 12, display: "grid", gap: 10 }}>
@@ -935,6 +944,28 @@ export default function MerchantDashboardPage() {
                 </option>
               ))}
             </select>
+
+            {/* Boost mode selector for mobile merchants */}
+            {merchant.isMobile && (
+              <div style={{ display: "grid", gap: 6 }}>
+                <div style={{ fontSize: 13, fontWeight: 800 }}>Free deal availability:</div>
+                <label style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "10px 12px", borderRadius: 10, border: boostMode === 'checkin' ? "2px solid #f97316" : "1px solid #ddd", background: boostMode === 'checkin' ? "#fff7ed" : "#fff", cursor: "pointer" }}>
+                  <input type="radio" name="boostMode" value="checkin" checked={boostMode === 'checkin'} onChange={() => setBoostMode('checkin')} style={{ marginTop: 2 }} />
+                  <div>
+                    <div style={{ fontWeight: 800, fontSize: 13 }}>Check-in only (200m proximity)</div>
+                    <div style={{ fontSize: 12, color: "#6b7280", marginTop: 2 }}>Free deals only available when you are checked in. Customers must be within 200 meters of your check-in location.</div>
+                  </div>
+                </label>
+                <label style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "10px 12px", borderRadius: 10, border: boostMode === 'always' ? "2px solid #f97316" : "1px solid #ddd", background: boostMode === 'always' ? "#fff7ed" : "#fff", cursor: "pointer" }}>
+                  <input type="radio" name="boostMode" value="always" checked={boostMode === 'always'} onChange={() => setBoostMode('always')} style={{ marginTop: 2 }} />
+                  <div>
+                    <div style={{ fontWeight: 800, fontSize: 13 }}>25-mile radius (always available)</div>
+                    <div style={{ fontSize: 12, color: "#6b7280", marginTop: 2 }}>Free deals available to all customers within 25 miles of your service area at all times, even when not checked in.</div>
+                  </div>
+                </label>
+              </div>
+            )}
+
             <button
               onClick={purchaseBoost}
               disabled={boostBusy}

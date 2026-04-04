@@ -23,12 +23,14 @@ export async function GET(req: NextRequest) {
     }
 
     const boostWheelPriceCents = Number(session.metadata?.boostWheelPriceCents ?? 135);
+    const boostMode = session.metadata?.boostMode === 'always' ? 'always' : 'checkin';
 
     // Write boost fields to the merchant document
     await adminDb.collection("merchants").doc(merchantId).update({
       boostActive: true,
       boostFreeSpinsRemaining: FREE_SPINS_GRANTED,
       boostWheelPriceCents: boostWheelPriceCents,
+      boostMode: boostMode,
       boostPurchasedAt: new Date().toISOString(),
     });
 
