@@ -211,8 +211,17 @@ export default function DiscoverPage() {
 
     return [...withDist].sort((a, b) => {
       // Boost only SORTS a merchant to the top if the user is within 50 miles of it.
-      const aWithinBoost = a.boostActive && a.distanceMiles != null && a.distanceMiles <= BOOST_RADIUS_MILES;
-      const bWithinBoost = b.boostActive && b.distanceMiles != null && b.distanceMiles <= BOOST_RADIUS_MILES;
+      // For mobile merchants with boostMode='checkin', only boost when checked in.
+      function isBoostVisible(m: MerchantResult) {
+        if (!m.boostActive) return false;
+        if (m.isMobile && m.boostMode !== 'always') {
+          const checkedIn = m.mobileActiveUntil && m.mobileActiveUntil.toDate && m.mobileActiveUntil.toDate() > time;
+          if (!checkedIn) return false;
+        }
+        return true;
+      }
+      const aWithinBoost = isBoostVisible(a) && a.distanceMiles != null && a.distanceMiles <= BOOST_RADIUS_MILES;
+      const bWithinBoost = isBoostVisible(b) && b.distanceMiles != null && b.distanceMiles <= BOOST_RADIUS_MILES;
       const aBoost = aWithinBoost ? 1 : 0;
       const bBoost = bWithinBoost ? 1 : 0;
       if (aBoost !== bBoost) return bBoost - aBoost;
@@ -528,8 +537,11 @@ export default function DiscoverPage() {
 
         {sortedItems.map((m) => {
           const photo = (m.photoProcessedUrls?.[0] ?? m.photoUrls?.[0]) || null;
-          // Always show boost badge for boosted merchants
-          const showBoost = m.boostActive === true;
+          // For mobile merchants with boostMode='checkin', only show boost when checked in
+          const isActiveMobile = m.isMobile && m.mobileActiveUntil && m.mobileActiveUntil.toDate && m.mobileActiveUntil.toDate() > time;
+          const showBoost = m.boostActive === true && (
+            !m.isMobile || m.boostMode === 'always' || isActiveMobile
+          );
           // Coming Soon: merchant onboarded but hasn't connected Stripe yet
           const isComingSoon = !m.stripeAccountId;
           return (

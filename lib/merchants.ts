@@ -692,8 +692,14 @@ export async function searchMerchants(params: SearchMerchantsParams): Promise<Me
 
     // Boost active merchants get a big bonus ONLY when user is within 50 miles of them.
     // If distance is unknown (no GPS) or > 50 miles, no boost to score.
+    // For mobile merchants with boostMode='checkin', only boost when checked in.
     const BOOST_RADIUS = 50;
-    const withinBoost = m.boostActive && m.distanceMiles != null && m.distanceMiles <= BOOST_RADIUS;
+    let boostVisible = m.boostActive === true;
+    if (boostVisible && m.isMobile && m.boostMode !== 'always') {
+      const checkedIn = m.mobileActiveUntil && m.mobileActiveUntil.toDate && m.mobileActiveUntil.toDate() > new Date();
+      if (!checkedIn) boostVisible = false;
+    }
+    const withinBoost = boostVisible && m.distanceMiles != null && m.distanceMiles <= BOOST_RADIUS;
     if (withinBoost) score += 1000;
 
     // Location relevance: exact city match scores higher than partial/state match
