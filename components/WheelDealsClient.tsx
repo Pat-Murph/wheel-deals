@@ -745,9 +745,19 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
                       return d != null ? `${Math.round(d)}m` : "too far";
                     })()} away. Drive to ${selectedMerchant.name} to unlock your free deal!`}
               </div>
-              {!isMobileAlwaysBoost && (selectedMerchant as any)?.lat != null && (selectedMerchant as any)?.lng != null && (
+              {!isMobileAlwaysBoost && (() => {
+                const m = selectedMerchant as any;
+                const useMobile = m?.isMobile && typeof m?.mobileLat === 'number' && typeof m?.mobileLng === 'number';
+                const dLat = useMobile ? m.mobileLat : m?.lat;
+                const dLng = useMobile ? m.mobileLng : m?.lng;
+                return dLat != null && dLng != null;
+              })() && (
                 <a
-                  href={`https://www.google.com/maps/dir/?api=1&destination=${(selectedMerchant as any).lat},${(selectedMerchant as any).lng}`}
+                  href={`https://www.google.com/maps/dir/?api=1&destination=${(() => {
+                    const m = selectedMerchant as any;
+                    const useMobile = m?.isMobile && typeof m?.mobileLat === 'number' && typeof m?.mobileLng === 'number';
+                    return useMobile ? `${m.mobileLat},${m.mobileLng}` : `${m.lat},${m.lng}`;
+                  })()}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   style={{
