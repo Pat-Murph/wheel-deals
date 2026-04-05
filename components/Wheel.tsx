@@ -387,6 +387,16 @@ export default function Wheel({
         a.preload = "auto";
         a.volume = 0.18; // subtle
         bgAudioRef.current = a;
+
+        // Resume from saved position (after returning from Stripe)
+        try {
+          const savedPos = localStorage.getItem("wd_music_pos");
+          if (savedPos) {
+            a.currentTime = parseFloat(savedPos);
+            localStorage.removeItem("wd_music_pos");
+            localStorage.removeItem("wd_music_on");
+          }
+        } catch {}
       }
 
       const a = bgAudioRef.current;
@@ -872,9 +882,17 @@ export default function Wheel({
       if (!res.ok) throw new Error(data?.error ?? "Could not start checkout");
       if (!data?.url) throw new Error("Missing checkout url");
 
-      // Open Stripe checkout in a new tab so music keeps playing.
-      // The success_url will redirect back to /wheel?session_id=... in that tab.
-      window.open(data.url, "_blank");
+      // Save music state so it can resume after returning from Stripe
+      try {
+        const a = bgAudioRef.current;
+        if (a && !a.paused) {
+          localStorage.setItem("wd_music_pos", String(a.currentTime));
+          localStorage.setItem("wd_music_on", "1");
+        }
+      } catch {}
+
+      // Navigate in same tab (avoids Chrome Custom Tab header on Android)
+      window.location.href = data.url;
     } catch (e: any) {
       setPayStatus(e?.message ?? "Checkout failed.");
     } finally {
