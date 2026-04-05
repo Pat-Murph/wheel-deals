@@ -395,6 +395,9 @@ export default function Wheel({
       a.muted = !musicOn;
       a.volume = 0.18;
 
+      // If already playing, don't restart — just ensure it's unmuted
+      if (!a.paused) return;
+
       // play may be blocked unless called from a user gesture (we call this from button handlers)
       await a.play();
     } catch {
@@ -950,7 +953,7 @@ export default function Wheel({
 
     if (!resLabel) return;
 
-    setWinnerText(`🎉 You unlocked: ${resLabel}`);
+    setWinnerText(`You unlocked: ${resLabel}`);
 
     // play win sound
     try {
@@ -959,7 +962,6 @@ export default function Wheel({
     } catch {}
 
     // visuals
-    if (wrapRef.current) burstConfetti(wrapRef.current, 90);
     if (typeof idx === "number") setWinnerIdx(idx);
 
     setWinAnimKey((k) => k + 1);
