@@ -209,9 +209,8 @@ export default function SpinCelebration({ sliceWeightPct, dealLabel, onDone }: P
     alignItems: "center",
     justifyContent: "center",
     background: tier.bgGradient,
-    transition: phase === "enter" ? "opacity 0.3s ease, transform 0.3s ease" : phase === "exit" ? "opacity 0.5s ease, transform 0.5s ease" : "none",
-    opacity: phase === "hold" ? 1 : phase === "enter" ? 0 : 0,
-    transform: phase === "hold" ? "scale(1)" : phase === "enter" ? "scale(0.95)" : "scale(1.05)",
+    transition: phase === "exit" ? "opacity 0.5s ease" : "none",
+    opacity: phase === "exit" ? 0 : 1,
     cursor: "pointer",
     userSelect: "none",
   };
@@ -262,7 +261,7 @@ export default function SpinCelebration({ sliceWeightPct, dealLabel, onDone }: P
             position: "relative",
             zIndex: 2,
             filter: `drop-shadow(0 0 24px ${tier.glowColor}) drop-shadow(0 0 48px ${tier.glowColor}88)`,
-            animation: "animal-bounce 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards",
+            animation: "animal-bounce 0.25s ease-out forwards",
           }}
         />
       ) : (
@@ -271,7 +270,7 @@ export default function SpinCelebration({ sliceWeightPct, dealLabel, onDone }: P
           position: "relative",
           zIndex: 2,
           filter: `drop-shadow(0 0 24px ${tier.glowColor})`,
-          animation: "animal-bounce 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards",
+          animation: "animal-bounce 0.25s ease-out forwards",
           lineHeight: 1,
         }}>
           {tier.emoji}
@@ -289,7 +288,7 @@ export default function SpinCelebration({ sliceWeightPct, dealLabel, onDone }: P
         textShadow: `0 0 20px ${tier.glowColor}, 0 0 40px ${tier.glowColor}88`,
         letterSpacing: 3,
         fontFamily: "system-ui, sans-serif",
-        animation: "label-pop 0.35s 0.15s cubic-bezier(0.34, 1.56, 0.64, 1) both",
+        animation: "label-pop 0.2s ease-out forwards",
       }}>
         {tier.label}
       </div>
@@ -306,7 +305,7 @@ export default function SpinCelebration({ sliceWeightPct, dealLabel, onDone }: P
         fontFamily: "system-ui, sans-serif",
         textAlign: "center",
         padding: "0 24px",
-        animation: "label-pop 0.35s 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) both",
+        animation: "label-pop 0.2s ease-out forwards",
       }}>
         {dealLabel}
       </div>
@@ -332,15 +331,14 @@ export default function SpinCelebration({ sliceWeightPct, dealLabel, onDone }: P
           to   { transform: scale(1.05); opacity: 1; }
         }
         @keyframes animal-bounce {
-          0%   { transform: scale(0.3) translateY(40px); opacity: 0; }
-          60%  { transform: scale(1.12) translateY(-8px); opacity: 1; }
-          80%  { transform: scale(0.96) translateY(2px); }
-          100% { transform: scale(1) translateY(0); opacity: 1; }
+          0%   { transform: scale(0.85); }
+          50%  { transform: scale(1.08); }
+          100% { transform: scale(1); }
         }
         @keyframes label-pop {
-          0%   { transform: scale(0.5) translateY(10px); opacity: 0; }
-          70%  { transform: scale(1.08) translateY(-2px); opacity: 1; }
-          100% { transform: scale(1) translateY(0); opacity: 1; }
+          0%   { transform: scale(0.85); }
+          60%  { transform: scale(1.06); }
+          100% { transform: scale(1); }
         }
       `}</style>
     </div>

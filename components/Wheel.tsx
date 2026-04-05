@@ -862,9 +862,9 @@ export default function Wheel({
       if (!res.ok) throw new Error(data?.error ?? "Could not start checkout");
       if (!data?.url) throw new Error("Missing checkout url");
 
-      // Navigate to Stripe checkout in the same tab.
-      // /pay-return verifies the payment then redirects back to /wheel?session_id=...
-      window.location.href = data.url;
+      // Open Stripe checkout in a new tab so music keeps playing.
+      // The success_url will redirect back to /wheel?session_id=... in that tab.
+      window.open(data.url, "_blank");
     } catch (e: any) {
       setPayStatus(e?.message ?? "Checkout failed.");
     } finally {
