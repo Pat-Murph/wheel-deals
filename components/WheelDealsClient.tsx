@@ -841,6 +841,17 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
             const idx = merchantWheels.findIndex((w) => w.spinPriceCents === priceCents);
             if (idx >= 0) setSelectedWheelIdx(idx);
           }}
+          onSpinLand={(label) => {
+            // ✅ Fire celebration INSTANTLY when wheel stops — no server delay
+            const totalWeight = wheelItems.reduce((s, it) => s + (Number(it.weight) || 0), 0);
+            const winningItem = wheelItems.find((it) => it.label === label);
+            const weightPct = totalWeight > 0 && winningItem
+              ? (Number(winningItem.weight) / totalWeight) * 100
+              : 50;
+            setCelebrationLabel(label);
+            setCelebrationWeightPct(weightPct);
+            setCelebrationVisible(true);
+          }}
           onResult={(label, extra) => {
             setSpinError(null);
             setEmailInput("");
@@ -849,17 +860,8 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
               setSpinError("Unlock completed but no code returned.");
               return;
             }
-            // Calculate the winning slice's weight percentage
-            const totalWeight = wheelItems.reduce((s, it) => s + (Number(it.weight) || 0), 0);
-            const winningItem = wheelItems.find((it) => it.label === label);
-            const weightPct = totalWeight > 0 && winningItem
-              ? (Number(winningItem.weight) / totalWeight) * 100
-              : 50;
-            // Store result for after celebration
+            // Store result for after celebration (code card shown when celebration dismisses)
             pendingResultRef.current = { label, code: extra.code };
-            setCelebrationLabel(label);
-            setCelebrationWeightPct(weightPct);
-            setCelebrationVisible(true);
           }}
         />
       </div>

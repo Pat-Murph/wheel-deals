@@ -12,7 +12,13 @@ type Props = {
   size?: number; // wheel diameter in px
 
   /**
-   * ✅ Called when the spin finishes.
+   * ✅ Called IMMEDIATELY when the wheel lands (before server call).
+   * Use this to trigger the celebration popup instantly.
+   */
+  onSpinLand?: (label: string) => void;
+
+  /**
+   * ✅ Called when the server consume call finishes.
    * label = winning slice label
    * extra = { code, spinId } if consume succeeded
    */
@@ -292,6 +298,7 @@ function spinPriceLabel(cents: number | undefined): string {
 export default function Wheel({
   items,
   size: sizeProp,
+  onSpinLand,
   onResult,
   merchantId,
   merchantName,
@@ -958,6 +965,9 @@ export default function Wheel({
     setWinAnimKey((k) => k + 1);
     shimmerStartRef.current = performance.now();
     startShimmer();
+
+    // ✅ Fire celebration IMMEDIATELY (before server call) so there's zero delay
+    onSpinLand?.(resLabel);
 
     // ✅ consume entitlement on server + create spin record + code
     // lock out additional spins immediately (one entitlement = one spin)
