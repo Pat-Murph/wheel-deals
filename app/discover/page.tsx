@@ -267,7 +267,7 @@ export default function DiscoverPage() {
         <img
           src="/wd-hero-logo.png"
           alt="Wheel Deals — Unlock Local Deals"
-          style={{ height: 160, width: "auto", objectFit: "contain" }}
+          style={{ height: 48, width: "auto", objectFit: "contain" }}
         />
         <a href="/merchant" style={{
           fontSize: 14,
@@ -303,7 +303,7 @@ export default function DiscoverPage() {
               Own a business? Get discovered.
             </div>
             <div style={{ fontSize: 11.5, fontWeight: 600, color: "rgba(255,255,255,0.92)", lineHeight: 1.6 }}>
-              Build a promotional deal wheel.<br />
+              Build a promotional wheel.<br />
               Customers pay to unlock your deals.<br />
               Earn from each deal unlocked · Bring real customers into your store.<br />
               Free to sign up · {foundingRemaining} founding spots left.
@@ -475,7 +475,7 @@ export default function DiscoverPage() {
           </div>
         )}
         <div style={{ fontSize: 13, fontWeight: 600, color: "#6b7280" }}>
-          {sortedItems.length} wheel{sortedItems.length === 1 ? "" : "s"} found — {queryLabel}
+          {sortedItems.length} deal{sortedItems.length === 1 ? "" : "s"} found — {queryLabel}
         </div>
       </div>
 
