@@ -6,7 +6,7 @@ admin.initializeApp();
 const db = admin.firestore();
 
 /**
- * Fires when a spin is created.
+ * Fires when an unlock is created.
  * Updates merchant daily stats server-side.
  */
 export const onSpinCreated = onDocumentCreated(

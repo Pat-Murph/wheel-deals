@@ -214,7 +214,7 @@ export async function GET(
     </div>
     <div class="step">
       <div class="step-num">2</div>
-      <div class="step-text">Find us on WheelDeals &amp; spin the deal wheel</div>
+      <div class="step-text">Find us on WheelDeals &amp; unlock a deal</div>
     </div>
     <div class="step">
       <div class="step-num">3</div>
@@ -237,7 +237,7 @@ export async function GET(
     <div class="footer-brand">WheelDeals</div>
     <div class="footer-text">
       Unlock prices start at $1.35 &nbsp;·&nbsp; Deals are non-cash promotional offers &nbsp;·&nbsp; Must be 18+<br/>
-      A deal is always awarded on every spin. No cash value.
+      A deal is always awarded on every unlock. No cash value.
     </div>
   </div>
 </body>

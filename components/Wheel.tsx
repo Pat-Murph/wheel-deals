@@ -352,12 +352,12 @@ export default function Wheel({
     [items]
   );
 
-  // ✅ payment gating (1 paid spin per verified Checkout session)
+  // ✅ payment gating (1 paid unlock per verified Checkout session)
   const [payBusy, setPayBusy] = useState(false);
   const [paidSpinReady, setPaidSpinReady] = useState(false);
   const [payStatus, setPayStatus] = useState<string | null>(null);
 
-  // ✅ store the verified sessionId so we can consume entitlement after spinning
+  // ✅ store the verified sessionId so we can consume entitlement after unlocking
   const [verifiedSessionId, setVerifiedSessionId] = useState<string | null>(
     null
   );
@@ -548,7 +548,7 @@ export default function Wheel({
     shimmerRafRef.current = requestAnimationFrame(step);
   };
 
-  // ✅ After Stripe redirects back to /wheel?session_id=..., verify and grant the spin.
+  // ✅ After Stripe redirects back to /wheel?session_id=..., verify and grant the unlock.
   useEffect(() => {
     const LS_KEY = "wd_paid_session";
 
@@ -842,7 +842,7 @@ export default function Wheel({
       return;
     }
 
-    // ✅ Free boost spin path — no Stripe charge, just grant entitlement directly
+    // ✅ Free boost unlock path — no Stripe charge, just grant entitlement directly
     if (isFreeSpinBoost) {
       try {
         // Get device fingerprint for 1-per-device-per-day enforcement
@@ -859,7 +859,7 @@ export default function Wheel({
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data?.error ?? "Could not claim free deal");
-        // Grant entitlement so spin() can proceed
+        // Grant entitlement so unlock can proceed
         setPaidSpinReady(true);
         setVerifiedSessionId(data.sessionId ?? "free-boost-" + Date.now());
         setPayStatus(null);
@@ -913,7 +913,7 @@ export default function Wheel({
       return;
     }
 
-    // ✅ Prevent spinning a different tier's wheel than what was paid for (race condition fix)
+    // ✅ Prevent unlocking a different tier's wheel than what was paid for (race condition fix)
     if (paidSpinPriceCents !== null && paidSpinPriceCents !== (spinPriceCents ?? 135) && !isFreeSpinBoost) {
       setPayStatus(`You paid for the ${spinPriceLabel(paidSpinPriceCents)} tier. Please select that wheel.`);
       return;
@@ -989,8 +989,8 @@ export default function Wheel({
     // ✅ Fire celebration IMMEDIATELY (before server call) so there's zero delay
     onSpinLand?.(resLabel);
 
-    // ✅ consume entitlement on server + create spin record + code
-    // lock out additional spins immediately (one entitlement = one spin)
+    // ✅ consume entitlement on server + create unlock record + code
+    // lock out additional unlocks immediately (one entitlement = one unlock)
     setPaidSpinReady(false);
 
     try {

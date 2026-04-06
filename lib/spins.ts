@@ -47,7 +47,7 @@ function generateCode() {
 }
 
 /**
- * Customer-paid spin creation
+ * Customer-paid unlock creation
  * SAFE Firestore transaction:
  * - all reads first
  * - all writes second

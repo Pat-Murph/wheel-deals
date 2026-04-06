@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 
 // Stripe success_url lands here.
 // We verify the payment then redirect straight back to the wheel page
-// with session_id in the URL so the wheel can grant the spin.
+// with session_id in the URL so the wheel can grant the unlock.
 export default function PayReturnPage() {
   const [status, setStatus] = useState("Verifying payment…");
 
@@ -45,7 +45,7 @@ export default function PayReturnPage() {
 
         setStatus("✅ Payment verified! Returning to wheel…");
 
-        // Redirect back to the wheel page with session_id so it can spin
+        // Redirect back to the wheel page with session_id so it can unlock
         window.location.href = `/wheel?merchantId=${encodeURIComponent(merchantId)}&session_id=${encodeURIComponent(sessionId)}`;
       } catch (e: any) {
         setStatus("Something went wrong — redirecting back…");

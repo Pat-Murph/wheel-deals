@@ -52,19 +52,19 @@ export async function POST(req: Request) {
       if (paid.merchantId !== merchantId) throw new Error("Merchant mismatch");
       if (paid.uid !== uid) throw new Error("User mismatch");
 
-      // ✅ Determine merchant payout based on actual spin price stored in paidSpins
+      // ✅ Determine merchant payout based on actual unlock price stored in paidSpins
       const amountTotal: number = Number(paid.amountTotal ?? 135);
       const tier = getTierByPrice(amountTotal);
       const revenueCents = tier.merchantPayoutCents;
 
-      // Create spin record
+      // Create unlock record
       const spinRef = spinsCol.doc(); // auto id
       const code = makeCode(8);
 
       // Fast redemption lookup by code
       const codeRef = adminDb.collection("redemptionCodes").doc(code);
 
-      // ✅ Update merchant daily stats (spins + revenue)
+      // ✅ Update merchant daily stats (unlocks + revenue)
       const dayKey = dateKeyLA(new Date());
       const dailyStatsRef = adminDb
         .collection("merchantStats")
@@ -79,7 +79,7 @@ export async function POST(req: Request) {
         spinId: spinRef.id,
       });
 
-      // Write spin
+      // Write unlock record
       // expiresAt: 7 days from now (required by Firestore rules for redemption)
       const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
@@ -105,7 +105,7 @@ export async function POST(req: Request) {
         createdAt: FieldValue.serverTimestamp(),
       });
 
-      // ✅ Increment daily stats with accurate revenue per spin tier
+      // ✅ Increment daily stats with accurate revenue per unlock tier
       tx.set(
         dailyStatsRef,
         {

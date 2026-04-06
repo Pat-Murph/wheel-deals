@@ -35,7 +35,7 @@ export async function POST(req: Request) {
       );
     }
 
-    // Safety: verify amount matches a valid spin price tier
+    // Safety: verify amount matches a valid unlock price tier
     const amountTotal = session.amount_total ?? 0;
     if (!VALID_SPIN_PRICES.includes(amountTotal)) {
       return NextResponse.json(

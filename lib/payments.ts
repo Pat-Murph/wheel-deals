@@ -1,5 +1,5 @@
 /**
- * Wheel Deals — Spin price tiers and payout splits.
+ * Wheel Deals — Unlock price tiers and payout splits.
  *
  * Stripe fee estimate: 2.9% + $0.30 flat per transaction.
  * Merchant payout is calculated on the net amount after Stripe fees.

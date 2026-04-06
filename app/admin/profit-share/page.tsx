@@ -166,7 +166,7 @@ export default function ProfitShareAdminPage() {
         {[
           { label: "Founding Merchants", value: totalFoundingCount.toLocaleString(), sub: `of ${FOUNDING_MERCHANT_LIMIT}` },
           { label: "Spots Remaining", value: spotsRemaining.toLocaleString(), sub: "until program closes" },
-          { label: "Total Revenue (Weighted)", value: fmt$(totalRevenueCents), sub: "cumulative spin revenue" },
+          { label: "Total Revenue (Weighted)", value: fmt$(totalRevenueCents), sub: "cumulative unlock revenue" },
           { label: "Quarterly Distributions", value: `${QUARTERS_TOTAL}`, sub: `over ${PROGRAM_YEARS} years` },
           { label: "Share Rate", value: `${SHARE_PERCENT}%`, sub: "of net profit per quarter" },
         ].map((s) => (

@@ -90,7 +90,7 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
   const [emailStatus, setEmailStatus] = useState<string | null>(null);
   const [activePhotoIdx, setActivePhotoIdx] = useState(0);
   const [photoBroken, setPhotoBroken] = useState<Record<string, boolean>>({});
-  // Geolocation for free spin proximity gate
+  // Geolocation for free deal proximity gate
   const [userPos, setUserPos] = useState<{ lat: number; lng: number } | null>(null);
   const [geoChecking, setGeoChecking] = useState(false);
   const [geoError, setGeoError] = useState<string | null>(null);
@@ -244,7 +244,7 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
     return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   }
 
-  // Is the active wheel a boosted free-spin wheel?
+  // Is the active wheel a boosted free-deal wheel?
   const isFreeSpinWheel = useMemo(() => {
     if (!(selectedMerchant as any)?.boostActive) return false;
     const boostPrice = (selectedMerchant as any)?.boostWheelPriceCents;
@@ -276,7 +276,7 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
   // For boostMode='checkin' (default), the 200m proximity gate applies to the check-in location.
   const boostMode = (selectedMerchant as any)?.boostMode as string | undefined;
   const isMobileAlwaysBoost = (selectedMerchant as any)?.isMobile && boostMode === 'always';
-  // Whether the free spin geo-gate is satisfied
+  // Whether the free deal geo-gate is satisfied
   const freeSpinGatePassed = isMobileAlwaysBoost
     ? isWithin25mi
     : (selectedMerchant as any)?.isMobile

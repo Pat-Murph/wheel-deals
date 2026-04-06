@@ -80,7 +80,7 @@ export async function POST(req: NextRequest) {
           return { allowed: false, remaining: 0 };
         }
 
-        // Don't decrement yet — decrement on finalize to avoid wasting spins
+        // Don't decrement yet — decrement on finalize to avoid wasting unlocks
         return { allowed: true, remaining, sessionId: "free-boost-" + Date.now() };
       });
 
@@ -91,7 +91,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(result);
     }
 
-    // ── Step 2: finalize (after spin animation completes) ──────────────────
+    // ── Step 2: finalize (after unlock animation completes) ──────────────────
     const code = generateCode();
     const spinId = "boost-" + randomBytes(6).toString("hex");
     const today = todayUTC();
@@ -145,7 +145,7 @@ export async function POST(req: NextRequest) {
       }
       tx.update(ref, updates);
 
-      // Write spin record
+      // Write unlock record
       const spinRef = adminDb.collection("spins").doc(spinId);
       tx.set(spinRef, {
         merchantId,

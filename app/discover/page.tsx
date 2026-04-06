@@ -265,8 +265,8 @@ export default function DiscoverPage() {
         boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
       }}>
         <img
-          src="/wheel-deals-discover.png"
-          alt="Wheel Deals Discover"
+          src="/wd-hero-logo.png"
+          alt="Wheel Deals — Unlock Local Deals"
           style={{ height: 160, width: "auto", objectFit: "contain" }}
         />
         <a href="/merchant" style={{

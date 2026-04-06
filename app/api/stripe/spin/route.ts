@@ -44,7 +44,7 @@ export async function POST(req: Request) {
           price_data: {
             currency: "usd",
             unit_amount: tier.priceCents,
-            product_data: { name: `Wheel Deals Spin (${tier.label})` },
+            product_data: { name: `Wheel Deals Unlock (${tier.label})` },
           },
         },
       ],
@@ -58,14 +58,14 @@ export async function POST(req: Request) {
         metadata: { merchantId, uid, spinPriceCents: String(tier.priceCents) },
       },
 
-      // ✅ Redirect directly back to the wheel page with session_id so it can verify and spin.
+      // ✅ Redirect directly back to the wheel page with session_id so it can verify and unlock.
       success_url: `${origin}/wheel?merchantId=${encodeURIComponent(merchantId)}&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/wheel?merchantId=${encodeURIComponent(merchantId)}&cancelled=1`,
     });
 
     return NextResponse.json({ url: session.url });
   } catch (err: any) {
-    console.error("Stripe spin error:", err);
+    console.error("Stripe unlock error:", err);
     return NextResponse.json({ error: err?.message ?? "Server error" }, { status: 500 });
   }
 }

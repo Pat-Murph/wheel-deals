@@ -38,7 +38,7 @@ export type Merchant = {
   }>;
   website?: string;
   phone?: string;
-  // Boost / free spin
+  // Boost / free deal
   boostActive?: boolean;
   boostFreeSpinsRemaining?: number;
   boostWheelPriceCents?: number;

@@ -9,7 +9,7 @@ const PROFIT_TABLE = `
 <table style="border-collapse:collapse;width:100%;font-size:14px;margin-top:12px;">
   <thead>
     <tr style="background:#f5f5f5;">
-      <th style="border:1px solid #ddd;padding:8px;text-align:left;">Spin Price</th>
+      <th style="border:1px solid #ddd;padding:8px;text-align:left;">Unlock Price</th>
       <th style="border:1px solid #ddd;padding:8px;text-align:left;">Merchant Earns (after Stripe fees)</th>
       <th style="border:1px solid #ddd;padding:8px;text-align:left;">WheelDeals Platform</th>
     </tr>
@@ -75,8 +75,8 @@ export async function POST(req: NextRequest) {
           </table>
           <h3 style="margin-top:24px;">Terms Agreed To</h3>
           <ul style="font-size:13px;line-height:1.7;">
-            <li>Prizes on the spin wheel are not cash and have no cash value.</li>
-            <li>A prize is always awarded on every spin — no "no prize" outcomes.</li>
+            <li>Prizes on the deal wheel are not cash and have no cash value.</li>
+            <li>A prize is always awarded on every unlock — no "no prize" outcomes.</li>
             <li>The merchant is responsible for handling all customer disputes related to prize redemption.</li>
             <li>Merchant must be verified before receiving profit share payouts (to prevent ghost merchants).</li>
             <li>WheelDeals reserves the right to remove any merchant that violates these terms.</li>
@@ -103,7 +103,7 @@ export async function POST(req: NextRequest) {
             </div>
             <div style="background:#fff;padding:28px 24px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 12px 12px;">
               <p style="font-size:15px;">Hi <strong>${merchantName}</strong>,</p>
-              <p style="font-size:14px;line-height:1.7;">Thank you for joining WheelDeals as a <strong>Founding Merchant</strong>. Your spin wheel is now live on the Discover page and customers can start spinning for deals at your business.</p>
+              <p style="font-size:14px;line-height:1.7;">Thank you for joining WheelDeals as a <strong>Founding Merchant</strong>. Your deal wheel is now live on the Discover page and customers can start unlocking deals at your business.</p>
               ${foundingLine}
               <h3 style="color:#d97706;margin-top:24px;">Your Merchant Details</h3>
               <table style="border-collapse:collapse;width:100%;font-size:13px;">
@@ -111,7 +111,7 @@ export async function POST(req: NextRequest) {
                 <tr><td style="padding:6px 10px;font-weight:bold;background:#fafafa;border:1px solid #e5e7eb;">Merchant ID</td><td style="padding:6px 10px;border:1px solid #e5e7eb;font-family:monospace;font-size:12px;">${merchantId}</td></tr>
                 <tr><td style="padding:6px 10px;font-weight:bold;background:#fafafa;border:1px solid #e5e7eb;">Terms Accepted</td><td style="padding:6px 10px;border:1px solid #e5e7eb;">${acceptedDate} (PT)</td></tr>
               </table>
-              <h3 style="color:#d97706;margin-top:24px;">Your Earnings Per Spin</h3>
+              <h3 style="color:#d97706;margin-top:24px;">Your Earnings Per Unlock</h3>
               ${PROFIT_TABLE}
               <div style="background:#fef9c3;border:1px solid #fde68a;border-radius:8px;padding:14px 16px;margin-top:20px;">
                 <strong style="font-size:13px;">📋 Verification Note</strong>
@@ -121,7 +121,7 @@ export async function POST(req: NextRequest) {
               <ol style="font-size:14px;line-height:1.8;">
                 <li>Connect your Stripe account from the <a href="https://wheel-deals-nine.vercel.app/merchant/onboard" style="color:#d97706;">Merchant Dashboard</a> to receive payouts.</li>
                 <li>Print the in-store flyer (available in your dashboard) and display it at your business.</li>
-                <li>Watch customers spin and earn!</li>
+                <li>Watch customers unlock deals and earn!</li>
               </ol>
               <p style="font-size:13px;color:#6b7280;margin-top:24px;">Questions? Reply to this email or visit <a href="https://wheel-deals-nine.vercel.app" style="color:#d97706;">wheel-deals-nine.vercel.app</a>.</p>
               <p style="font-size:13px;color:#6b7280;">— The WheelDeals Team</p>

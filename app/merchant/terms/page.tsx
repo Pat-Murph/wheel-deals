@@ -75,7 +75,7 @@ export default function MerchantTermsPage() {
             value and cannot be exchanged for money under any circumstances.
           </li>
           <li>
-            <strong>A deal is always awarded.</strong> Every spin must result in a deal being
+            <strong>A deal is always awarded.</strong> Every unlock must result in a deal being
             awarded to the customer. You may not configure a "no deal" or "try again" outcome.
           </li>
           <li>
@@ -97,7 +97,7 @@ export default function MerchantTermsPage() {
 
       <Section title="4. Merchant Verification">
         <p>
-          Merchant accounts do not require verification to onboard or to publish a spin wheel.
+          Merchant accounts do not require verification to onboard or to publish a deal wheel.
           However, <strong>verification may be required before certain features or payouts are enabled</strong>.
           This is a one-time process designed to confirm your business is active and legitimate,
           and to prevent fraudulent or inactive ("ghost") merchant accounts from accessing platform features.
@@ -109,9 +109,9 @@ export default function MerchantTermsPage() {
         </p>
       </Section>
 
-      <Section title="5. Spin Revenue &amp; Earnings">
+      <Section title="5. Unlock Revenue &amp; Earnings">
         <p>
-          Merchants earn a percentage of each spin payment after Stripe payment processing fees
+          Merchants earn a percentage of each unlock payment after Stripe payment processing fees
           are deducted. The following rates apply to all merchants:
         </p>
         <table
@@ -124,7 +124,7 @@ export default function MerchantTermsPage() {
         >
           <thead>
             <tr style={{ background: "#fef3c7" }}>
-              <Th>Spin Price</Th>
+              <Th>Unlock Price</Th>
               <Th>Merchant Earns</Th>
               <Th>WheelDeals Platform</Th>
               <Th>Est. Merchant Payout*</Th>
