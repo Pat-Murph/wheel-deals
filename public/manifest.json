@@ -1,7 +1,7 @@
 {
   "name": "Wheel Deals",
   "short_name": "Wheel Deals",
-  "description": "Spin to win deals at local merchants",
+  "description": "Unlock deals at local merchants",
   "start_url": "/discover",
   "scope": "/",
   "display": "standalone",
