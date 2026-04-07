@@ -1427,7 +1427,7 @@ export default function Wheel({
           color: "#94a3b8",
         }}
       >
-        By unlocking, you agree all purchases are final. Deals have no cash value.
+        By unlocking, you agree all purchases are final. Deals have no cash value. Codes expire 30 days after purchase.
       </div>
 
       <style>{`
