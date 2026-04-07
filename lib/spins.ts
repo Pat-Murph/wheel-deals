@@ -64,7 +64,7 @@ export async function createSpin(params: {
   const dailyLimit = params.dailyLimit ?? 3;
 
   const code = generateCode();
-  const expiresAt = expiresAtInDays(7);
+  const expiresAt = expiresAtInDays(30);
 
   const limitRef = doc(
     getDb(),

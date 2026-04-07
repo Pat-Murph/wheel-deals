@@ -24,7 +24,7 @@ type Props = {
    */
   onResult?: (
     label: string,
-    extra?: { code?: string | null; spinId?: string | null }
+    extra?: { code?: string | null; spinId?: string | null; expiresAt?: string | null }
   ) => void;
 
   // needed for payouts + attribution
@@ -1018,15 +1018,16 @@ export default function Wheel({
 
       const nextSpinId = consumeData?.spinId ?? null;
       const nextCode = consumeData?.code ?? null;
+      const nextExpiresAt = consumeData?.expiresAt ?? null;
 
       setSpinId(nextSpinId);
       setRedeemCode(nextCode);
-      setPayStatus("✅ Deal unlocked! Show your code to redeem!");
+      setPayStatus("✅ Deal unlocked! Show your code to redeem within 30 days!");
       setVerifiedSessionId(null); // prevent reuse
       setVerifiedUid(null); // clear verified uid after use
 
       // ✅ notify parent so you can show ONE unified code + QR in WheelDealsClient
-      onResult?.(resLabel, { code: nextCode, spinId: nextSpinId });
+      onResult?.(resLabel, { code: nextCode, spinId: nextSpinId, expiresAt: nextExpiresAt });
     } catch (e: any) {
       setPayStatus(
         e?.message ?? "Unlock failed. Please contact support."

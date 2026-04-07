@@ -69,7 +69,7 @@ export default function RedeemPage() {
       if (!res.ok) {
         if (res.reason === "not_found") setStatus({ kind: "err", message: "❌ Code not found." });
         else if (res.reason === "already_redeemed") setStatus({ kind: "warn", message: "⚠️ Already redeemed." });
-        else if (res.reason === "expired") setStatus({ kind: "err", message: "⏳ Code expired (7 days after issue)." });
+        else if (res.reason === "expired") setStatus({ kind: "err", message: "⏳ Code expired (30 days after issue)." });
         else setStatus({ kind: "err", message: "❌ Redeem failed." });
         return;
       }

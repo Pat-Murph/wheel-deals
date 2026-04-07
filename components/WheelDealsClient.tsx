@@ -78,13 +78,14 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
   const [selectedMerchantId, setSelectedMerchantId] = useState<string>("");
   const [issuedCode, setIssuedCode] = useState("");
   const [lastPrize, setLastPrize] = useState<string | null>(null);
+  const [expiresAt, setExpiresAt] = useState<string | null>(null);
   const [spinError, setSpinError] = useState<string | null>(null);
   // Celebration overlay state
   const [celebrationVisible, setCelebrationVisible] = useState(false);
   const [celebrationWeightPct, setCelebrationWeightPct] = useState(50);
   const [celebrationLabel, setCelebrationLabel] = useState("");
   // Pending result — shown after celebration dismisses
-  const pendingResultRef = useRef<{ label: string; code: string } | null>(null);
+  const pendingResultRef = useRef<{ label: string; code: string; expiresAt?: string } | null>(null);
   const [emailInput, setEmailInput] = useState("");
   const [emailSending, setEmailSending] = useState(false);
   const [emailStatus, setEmailStatus] = useState<string | null>(null);
@@ -102,7 +103,7 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
     try {
       const subject = encodeURIComponent(`Your Wheel Deals Prize Code — ${lastPrize ?? "Prize"}`);
       const body = encodeURIComponent(
-        `Hi!\n\nYou won: ${lastPrize ?? "a prize"} at ${selectedMerchant?.name ?? "Wheel Deals"}!\n\nYour redemption code: ${issuedCode}\n\nShow this code (or the QR) to the merchant to redeem. One-time use only.\n\n— Wheel Deals`
+        `Hi!\n\nYou won: ${lastPrize ?? "a prize"} at ${selectedMerchant?.name ?? "Wheel Deals"}!\n\nYour redemption code: ${issuedCode}\n\nShow this code (or the QR) to the merchant to redeem. One-time use only.\n\n⏳ This code expires ${expiresAt ? new Date(expiresAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }) : "30 days from now"}. Please redeem before it expires.\n\n— Wheel Deals`
       );
       window.open(`mailto:${emailInput.trim()}?subject=${subject}&body=${body}`, "_blank");
       setEmailStatus("✅ Email app opened with the code ready to send!");
@@ -861,7 +862,7 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
               return;
             }
             // Store result for after celebration (code card shown when celebration dismisses)
-            pendingResultRef.current = { label, code: extra.code };
+            pendingResultRef.current = { label, code: extra.code, expiresAt: extra.expiresAt ?? undefined };
           }}
         />
       </div>
@@ -881,6 +882,9 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
           </div>
           <div style={{ fontSize: 26, fontWeight: 950, letterSpacing: 1 }}>{issuedCode}</div>
           <div style={{ opacity: 0.7, fontSize: 13 }}>Show this code (or QR) to the merchant to redeem (one-time use).</div>
+          <div style={{ padding: "8px 12px", borderRadius: 10, background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", fontSize: 13, fontWeight: 800, color: "#b91c1c" }}>
+            ⏳ Expires: {expiresAt ? new Date(expiresAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }) : "30 days from now"} — Redeem before it expires!
+          </div>
 
           <div style={{ display: "flex", justifyContent: "center", flexDirection: "column", alignItems: "center", gap: 6 }}>
             <QRCodeCanvas value={issuedCode} size={180} />
@@ -940,6 +944,7 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
             if (pending) {
               setLastPrize(pending.label);
               setIssuedCode(pending.code);
+              setExpiresAt(pending.expiresAt ?? null);
               pendingResultRef.current = null;
             }
           }}

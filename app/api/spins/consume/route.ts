@@ -80,8 +80,8 @@ export async function POST(req: Request) {
       });
 
       // Write unlock record
-      // expiresAt: 7 days from now (required by Firestore rules for redemption)
-      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+      // expiresAt: 30 days from now (required by Firestore rules for redemption)
+      const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
       tx.set(spinRef, {
         merchantId,
@@ -117,7 +117,7 @@ export async function POST(req: Request) {
         { merge: true }
       );
 
-      return { spinId: spinRef.id, code };
+      return { spinId: spinRef.id, code, expiresAt: expiresAt.toISOString() };
     });
 
     return NextResponse.json({ ok: true, ...result }, { status: 200 });

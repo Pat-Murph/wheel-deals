@@ -147,6 +147,7 @@ export async function POST(req: NextRequest) {
 
       // Write unlock record
       const spinRef = adminDb.collection("spins").doc(spinId);
+      const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
       tx.set(spinRef, {
         merchantId,
         uid,
@@ -154,11 +155,13 @@ export async function POST(req: NextRequest) {
         prizeLabel: prizeLabel ?? "Unknown",
         code,
         redeemed: false,
+        status: "issued",
         createdAt: FieldValue.serverTimestamp(),
+        expiresAt,
         type: "free-boost",
       });
 
-      return { allowed: true, remaining: newRemaining, code, spinId };
+      return { allowed: true, remaining: newRemaining, code, spinId, expiresAt: expiresAt.toISOString() };
     });
 
     return NextResponse.json(result);
