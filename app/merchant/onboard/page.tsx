@@ -658,6 +658,34 @@ export default function MerchantOnboardPage() {
     setWheels((prev) => prev.filter((_, wIdx) => wIdx !== wi));
   }
 
+  // Compress image client-side before upload (max 1200px, JPEG quality 0.8)
+  async function compressImage(file: File): Promise<Blob> {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        const MAX = 1200;
+        let w = img.width;
+        let h = img.height;
+        if (w > MAX || h > MAX) {
+          if (w > h) { h = Math.round(h * MAX / w); w = MAX; }
+          else { w = Math.round(w * MAX / h); h = MAX; }
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext("2d")!;
+        ctx.drawImage(img, 0, 0, w, h);
+        canvas.toBlob(
+          (blob) => resolve(blob || file),
+          "image/jpeg",
+          0.8
+        );
+      };
+      img.onerror = () => resolve(file); // fallback to original on error
+      img.src = URL.createObjectURL(file);
+    });
+  }
+
   async function uploadPhotos(uid: string) {
     if (!photoFiles.length) return [];
 
@@ -665,12 +693,14 @@ export default function MerchantOnboardPage() {
     const urls: string[] = [];
 
     for (const file of files) {
+      // Compress before upload
+      const compressed = await compressImage(file);
       const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-      const path = `merchant_photos/${uid}/${Date.now()}_${safeName}`;
+      const path = `merchant_uploads/${uid}/${Date.now()}_${safeName}`;
       const r = ref(storage, path);
 
-      await uploadBytes(r, file, {
-        contentType: file.type || "image/jpeg",
+      await uploadBytes(r, compressed, {
+        contentType: "image/jpeg",
         cacheControl: "public,max-age=3600",
       });
 
