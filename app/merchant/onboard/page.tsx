@@ -696,7 +696,7 @@ export default function MerchantOnboardPage() {
       // Compress before upload
       const compressed = await compressImage(file);
       const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-      const path = `merchant_uploads/${uid}/${Date.now()}_${safeName}`;
+      const path = `merchant_photos/${uid}/${Date.now()}_${safeName}`;
       const r = ref(storage, path);
 
       await uploadBytes(r, compressed, {

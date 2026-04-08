@@ -405,7 +405,7 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
       }}>
         {/* Hero photo */}
         {heroPhoto && !heroBroken ? (
-          <div style={{ width: "100%", height: 220, background: "#f3f4f6", overflow: "hidden" }}>
+          <div style={{ width: "100%", height: 180, background: "#f3f4f6", overflow: "hidden" }}>
             <img
               src={heroPhoto}
               alt={`${selectedMerchant.name} photo`}
