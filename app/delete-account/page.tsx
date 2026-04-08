@@ -16,8 +16,12 @@ export default function DeleteAccountPage() {
       <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, padding: 20, marginBottom: 20 }}>
         <p style={{ margin: "0 0 10px 0", fontWeight: 700 }}>Email: <a href="mailto:support@wheeldealsapp.com" style={{ color: "#2563eb", textDecoration: "none" }}>support@wheeldealsapp.com</a></p>
         <p style={{ margin: "0 0 10px 0", fontWeight: 700 }}>Subject: Account Deletion Request</p>
-        <p style={{ margin: 0 }}>Please include the email address associated with your account in the body of the email so we can locate your data.</p>
+        <p style={{ margin: 0        Please include the email address associated with your account in the body of the email so we can locate your data.
       </div>
+
+      <p style={{ marginBottom: 20 }}>
+        Users may also request deletion directly from within the app (if available) or by contacting support.
+      </p>
 
       <h2 style={{ fontSize: 22, fontWeight: 800, marginTop: 30, marginBottom: 15, color: "#111" }}>What Happens When Your Account is Deleted?</h2>
       <ul style={{ marginBottom: 20, paddingLeft: 20 }}>
@@ -35,11 +39,11 @@ export default function DeleteAccountPage() {
 
       <h2 style={{ fontSize: 22, fontWeight: 800, marginTop: 30, marginBottom: 15, color: "#111" }}>Processing Time</h2>
       <p style={{ marginBottom: 20 }}>
-        We will process your account deletion request within 30 days of receipt. We may contact you to verify your identity before completing the deletion process to ensure the security of your account.
+        We will process your account deletion request within 7–10 business days of receipt. We may contact you to verify your identity before completing the deletion process to ensure the security of your account.
       </p>
 
       <div style={{ marginTop: 50, paddingTop: 20, borderTop: "1px solid #eee", fontSize: 14, color: "#666", textAlign: "center" }}>
-        &copy; {new Date().getFullYear()} Wheel Deals. All rights reserved.
+        &copy; {new Date().getFullYear()} Wheel Deals Technologies Inc. All rights reserved.
       </div>
     </div>
   );
