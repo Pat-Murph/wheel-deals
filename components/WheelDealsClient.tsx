@@ -26,9 +26,10 @@ function safeArray<T>(v: any): T[] {
 }
 
 function getMerchantPhotos(m: any) {
-  const processed = safeArray<string>(m?.photoProcessedUrls);
   const originals = safeArray<string>(m?.photoUrls);
-  return processed.length ? processed : originals;
+  const processed = safeArray<string>(m?.photoProcessedUrls);
+  // Prefer original full-res photos (pipeline not yet connected)
+  return originals.length ? originals : processed;
 }
 
 function getMerchantWheel(m: any): WheelItem[] | null {
