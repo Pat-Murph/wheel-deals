@@ -405,11 +405,11 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
       }}>
         {/* Hero photo */}
         {heroPhoto && !heroBroken ? (
-          <div style={{ width: "100%", height: 180, background: "#f3f4f6", overflow: "hidden" }}>
+          <div style={{ width: "100%", background: "#f3f4f6", overflow: "hidden" }}>
             <img
               src={heroPhoto}
               alt={`${selectedMerchant.name} photo`}
-              style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center top" }}
+              style={{ width: "100%", maxHeight: 250, objectFit: "contain" }}
               onError={() => setPhotoBroken((p) => ({ ...p, [heroPhoto]: true }))}
             />
           </div>
