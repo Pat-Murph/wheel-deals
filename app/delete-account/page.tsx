@@ -16,7 +16,7 @@ export default function DeleteAccountPage() {
       <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, padding: 20, marginBottom: 20 }}>
         <p style={{ margin: "0 0 10px 0", fontWeight: 700 }}>Email: <a href="mailto:support@wheeldealsapp.com" style={{ color: "#2563eb", textDecoration: "none" }}>support@wheeldealsapp.com</a></p>
         <p style={{ margin: "0 0 10px 0", fontWeight: 700 }}>Subject: Account Deletion Request</p>
-        <p style={{ margin: 0        Please include the email address associated with your account in the body of the email so we can locate your data.
+        <p style={{ margin: 0 }}>Please include the email address associated with your account in the body of the email so we can locate your data.</p>
       </div>
 
       <p style={{ marginBottom: 20 }}>
