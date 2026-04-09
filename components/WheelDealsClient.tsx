@@ -90,6 +90,13 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
   const [emailInput, setEmailInput] = useState("");
   const [emailSending, setEmailSending] = useState(false);
   const [emailStatus, setEmailStatus] = useState<string | null>(null);
+  // Support modal state
+  const [supportOpen, setSupportOpen] = useState(false);
+  const [supportName, setSupportName] = useState("");
+  const [supportEmail, setSupportEmail] = useState("");
+  const [supportMsg, setSupportMsg] = useState("");
+  const [supportSending, setSupportSending] = useState(false);
+  const [supportStatus, setSupportStatus] = useState<string | null>(null);
   const [activePhotoIdx, setActivePhotoIdx] = useState(0);
   const [photoBroken, setPhotoBroken] = useState<Record<string, boolean>>({});
   // Geolocation for free deal proximity gate
@@ -311,13 +318,31 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
     });
   }
 
-  const reportHref = useMemo(() => {
-    const mid = selectedMerchant?.id ?? "";
-    const name = selectedMerchant?.name ?? "";
-    const subject = encodeURIComponent("Wheel Deals — Support");
-    const body = encodeURIComponent(`Please describe the issue.\n\nMerchant Name: ${name}\nMerchant ID: ${mid}\n\nWhat happened:\n`);
-    return `mailto:support@wheeldealsapp.com?subject=${subject}&body=${body}`;
-  }, [selectedMerchant?.id, selectedMerchant?.name]);
+  async function sendSupportMessage() {
+    if (!supportMsg.trim()) return;
+    setSupportSending(true);
+    setSupportStatus(null);
+    try {
+      const res = await fetch("/api/email/support", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: supportName.trim(),
+          email: supportEmail.trim(),
+          message: supportMsg.trim(),
+          merchantId: selectedMerchant?.id ?? "",
+          merchantName: selectedMerchant?.name ?? "",
+        }),
+      });
+      if (!res.ok) throw new Error("Failed to send");
+      setSupportStatus("sent");
+      setSupportMsg("");
+    } catch {
+      setSupportStatus("error");
+    } finally {
+      setSupportSending(false);
+    }
+  }
 
   if (loadingMerchants) {
     return (
@@ -386,13 +411,13 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
           }}>
             ← Discover
           </a>
-          <a href={reportHref} style={{
-            fontWeight: 900, textDecoration: "none", color: "#111",
+          <button onClick={() => { setSupportOpen(true); setSupportStatus(null); }} style={{
+            fontWeight: 900, color: "#111",
             padding: "8px 12px", borderRadius: 10, border: "1px solid rgba(0,0,0,0.12)",
-            background: "linear-gradient(180deg, #f3f4f6, #fff)", fontSize: 13,
+            background: "linear-gradient(180deg, #f3f4f6, #fff)", fontSize: 13, cursor: "pointer",
           }}>
             Support
-          </a>
+          </button>
         </div>
       </div>
 
@@ -929,6 +954,77 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
               </button>
             </div>
             {emailStatus && <div style={{ fontWeight: 800, fontSize: 13, opacity: 0.85 }}>{emailStatus}</div>}
+          </div>
+        </div>
+      )}
+
+      {/* Support modal */}
+      {supportOpen && (
+        <div onClick={() => setSupportOpen(false)} style={{
+          position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 9999,
+          display: "flex", alignItems: "center", justifyContent: "center", padding: 16,
+        }}>
+          <div onClick={(e) => e.stopPropagation()} style={{
+            background: "#fff", borderRadius: 16, padding: 24, width: "100%", maxWidth: 420,
+            boxShadow: "0 20px 60px rgba(0,0,0,0.25)", display: "flex", flexDirection: "column", gap: 14,
+          }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div style={{ fontWeight: 950, fontSize: 18 }}>Contact Support</div>
+              <button onClick={() => setSupportOpen(false)} style={{
+                background: "none", border: "none", fontSize: 22, cursor: "pointer", color: "#6b7280", padding: 4,
+              }}>✕</button>
+            </div>
+            {supportStatus === "sent" ? (
+              <div style={{ textAlign: "center", padding: "20px 0" }}>
+                <div style={{ fontSize: 40, marginBottom: 8 }}>✅</div>
+                <div style={{ fontWeight: 900, fontSize: 16, marginBottom: 6 }}>Message Sent!</div>
+                <div style={{ fontSize: 14, color: "#6b7280", lineHeight: 1.6 }}>We'll get back to you as soon as possible. {supportEmail.trim() ? "Check your email for a confirmation." : ""}</div>
+                <button onClick={() => setSupportOpen(false)} style={{
+                  marginTop: 16, padding: "10px 24px", borderRadius: 10, border: "none", fontWeight: 900,
+                  background: "linear-gradient(180deg, rgba(255,217,61,0.95), rgba(255,155,61,0.95))",
+                  cursor: "pointer", fontSize: 14,
+                }}>Done</button>
+              </div>
+            ) : (
+              <>
+                <div style={{ fontSize: 13, color: "#6b7280", lineHeight: 1.5 }}>
+                  Having an issue? Let us know and we'll help you out.
+                </div>
+                <input
+                  type="text" placeholder="Your name (optional)"
+                  value={supportName} onChange={(e) => setSupportName(e.target.value)}
+                  style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid #ddd", fontSize: 14, fontWeight: 700 }}
+                />
+                <input
+                  type="email" placeholder="Your email (optional, for reply)"
+                  value={supportEmail} onChange={(e) => setSupportEmail(e.target.value)}
+                  style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid #ddd", fontSize: 14, fontWeight: 700 }}
+                />
+                <textarea
+                  placeholder="Describe your issue..."
+                  value={supportMsg} onChange={(e) => setSupportMsg(e.target.value)}
+                  rows={4}
+                  style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid #ddd", fontSize: 14, fontWeight: 700, resize: "vertical", fontFamily: "inherit" }}
+                />
+                {supportStatus === "error" && (
+                  <div style={{ fontSize: 13, color: "#dc2626", fontWeight: 800 }}>Failed to send. Please try again.</div>
+                )}
+                <button
+                  onClick={sendSupportMessage}
+                  disabled={supportSending || !supportMsg.trim()}
+                  style={{
+                    padding: "12px 16px", borderRadius: 10, border: "none", fontWeight: 950, fontSize: 14,
+                    cursor: supportSending || !supportMsg.trim() ? "not-allowed" : "pointer",
+                    background: supportSending || !supportMsg.trim()
+                      ? "linear-gradient(180deg, #e5e7eb, #d1d5db)"
+                      : "linear-gradient(180deg, rgba(255,217,61,0.95), rgba(255,155,61,0.95))",
+                    color: "#111",
+                  }}
+                >
+                  {supportSending ? "Sending..." : "Send Message"}
+                </button>
+              </>
+            )}
           </div>
         </div>
       )}
