@@ -26,6 +26,34 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Merchant has not connected Stripe yet" }, { status: 400 });
     }
 
+    // Check if the connected account has completed onboarding and has transfers enabled
+    try {
+      const account = await stripe.accounts.retrieve(stripeAccountId);
+      const transfersActive = account.capabilities?.transfers === "active";
+      const chargesEnabled = account.charges_enabled;
+      const payoutsEnabled = account.payouts_enabled;
+
+      if (!transfersActive || !chargesEnabled) {
+        console.error(
+          `Merchant ${merchantId} Stripe account ${stripeAccountId} not ready:`,
+          `transfers=${account.capabilities?.transfers}, charges_enabled=${chargesEnabled}, payouts_enabled=${payoutsEnabled}`
+        );
+        return NextResponse.json(
+          {
+            error:
+              "This merchant hasn't finished setting up their payment account yet. Please try again later or contact the merchant.",
+          },
+          { status: 400 }
+        );
+      }
+    } catch (acctErr: any) {
+      console.error("Error checking Stripe account:", acctErr);
+      return NextResponse.json(
+        { error: "Unable to verify merchant payment account. Please try again." },
+        { status: 500 }
+      );
+    }
+
     // Always prefer the canonical app URL so Stripe redirects back to the
     // production app, not a Vercel preview/build URL.
     const origin =
