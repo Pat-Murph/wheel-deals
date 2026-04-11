@@ -1,0 +1,8 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "com.wheeldealsapp.app",
+    "sha256_cert_fingerprints": ["B6:A6:11:E7:F1:33:DF:88:5A:09:50:22:66:BB:B0:26:28:F1:00:8A:69:5D:86:51:B0:25:25:7C:8D:55:FF:AD"]
+  }
+}]
