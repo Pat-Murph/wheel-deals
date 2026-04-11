@@ -1207,6 +1207,105 @@ export default function MerchantOnboardPage() {
           />
         </div>
 
+        <div
+          style={{
+            display: "grid",
+            gap: 10,
+            marginTop: 10,
+            gridTemplateColumns: "1fr",
+          }}
+        >
+          <input
+            value={lat}
+            onChange={(e) => setLat(e.target.value)}
+            placeholder="Latitude"
+            style={inputStyle()}
+            disabled={!user || busy}
+          />
+          <input
+            value={lng}
+            onChange={(e) => setLng(e.target.value)}
+            placeholder="Longitude"
+            style={inputStyle()}
+            disabled={!user || busy}
+          />
+          <button onClick={useMyLocation} disabled={!user || busy} style={btnGray(!user || busy)}>
+            Use my location
+          </button>
+        </div>
+
+        {/* Mobile business checkbox */}
+        <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 14, fontWeight: 800 }}>
+          <input
+            type="checkbox"
+            checked={isMobile}
+            onChange={async (e) => {
+              const checked = e.target.checked;
+              setIsMobile(checked);
+              if (checked && !mobileServiceSet) {
+                try {
+                  if (!navigator.geolocation) throw new Error("Geolocation not supported.");
+                  setStatus("📍 Setting your 25-mile service area...");
+                  const p = await new Promise<GeolocationPosition>((resolve, reject) => {
+                    navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 10000 });
+                  });
+                  setMobileServiceLat(p.coords.latitude);
+                  setMobileServiceLng(p.coords.longitude);
+                  setMobileServiceSet(true);
+                  if (!lat) setLat(String(p.coords.latitude));
+                  if (!lng) setLng(String(p.coords.longitude));
+                  setStatus("✅ Service area set — 25-mile radius from your current location. You can check in below when you're ready to go live.");
+                } catch (err: any) {
+                  setStatus(err?.message ?? "Could not get location for service area.");
+                }
+              }
+            }}
+            disabled={!user || busy}
+            style={{ width: 18, height: 18 }}
+          />
+          <span>🚚 This is a mobile business (e.g., food truck)</span>
+        </label>
+        {isMobile && mobileServiceSet && (
+          <div style={{ marginTop: 6, fontSize: 12, fontWeight: 700, color: '#16a34a' }}>
+            ✅ Service area: 25-mile radius from your location
+          </div>
+        )}
+
+        {isMobile && (
+          <div style={{ marginTop: 14, padding: 14, border: '1px solid #ddd', borderRadius: 12, background: '#f9fafb' }}>
+            <div style={{ fontWeight: 900, fontSize: 16 }}>Mobile Check-in</div>
+            {mobileActiveUntil && mobileActiveUntil > new Date() ? (
+              <div>
+                <div style={{ marginTop: 8, fontWeight: 700, color: '#16a34a' }}>
+                  Active until {mobileActiveUntil.toLocaleTimeString()}
+                </div>
+                <button onClick={deactivateMobile} disabled={busy} style={{...btnRed(busy), marginTop: 10}}>
+                  Deactivate Mobile Session
+                </button>
+              </div>
+            ) : (
+              <div>
+                <div style={{ marginTop: 4, opacity: 0.8, fontSize: 14 }}>
+                  Check in at your current location to appear on the Discover map for a set duration.
+                </div>
+                <div style={{ marginTop: 10, display: 'flex', gap: 10, alignItems: 'center' }}>
+                  <input
+                    type="number"
+                    value={mobileDurationHours}
+                    onChange={e => setMobileDurationHours(Number(e.target.value))}
+                    style={{...inputStyle(), width: '80px'}}
+                    disabled={!user || busy}
+                  />
+                  <span style={{fontWeight: 700}}>hours</span>
+                  <button onClick={checkInMobile} disabled={!user || busy} style={btnGold(busy)}>
+                    Check-in Now
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         <div style={{ display: "grid", gap: 10, marginTop: 12 }}>
           <textarea
             value={about}
@@ -1383,106 +1482,6 @@ export default function MerchantOnboardPage() {
           {/* Note: existing uploaded photos are now shown in the preview grid above with delete buttons */}
         </div>
 
-        <div
-          style={{
-            display: "grid",
-            gap: 10,
-            marginTop: 10,
-            gridTemplateColumns: "1fr",
-          }}
-        >
-          <input
-            value={lat}
-            onChange={(e) => setLat(e.target.value)}
-            placeholder="Latitude"
-            style={inputStyle()}
-            disabled={!user || busy}
-          />
-          <input
-            value={lng}
-            onChange={(e) => setLng(e.target.value)}
-            placeholder="Longitude"
-            style={inputStyle()}
-            disabled={!user || busy}
-          />
-          <button onClick={useMyLocation} disabled={!user || busy} style={btnGray(!user || busy)}>
-            Use my location
-          </button>
-        </div>
-
-        {/* Mobile business checkbox — below Use my location */}
-        <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 14, fontWeight: 800 }}>
-          <input
-            type="checkbox"
-            checked={isMobile}
-            onChange={async (e) => {
-              const checked = e.target.checked;
-              setIsMobile(checked);
-              // One-time: when they first check mobile, grab GPS and set service location
-              if (checked && !mobileServiceSet) {
-                try {
-                  if (!navigator.geolocation) throw new Error("Geolocation not supported.");
-                  setStatus("📍 Setting your 25-mile service area...");
-                  const p = await new Promise<GeolocationPosition>((resolve, reject) => {
-                    navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 10000 });
-                  });
-                  setMobileServiceLat(p.coords.latitude);
-                  setMobileServiceLng(p.coords.longitude);
-                  setMobileServiceSet(true);
-                  // Also fill in lat/lng if empty
-                  if (!lat) setLat(String(p.coords.latitude));
-                  if (!lng) setLng(String(p.coords.longitude));
-                  setStatus("✅ Service area set — 25-mile radius from your current location. You can check in below when you're ready to go live.");
-                } catch (err: any) {
-                  setStatus(err?.message ?? "Could not get location for service area.");
-                }
-              }
-            }}
-            disabled={!user || busy}
-            style={{ width: 18, height: 18 }}
-          />
-          <span>🚚 This is a mobile business (e.g., food truck)</span>
-        </label>
-        {isMobile && mobileServiceSet && (
-          <div style={{ marginTop: 6, fontSize: 12, fontWeight: 700, color: '#16a34a' }}>
-            ✅ Service area: 25-mile radius from your location
-          </div>
-        )}
-
-        {isMobile && (
-          <div style={{ marginTop: 14, padding: 14, border: '1px solid #ddd', borderRadius: 12, background: '#f9fafb' }}>
-            <div style={{ fontWeight: 900, fontSize: 16 }}>Mobile Check-in</div>
-            {mobileActiveUntil && mobileActiveUntil > new Date() ? (
-              <div>
-                <div style={{ marginTop: 8, fontWeight: 700, color: '#16a34a' }}>
-                  Active until {mobileActiveUntil.toLocaleTimeString()}
-                </div>
-                <button onClick={deactivateMobile} disabled={busy} style={{...btnRed(busy), marginTop: 10}}>
-                  Deactivate Mobile Session
-                </button>
-              </div>
-            ) : (
-              <div>
-                <div style={{ marginTop: 4, opacity: 0.8, fontSize: 14 }}>
-                  Check in at your current location to appear on the Discover map for a set duration.
-                </div>
-                <div style={{ marginTop: 10, display: 'flex', gap: 10, alignItems: 'center' }}>
-                  <input
-                    type="number"
-                    value={mobileDurationHours}
-                    onChange={e => setMobileDurationHours(Number(e.target.value))}
-                    style={{...inputStyle(), width: '80px'}}
-                    disabled={!user || busy}
-                  />
-                  <span style={{fontWeight: 700}}>hours</span>
-                  <button onClick={checkInMobile} disabled={!user || busy} style={btnGold(busy)}>
-                    Check-in Now
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
       </div>
 
       {/* Step 3: Wheels */}
