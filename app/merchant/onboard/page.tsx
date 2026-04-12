@@ -1648,19 +1648,6 @@ export default function MerchantOnboardPage() {
             <a href="/discover" style={linkGray()}>
               View on Discover →
             </a>
-            <a
-              href={`/api/flyer/${merchantId}`}
-              target="_blank"
-              style={{
-                fontSize: 13,
-                fontWeight: 800,
-                color: "#15803d",
-                textDecoration: "underline",
-                cursor: "pointer",
-              }}
-            >
-              Download In-Store Flyer (PDF)
-            </a>
             <button onClick={doSignOut} style={btnGray(false)}>
               Sign out
             </button>
