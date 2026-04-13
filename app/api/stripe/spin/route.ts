@@ -4,6 +4,23 @@ import { stripe } from "@/lib/stripeServer";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { getTierByPrice, VALID_SPIN_PRICES, DEFAULT_TIER } from "@/lib/payments";
 
+const MAX_UNLOCKS_PER_DAY = 3;
+
+// Date key in America/Los_Angeles (matches stats)
+function dateKeyLA(d = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Los_Angeles",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(d);
+
+  const yyyy = parts.find((p) => p.type === "year")?.value ?? "1970";
+  const mm = parts.find((p) => p.type === "month")?.value ?? "01";
+  const dd = parts.find((p) => p.type === "day")?.value ?? "01";
+  return `${yyyy}-${mm}-${dd}`;
+}
+
 export async function POST(req: Request) {
   try {
     const { merchantId, uid, spinPriceCents: rawPrice } = await req.json();
@@ -12,6 +29,22 @@ export async function POST(req: Request) {
 
     if (!merchantId || !uid) {
       return NextResponse.json({ error: "Missing merchantId/uid" }, { status: 400 });
+    }
+
+    // ── Enforce 3 unlocks/day per merchant per user ──
+    const todayKey = dateKeyLA();
+    const todaySpins = await adminDb
+      .collection("spins")
+      .where("uid", "==", uid)
+      .where("merchantId", "==", merchantId)
+      .where("dateKey", "==", todayKey)
+      .get();
+
+    if (todaySpins.size >= MAX_UNLOCKS_PER_DAY) {
+      return NextResponse.json(
+        { error: `You've reached the limit of ${MAX_UNLOCKS_PER_DAY} unlocks per day for this merchant. Come back tomorrow!` },
+        { status: 429 }
+      );
     }
 
     const mSnap = await adminDb.collection("merchants").doc(merchantId).get();

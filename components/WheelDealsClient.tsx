@@ -109,9 +109,9 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
     setEmailSending(true);
     setEmailStatus(null);
     try {
-      const subject = encodeURIComponent(`Your Wheel Deals Prize Code — ${lastPrize ?? "Prize"}`);
+      const subject = encodeURIComponent(`Your Wheel Deals Deal Code — ${lastPrize ?? "Deal"}`);
       const body = encodeURIComponent(
-        `Hi!\n\nYou won: ${lastPrize ?? "a prize"} at ${selectedMerchant?.name ?? "Wheel Deals"}!\n\nYour redemption code: ${issuedCode}\n\nShow this code (or the QR) to the merchant to redeem. One-time use only.\n\n⏳ This code expires ${expiresAt ? new Date(expiresAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }) : "30 days from now"}. Please redeem before it expires.\n\n— Wheel Deals`
+        `Hi!\n\nYour deal: ${lastPrize ?? "a deal"} at ${selectedMerchant?.name ?? "Wheel Deals"}!\n\nYour redemption code: ${issuedCode}\n\nShow this code (or the QR) to the merchant to redeem. One-time use only.\n\n⏳ This code expires ${expiresAt ? new Date(expiresAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }) : "30 days from now"}. Please redeem before it expires.\n\n— Wheel Deals`
       );
       window.open(`mailto:${emailInput.trim()}?subject=${subject}&body=${body}`, "_blank");
       setEmailStatus("✅ Email app opened with the code ready to send!");
