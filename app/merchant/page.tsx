@@ -8,6 +8,7 @@ import {
   getAuth,
   onAuthStateChanged,
   signInWithEmailAndPassword,
+  sendPasswordResetEmail,
   User,
   deleteUser,
 } from "firebase/auth";
@@ -342,6 +343,29 @@ export default function MerchantDashboardPage() {
       setStatus(e?.message ?? "Login failed.");
     } finally {
       setBusy(false);
+    }
+  }
+
+  const [showForgot, setShowForgot] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
+  const [resetStatus, setResetStatus] = useState<string | null>(null);
+  const [resetBusy, setResetBusy] = useState(false);
+
+  async function doResetPassword() {
+    const trimmed = resetEmail.trim() || email.trim();
+    if (!trimmed) {
+      setResetStatus("Please enter your email address.");
+      return;
+    }
+    setResetBusy(true);
+    setResetStatus(null);
+    try {
+      await sendPasswordResetEmail(auth, trimmed);
+      setResetStatus("Password reset email sent! Check your inbox (and spam folder).");
+    } catch (e: any) {
+      setResetStatus(e?.message ?? "Failed to send reset email.");
+    } finally {
+      setResetBusy(false);
     }
   }
 
@@ -689,7 +713,43 @@ export default function MerchantDashboardPage() {
           <button onClick={doLogin} disabled={busy} style={btnPrimary(busy)}>
             {busy ? "Signing in…" : "Sign in"}
           </button>
+
+          <button
+            onClick={() => { setShowForgot(true); setResetEmail(email); setResetStatus(null); }}
+            style={{ background: "none", border: "none", color: "#E08A00", fontWeight: 700, cursor: "pointer", fontSize: 14, textAlign: "center", padding: "4px 0" }}
+          >
+            Forgot password?
+          </button>
         </div>
+
+        {showForgot && (
+          <div style={{ marginTop: 16, padding: 16, borderRadius: 12, border: "2px solid #F59E0B", background: "#FFFBEB" }}>
+            <h3 style={{ margin: "0 0 8px", fontSize: 18 }}>Reset Password</h3>
+            <p style={{ margin: "0 0 12px", fontSize: 14, opacity: 0.8 }}>Enter your email and we'll send you a link to reset your password.</p>
+            <input
+              placeholder="email"
+              value={resetEmail}
+              onChange={(e) => setResetEmail(e.target.value)}
+              style={{ padding: 12, borderRadius: 12, border: "1px solid #ddd", width: "100%", boxSizing: "border-box" }}
+            />
+            <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+              <button onClick={doResetPassword} disabled={resetBusy} style={{ ...btnPrimary(resetBusy), flex: 1 }}>
+                {resetBusy ? "Sending…" : "Send Reset Link"}
+              </button>
+              <button
+                onClick={() => setShowForgot(false)}
+                style={{ flex: 0, padding: "10px 16px", borderRadius: 12, border: "1px solid #ddd", background: "#fff", cursor: "pointer", fontWeight: 700 }}
+              >
+                Cancel
+              </button>
+            </div>
+            {resetStatus && (
+              <div style={{ marginTop: 10, fontWeight: 700, fontSize: 14, padding: 10, borderRadius: 8, background: resetStatus.includes("sent") ? "#D1FAE5" : "#FEE2E2" }}>
+                {resetStatus}
+              </div>
+            )}
+          </div>
+        )}
 
         {status && (
           <div style={{ marginTop: 12, fontWeight: 850, padding: 12, borderRadius: 12, background: "rgba(0,0,0,0.04)" }}>
