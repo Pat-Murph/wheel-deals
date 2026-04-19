@@ -661,6 +661,11 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
               </a>
             );
           })()}
+
+          {/* Disclaimer */}
+          <p style={{ fontSize: 10, lineHeight: 1.4, color: "#9ca3af", marginTop: 10, fontWeight: 500 }}>
+            Based on standard retail pricing. Not combinable unless stated. Terms and availability may vary—contact merchant for details.
+          </p>
         </div>
       </div>
 
