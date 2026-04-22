@@ -502,7 +502,9 @@ export async function getActiveMerchants(): Promise<Merchant[]> {
   const q = query(collection(getDb(), "merchants"), where("active", "==", true));
   const snap = await getDocs(q);
 
-  return snap.docs.map((d) => {
+  return snap.docs
+    .filter((d) => !d.data().hidden && (d.data().name ?? '').toLowerCase() !== 'demo pizza')
+    .map((d) => {
     const data = d.data() as any;
 
     return {
