@@ -6,7 +6,7 @@ const DiscoverMap = nextDynamic(() => import("../../components/DiscoverMap"), {
   ssr: false,
 });
 
-import { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   searchMerchants,
   type MerchantResult,
@@ -189,8 +189,24 @@ export default function DiscoverPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Re-run search when GPS position first becomes available so server-side
+  // mobile-merchant distance filtering is applied correctly.
+  const posReadyRef = useRef(false);
+  useEffect(() => {
+    if (pos && !posReadyRef.current) {
+      posReadyRef.current = true;
+      // pos just resolved for the first time — re-fetch with location
+      runSearch();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pos]);
+
   // The boost radius: a boosted merchant only gets priority if user is within 50 miles of IT
   const BOOST_RADIUS_MILES = 50;
+
+  // Client-side mobile merchant distance threshold (miles).
+  // Mobile merchants beyond this radius are hidden from the discover list.
+  const MOBILE_HIDE_RADIUS = 25;
 
   // Compute distances CLIENT-SIDE from pos state. This is reactive:
   // when pos changes (GPS arrives), this memo re-runs and distances appear.
@@ -207,6 +223,14 @@ export default function DiscoverPage() {
         d = distanceMiles(pos.lat, pos.lng, m.lat, m.lng);
       }
       return { ...m, distanceMiles: d ?? m.distanceMiles };
+    })
+    // Client-side safety net: hide mobile merchants that are too far away.
+    // The server-side filter handles this when GPS is passed, but on initial
+    // load GPS may not be available yet. Once pos resolves, this kicks in.
+    .filter((m) => {
+      if (!m.isMobile || !pos) return true; // non-mobile always shown; no GPS = show all
+      if (m.distanceMiles == null) return false; // mobile with no distance info = hide
+      return m.distanceMiles <= MOBILE_HIDE_RADIUS;
     });
 
     return [...withDist].sort((a, b) => {
