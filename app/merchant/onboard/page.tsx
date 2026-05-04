@@ -836,9 +836,21 @@ export default function MerchantOnboardPage() {
 
       if (photoFiles.length) {
         setStatus("📸 Uploading photos…");
-        const newUrls = await uploadPhotos(user.uid);
-        finalUrls = [...finalUrls, ...newUrls];
-        setUploadedPhotoUrls(finalUrls);
+        try {
+          // Timeout photo upload after 30s — don't let it block merchant creation
+          const uploadPromise = uploadPhotos(user.uid);
+          const timeoutPromise = new Promise<string[]>((_, reject) =>
+            setTimeout(() => reject(new Error("Photo upload timed out")), 30000)
+          );
+          const newUrls = await Promise.race([uploadPromise, timeoutPromise]);
+          finalUrls = [...finalUrls, ...newUrls];
+          setUploadedPhotoUrls(finalUrls);
+        } catch (photoErr: any) {
+          // Photo upload failed or timed out — proceed without photos
+          console.warn("Photo upload failed, creating merchant without photos:", photoErr);
+          setStatus("⚠️ Photos couldn't upload — creating your profile without them (you can add photos later)…");
+          // Keep finalUrls as-is (existing photos only, no new ones)
+        }
       }
 
       setStatus(merchantId ? "💾 Saving changes…" : "🏪 Creating merchant profile…");
