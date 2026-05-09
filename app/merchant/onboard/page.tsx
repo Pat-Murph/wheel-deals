@@ -1670,6 +1670,38 @@ export default function MerchantOnboardPage() {
                 {merchantId}
               </span>
             </div>
+
+            {/* Flyer & Shareable Link Section */}
+            <div style={{ width: "100%", marginTop: 16, padding: 16, background: "#fffbeb", border: "2px solid #fde68a", borderRadius: 14 }}>
+              <div style={{ fontWeight: 900, fontSize: 16, marginBottom: 8, color: "#92400e" }}>📄 Your In-Store Flyer & Shareable Link</div>
+              <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
+                <a
+                  href={`/api/flyer/${merchantId}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ ...btnGold(false), textDecoration: "none", display: "inline-block", textAlign: "center" } as any}
+                >
+                  🖨️ Print In-Store Flyer
+                </a>
+                <a
+                  href={`/m/${merchantId}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ ...linkGold(), display: "inline-block" } as any}
+                >
+                  🔗 View Shareable Page →
+                </a>
+              </div>
+              <div style={{ marginTop: 10, fontSize: 12, color: "#6b7280" }}>
+                <strong>Share this link online:</strong>{" "}
+                <span style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", color: "#d97706", wordBreak: "break-all" }}>
+                  {typeof window !== "undefined" ? window.location.origin : ""}/m/{merchantId}
+                </span>
+              </div>
+              <div style={{ marginTop: 6, fontSize: 11, color: "#9ca3af" }}>
+                Print the flyer and put it in your store — customers scan the QR to find your deals!
+              </div>
+            </div>
           </>
         )}
       </div>
