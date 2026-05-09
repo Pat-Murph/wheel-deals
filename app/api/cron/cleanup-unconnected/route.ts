@@ -1,15 +1,15 @@
 // app/api/cron/cleanup-unconnected/route.ts
-// Deactivates merchants who haven't connected Stripe within 7 days of onboarding.
+// Deactivates merchants who haven't connected Stripe within 90 days of onboarding.
 // Can be triggered by Vercel Cron or manually via GET/POST request.
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebaseAdmin";
 
-const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000;
 
 async function runCleanup() {
-  const cutoff = new Date(Date.now() - SEVEN_DAYS_MS);
+  const cutoff = new Date(Date.now() - NINETY_DAYS_MS);
   const merchantsRef = adminDb.collection("merchants");
 
   // Query all active merchants that do NOT have a stripeAccountId
@@ -25,7 +25,7 @@ async function runCleanup() {
     // Skip merchants that already have Stripe connected
     if (data.stripeAccountId) continue;
 
-    // Check createdAt — if older than 7 days, deactivate
+    // Check createdAt — if older than 90 days, deactivate
     const createdAt = data.createdAt;
     if (!createdAt) continue; // no createdAt means legacy merchant, skip
 
@@ -36,7 +36,7 @@ async function runCleanup() {
       // Deactivate: set active=false so they no longer appear on Discover
       await merchantsRef.doc(doc.id).update({
         active: false,
-        deactivatedReason: "stripe_not_connected_7d",
+        deactivatedReason: "stripe_not_connected_90d",
         deactivatedAt: new Date(),
       });
       deactivated.push(doc.id);
