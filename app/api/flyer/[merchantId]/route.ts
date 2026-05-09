@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminDb } from "@/lib/firebaseAdmin";
+import QRCode from "qrcode";
 
 export async function GET(
   req: NextRequest,
@@ -35,10 +36,15 @@ export async function GET(
   // Shareable landing page
   const merchantLandingUrl = `${appUrl}/m/${merchantId}`;
 
-  // QR codes via Google Charts API
-  const merchantQr = `https://chart.googleapis.com/chart?chs=250x250&cht=qr&chl=${encodeURIComponent(merchantLandingUrl)}&choe=UTF-8`;
-  const playStoreQr = `https://chart.googleapis.com/chart?chs=180x180&cht=qr&chl=${encodeURIComponent(playStoreUrl)}&choe=UTF-8`;
-  const websiteQr = `https://chart.googleapis.com/chart?chs=180x180&cht=qr&chl=${encodeURIComponent(websiteUrl)}&choe=UTF-8`;
+  // Generate QR codes as base64 data URLs (inline — always renders)
+  const qrOptions = { type: "image/png" as const, margin: 1, width: 250 };
+  const qrOptionsSmall = { type: "image/png" as const, margin: 1, width: 180 };
+
+  const [merchantQr, playStoreQr, websiteQr] = await Promise.all([
+    QRCode.toDataURL(merchantLandingUrl, qrOptions),
+    QRCode.toDataURL(playStoreUrl, qrOptionsSmall),
+    QRCode.toDataURL(websiteUrl, qrOptionsSmall),
+  ]);
 
   const location = [merchantCity, merchantState].filter(Boolean).join(", ");
 
