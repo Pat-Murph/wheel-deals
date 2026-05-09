@@ -8,7 +8,7 @@ function getStripe(): Stripe {
     const key = process.env.STRIPE_SECRET_KEY;
     if (!key) throw new Error("Missing STRIPE_SECRET_KEY");
     _stripe = new Stripe(key, {
-      apiVersion: "2026-01-28.clover",
+      apiVersion: "2026-02-25.clover",
     });
   }
   return _stripe;
