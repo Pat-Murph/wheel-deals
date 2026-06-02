@@ -291,7 +291,7 @@ export default function DiscoverPage() {
         <img
           src="/wd-hero-logo.png"
           alt="Wheel Deals — Unlock Local Savings"
-          style={{ height: 100, width: "auto", maxWidth: "70%", objectFit: "contain" }}
+          style={{ height: 140, width: "auto", maxWidth: "70%", objectFit: "contain" }}
         />
         <a href="/merchant" style={{
           fontSize: 14,
