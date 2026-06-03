@@ -1,8 +1,8 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  // Unique app identifier — must match App Store Connect & Play Store bundle ID
-  appId: 'com.wheeldealsapp.app',
+  // Unique app identifier — must match App Store Connect bundle ID
+  appId: 'com.wheeldeals.app',
 
   // App name shown on the phone home screen
   appName: 'Wheel Deals',
