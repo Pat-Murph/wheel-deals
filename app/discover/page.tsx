@@ -566,8 +566,8 @@ export default function DiscoverPage() {
           const showBoost = m.boostActive === true && (
             !m.isMobile || m.boostMode === 'always' || isActiveMobile
           );
-          // Coming Soon: merchant onboarded but hasn't connected Stripe yet
-          const isComingSoon = !m.stripeAccountId;
+          // Coming Soon: merchant hasn't fully connected Stripe (charges not enabled)
+          const isComingSoon = !m.stripeAccountId || !m.stripeChargesEnabled;
           return (
             <a
               key={m.id}

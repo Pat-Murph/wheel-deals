@@ -540,6 +540,12 @@ export default function MerchantDashboardPage() {
     const stripeFlag = params.get("stripe");
     if (stripeFlag === "return" || stripeFlag === "refresh") {
       reloadMerchant(merchantId).catch(() => {});
+      // Check and update Stripe charges_enabled status
+      fetch("/api/stripe/connect/check-status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ merchantId }),
+      }).catch(() => {});
     }
     // Handle boost return
     if (params.get("boost_success") === "1") {

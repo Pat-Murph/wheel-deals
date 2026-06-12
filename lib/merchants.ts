@@ -29,6 +29,7 @@ export type Merchant = {
 
   active?: boolean;
   stripeAccountId?: string;
+  stripeChargesEnabled?: boolean;
   createdAt?: any; // Firestore Timestamp
   wheel?: Array<{ label: string; weight: number }>;
   /** Multi-wheel support: up to 3 wheels with different spin prices */
@@ -532,6 +533,7 @@ export async function getActiveMerchants(): Promise<Merchant[]> {
       wheels: Array.isArray(data.wheels) ? data.wheels : undefined,
       active: data.active,
       stripeAccountId: data.stripeAccountId ?? undefined,
+      stripeChargesEnabled: data.stripeChargesEnabled === true,
       createdAt: data.createdAt ?? undefined,
       website: data.website ?? undefined,
       phone: data.phone ?? undefined,

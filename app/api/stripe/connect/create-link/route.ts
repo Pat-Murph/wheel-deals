@@ -58,6 +58,16 @@ export async function POST(req: Request) {
       );
     }
 
+    // Check current Stripe status and update stripeChargesEnabled
+    try {
+      const account = await stripe.accounts.retrieve(stripeAccountId);
+      const isReady = account.charges_enabled === true && account.capabilities?.transfers === "active";
+      await mRef.set({ stripeChargesEnabled: isReady }, { merge: true });
+    } catch (e) {
+      // Non-fatal: just log and continue
+      console.error("Error checking Stripe account status:", e);
+    }
+
     const link = await stripe.accountLinks.create({
       account: stripeAccountId,
       refresh_url: `${origin}/merchant?stripe=refresh`,

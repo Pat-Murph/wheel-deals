@@ -47,7 +47,8 @@ export async function POST(req: Request) {
       );
     }
 
-    const mSnap = await adminDb.collection("merchants").doc(merchantId).get();
+    const mRef = adminDb.collection("merchants").doc(merchantId);
+    const mSnap = await mRef.get();
     if (!mSnap.exists) {
       return NextResponse.json({ error: "Merchant not found" }, { status: 404 });
     }
@@ -71,6 +72,8 @@ export async function POST(req: Request) {
           `Merchant ${merchantId} Stripe account ${stripeAccountId} not ready:`,
           `transfers=${account.capabilities?.transfers}, charges_enabled=${chargesEnabled}, payouts_enabled=${payoutsEnabled}`
         );
+        // Ensure stripeChargesEnabled is false in Firestore
+        await mRef.set({ stripeChargesEnabled: false }, { merge: true });
         return NextResponse.json(
           {
             error:
@@ -78,6 +81,10 @@ export async function POST(req: Request) {
           },
           { status: 400 }
         );
+      }
+      // Stripe is fully ready — persist stripeChargesEnabled if not already set
+      if (!merchant.stripeChargesEnabled) {
+        await mRef.set({ stripeChargesEnabled: true }, { merge: true });
       }
     } catch (acctErr: any) {
       console.error("Error checking Stripe account:", acctErr);
