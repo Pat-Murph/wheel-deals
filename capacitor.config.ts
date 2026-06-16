@@ -21,6 +21,7 @@ const config: CapacitorConfig = {
     allowsLinkPreview: true,
     scrollEnabled: true,
     scheme: 'Wheel Deals',
+    preferredContentMode: 'mobile',
   },
 
   // Android-specific settings

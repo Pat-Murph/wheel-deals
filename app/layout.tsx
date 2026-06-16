@@ -34,6 +34,7 @@ export const metadata: Metadata = {
   other: {
     "mobile-web-app-capable": "yes",
     "google-site-verification": "j2HPC-GzTO_v0z-o1lCMI2iCBjLPLjrTRrE58w1bH68",
+    "color-scheme": "light",
   },
 };
 
@@ -43,7 +44,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" style={{ colorScheme: "light" }}>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
