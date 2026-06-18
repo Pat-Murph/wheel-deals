@@ -46,14 +46,16 @@ export async function GET(
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://wheel-deals-nine.vercel.app";
   const websiteUrl = "https://wheeldealsapp.com";
   const playStoreUrl = "https://play.google.com/store/apps/details?id=com.wheeldealsapp.app";
+  const appStoreUrl = "https://apps.apple.com/us/app/wheel-deals/id6776004051";
 
   // Shareable landing page
   const merchantLandingUrl = `${appUrl}/m/${merchantId}`;
 
   // Generate QR codes as base64 data URLs (fetched server-side, embedded inline)
-  const [merchantQr, playStoreQr, websiteQr] = await Promise.all([
+  const [merchantQr, playStoreQr, appStoreQr, websiteQr] = await Promise.all([
     qrToBase64(merchantLandingUrl, 250),
     qrToBase64(playStoreUrl, 180),
+    qrToBase64(appStoreUrl, 180),
     qrToBase64(websiteUrl, 180),
   ]);
 
@@ -189,9 +191,14 @@ export async function GET(
 
   <div class="qr-row">
     <div class="qr-item">
+      <div class="qr-small"><img src="${appStoreQr}" alt="App Store" /></div>
+      <div class="label">Download on App Store</div>
+      <div class="sub-label">iPhone &amp; iPad</div>
+    </div>
+    <div class="qr-item">
       <div class="qr-small"><img src="${playStoreQr}" alt="Google Play" /></div>
       <div class="label">Get it on Google Play</div>
-      <div class="sub-label">Download the app</div>
+      <div class="sub-label">Android</div>
     </div>
     <div class="qr-item">
       <div class="qr-small"><img src="${websiteQr}" alt="Website" /></div>
