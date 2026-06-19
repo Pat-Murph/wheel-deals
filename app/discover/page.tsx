@@ -567,8 +567,8 @@ export default function DiscoverPage() {
           const showBoost = m.boostActive === true && (
             !m.isMobile || m.boostMode === 'always' || isActiveMobile
           );
-          // Coming Soon: merchant hasn't fully connected Stripe (charges not enabled)
-          const isComingSoon = !m.stripeAccountId || !m.stripeChargesEnabled;
+          // Coming Soon: merchant hasn't fully connected Stripe AND doesn't have active boost
+          const isComingSoon = (!m.stripeAccountId || !m.stripeChargesEnabled) && !m.boostActive;
           return (
             <a
               key={m.id}
@@ -604,6 +604,11 @@ export default function DiscoverPage() {
                   {isComingSoon && (
                     <span style={{ fontSize: 11, fontWeight: 900, background: "#6366f1", color: "#fff", borderRadius: 999, padding: "2px 8px", letterSpacing: 0.3 }}>
                       COMING SOON
+                    </span>
+                  )}
+                  {m.foundingNumber && m.foundingNumber <= 20 && (
+                    <span style={{ fontSize: 11, fontWeight: 900, background: "#0ea5e9", color: "#fff", borderRadius: 999, padding: "2px 8px", letterSpacing: 0.3, display: "inline-flex", alignItems: "center", gap: 2 }}>
+                      💎 Diamond
                     </span>
                   )}
                 </div>

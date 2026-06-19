@@ -45,6 +45,7 @@ type MerchantDoc = {
   active?: boolean;
   ownerUid?: string;
   stripeAccountId?: string;
+  stripeChargesEnabled?: boolean;
   // Founding tier
   foundingMerchant?: boolean;
   foundingNumber?: number;
@@ -559,19 +560,34 @@ export default function MerchantDashboardPage() {
     }
   }, [merchantId]);
 
+  const isDiamond = (merchant?.foundingNumber ?? 999) <= 20;
+
   async function purchaseBoost() {
     if (!merchantId || !user) return;
     setBoostBusy(true);
     setStatus(null);
     try {
-      const res = await fetch("/api/stripe/boost", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ merchantId, uid: user.uid, boostWheelPriceCents, boostMode: merchant?.isMobile ? boostMode : undefined }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error ?? "Could not create boost checkout");
-      window.location.href = data.url;
+      if (isDiamond) {
+        // Diamond merchants get free boost — activate directly without payment
+        const res = await fetch("/api/boost/activate-free", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ merchantId, uid: user.uid, boostWheelPriceCents, boostMode: merchant?.isMobile ? boostMode : undefined }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data?.error ?? "Could not activate free boost");
+        setMerchant((m) => m ? { ...m, boostActive: true, boostFreeSpinsRemaining: 10 } : m);
+        setStatus("🔥 Boost activated! You have 10 free deals ready. Your listing now shows a fire badge.");
+      } else {
+        const res = await fetch("/api/stripe/boost", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ merchantId, uid: user.uid, boostWheelPriceCents, boostMode: merchant?.isMobile ? boostMode : undefined }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data?.error ?? "Could not create boost checkout");
+        window.location.href = data.url;
+      }
     } catch (e: any) {
       setStatus(e?.message ?? "Boost purchase failed.");
     } finally {
@@ -583,6 +599,11 @@ export default function MerchantDashboardPage() {
   async function toggleActive() {
     if (!merchantId || !merchant) return;
     const next = !merchant.active;
+    // Require at least one photo to go live
+    if (next && (!merchant.photoUrls || merchant.photoUrls.length === 0)) {
+      setStatus("❌ You need to upload at least one photo before going live. Go to Edit Merchant to add photos.");
+      return;
+    }
     setBusy(true);
     setStatus(null);
     try {
@@ -978,9 +999,15 @@ export default function MerchantDashboardPage() {
         </div>
 
         <div style={{ marginTop: 8, fontSize: 13, color: "#374151", lineHeight: 1.6 }}>
-          Pay <b>$5.00</b> to unlock <b>10 free deals</b> on a wheel of your choice.
-          Your listing gets a <b>fire badge</b> and appears at the top of the Discover page
-          (sorted by proximity to each customer). Customers must be within <b>200 meters</b> of your store to claim the free deal — driving foot traffic directly to you.
+          {isDiamond ? (
+            <>As a <b>💎 Diamond</b> founding merchant, you get <b>free boosts</b>! Activate to unlock <b>10 free deals</b> on a wheel of your choice.
+            Your listing gets a <b>fire badge</b> and appears at the top of the Discover page
+            (sorted by proximity to each customer). Customers must be within <b>200 meters</b> of your store to claim the free deal — driving foot traffic directly to you.</>
+          ) : (
+            <>Pay <b>$5.00</b> to unlock <b>10 free deals</b> on a wheel of your choice.
+            Your listing gets a <b>fire badge</b> and appears at the top of the Discover page
+            (sorted by proximity to each customer). Customers must be within <b>200 meters</b> of your store to claim the free deal — driving foot traffic directly to you.</>
+          )}
         </div>
 
         {merchant.boostActive ? (
@@ -1036,7 +1063,7 @@ export default function MerchantDashboardPage() {
               disabled={boostBusy}
               style={{ ...btnPrimary(boostBusy), display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
             >
-              {boostBusy ? "Redirecting to payment…" : "🔥 Unlock 10 Free Deals — $5.00"}
+              {boostBusy ? (isDiamond ? "Activating…" : "Redirecting to payment…") : isDiamond ? "🔥 Activate Free Boost — 💎 Diamond Perk" : "🔥 Unlock 10 Free Deals — $5.00"}
             </button>
           </div>
         )}
