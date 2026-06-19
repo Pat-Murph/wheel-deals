@@ -649,7 +649,7 @@ export default function DiscoverPage() {
                   const todayHours = bh[today];
                   if (!todayHours) return null;
                   if (todayHours.closed) return (
-                    <div style={{ fontSize: 12, fontWeight: 700, color: "#9ca3af", marginTop: 3 }}>Closed today</div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: "#6b7280", marginTop: 3 }}>Closed today</div>
                   );
                   const fmtTime = (t: string) => {
                     const [h, mi] = t.split(":").map(Number);
