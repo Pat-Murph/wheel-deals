@@ -351,27 +351,6 @@ export default function DiscoverPage() {
         </div>
       )}
 
-      {/* APP DOWNLOAD BANNER */}
-      <div style={{
-        background: "#f0f9ff",
-        borderBottom: "1px solid #e0e7ef",
-        padding: "10px 14px",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 12,
-        flexShrink: 0,
-      }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: "#1e3a5f" }}>
-          Now available on the App Store!
-        </div>
-        <a href="https://apps.apple.com/us/app/wheel-deals/id6776004051" target="_blank" rel="noopener noreferrer">
-          <img src="/app-store-badge.svg" alt="Download on the App Store" style={{ height: 34 }} />
-        </a>
-        <a href="https://play.google.com/store/apps/details?id=com.wheeldealsapp.app" target="_blank" rel="noopener noreferrer">
-          <img src="/google-play-badge.png" alt="Get it on Google Play" style={{ height: 34 }} />
-        </a>
-      </div>
 
       {/* SEARCH BARS */}
       <div style={{
