@@ -641,8 +641,9 @@ export default function DiscoverPage() {
                   ) : null;
                 })()}
 
-                {/* Business hours */}
+                {/* Business hours — hide for mobile merchants */}
                 {(() => {
+                  if (m.isMobile) return null;
                   const bh = (m as any).businessHours;
                   if (!bh || typeof bh !== "object") return null;
                   const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];

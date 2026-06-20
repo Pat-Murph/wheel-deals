@@ -1353,8 +1353,8 @@ export default function MerchantOnboardPage() {
           </div>
 
           {/* Business Hours — optional for mobile businesses */}
-          {!isMobile && <div style={{ marginTop: 8 }}>
-            <div style={{ fontWeight: 950, marginBottom: 8 }}>Business Hours</div>
+          <div style={{ marginTop: 8 }}>
+            <div style={{ fontWeight: 950, marginBottom: 8 }}>Business Hours {isMobile && <span style={{ fontWeight: 600, fontSize: 13, color: "#6b7280" }}>(optional for mobile)</span>}</div>
             <div style={{ display: "grid", gap: 6 }}>
               {DAYS.map((day) => (
                 <div key={day} style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
@@ -1393,7 +1393,7 @@ export default function MerchantOnboardPage() {
             <div style={{ fontWeight: 800, opacity: 0.6, fontSize: 13, marginTop: 6 }}>
               Set your hours so customers know when you're open. Shown on Discover and your wheel page.
             </div>
-          </div>}
+          </div>
 
           <div
             style={{
