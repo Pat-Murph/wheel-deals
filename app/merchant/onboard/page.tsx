@@ -171,6 +171,7 @@ async function saveMerchantForUser(args: {
   mobileServiceLng?: number | null;
   mobileServiceRadiusMiles?: number | null;
   businessHours?: Record<string, { open: string; close: string; closed?: boolean }>;
+  showBusinessHours?: boolean;
 }) {
   const {
     uid,
@@ -197,6 +198,7 @@ async function saveMerchantForUser(args: {
     mobileServiceLng,
     mobileServiceRadiusMiles,
     businessHours,
+    showBusinessHours = true,
   } = args;
 
   const wheelItems = (Array.isArray(wheel) ? wheel : [])
@@ -258,6 +260,7 @@ async function saveMerchantForUser(args: {
     mobileServiceLng: typeof mobileServiceLng === 'number' ? mobileServiceLng : null,
     mobileServiceRadiusMiles: typeof mobileServiceRadiusMiles === 'number' ? mobileServiceRadiusMiles : 25,
     businessHours: businessHours ?? {},
+    showBusinessHours: showBusinessHours !== false,
   };
 
   if (isEdit) {
@@ -337,6 +340,7 @@ type MerchantDoc = {
 
   // Business hours
   businessHours?: Record<string, { open: string; close: string; closed?: boolean }>;
+  showBusinessHours?: boolean;
 };
 
 export default function MerchantOnboardPage() {
@@ -364,6 +368,7 @@ export default function MerchantOnboardPage() {
   const [mobileServiceSet, setMobileServiceSet] = useState(false);
   const [mobileActiveUntil, setMobileActiveUntil] = useState<Date | null>(null);
   const [mobileDurationHours, setMobileDurationHours] = useState<number>(2);
+  const [showBusinessHours, setShowBusinessHours] = useState(true);
   const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"] as const;
   const defaultHours = () => Object.fromEntries(DAYS.map(d => [d, { open: "09:00", close: "17:00", closed: false }]));
   const [businessHours, setBusinessHours] = useState<Record<string, { open: string; close: string; closed: boolean }>>(defaultHours());
@@ -426,6 +431,7 @@ export default function MerchantOnboardPage() {
         setWebsite(m.website ?? "");
         setPhone(m.phone ?? "");
         setIsMobile(m.isMobile ?? false);
+        setShowBusinessHours(m.showBusinessHours !== false);
         setMobileActiveUntil(m.mobileActiveUntil?.toDate() ?? null);
         setMobileServiceLat(m.mobileServiceLat ?? null);
 
@@ -879,6 +885,7 @@ export default function MerchantOnboardPage() {
         mobileServiceLng,
         mobileServiceRadiusMiles: 25,
         businessHours,
+        showBusinessHours,
 
         // ✅ NEW
         termsAccepted: true,
@@ -1354,8 +1361,21 @@ export default function MerchantOnboardPage() {
 
           {/* Business Hours — optional for mobile businesses */}
           <div style={{ marginTop: 8 }}>
-            <div style={{ fontWeight: 950, marginBottom: 8 }}>Business Hours {isMobile && <span style={{ fontWeight: 600, fontSize: 13, color: "#6b7280" }}>(optional for mobile)</span>}</div>
-            <div style={{ display: "grid", gap: 6 }}>
+            <div style={{ fontWeight: 950, marginBottom: 8, display: "flex", alignItems: "center", gap: 10 }}>
+              Business Hours
+              {isMobile && (
+                <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 13, fontWeight: 600, color: "#6b7280" }}>
+                  <input
+                    type="checkbox"
+                    checked={showBusinessHours}
+                    onChange={(e) => setShowBusinessHours(e.target.checked)}
+                    disabled={!user || busy}
+                  />
+                  Show hours publicly
+                </label>
+              )}
+            </div>
+            {(!isMobile || showBusinessHours) && <div style={{ display: "grid", gap: 6 }}>
               {DAYS.map((day) => (
                 <div key={day} style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                   <label style={{ width: 90, fontWeight: 800, fontSize: 14 }}>{day.slice(0, 3)}</label>
@@ -1389,9 +1409,9 @@ export default function MerchantOnboardPage() {
                   )}
                 </div>
               ))}
-            </div>
+            </div>}
             <div style={{ fontWeight: 800, opacity: 0.6, fontSize: 13, marginTop: 6 }}>
-              Set your hours so customers know when you're open. Shown on Discover and your wheel page.
+              {isMobile ? "Optional — check the box above to display hours on your listing." : "Set your hours so customers know when you're open. Shown on Discover and your wheel page."}
             </div>
           </div>
 
