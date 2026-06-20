@@ -643,7 +643,7 @@ export default function DiscoverPage() {
 
                 {/* Business hours — respect showBusinessHours opt-in */}
                 {(() => {
-                  if ((m as any).showBusinessHours === false) return null;
+                  if (m.showBusinessHours === false) return null;
                   const bh = (m as any).businessHours;
                   if (!bh || typeof bh !== "object") return null;
                   const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];

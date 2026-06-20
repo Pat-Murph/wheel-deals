@@ -51,6 +51,7 @@ export type Merchant = {
 
   // Business hours
   businessHours?: Record<string, { open: string; close: string; closed?: boolean }>;
+  showBusinessHours?: boolean;
 
   // Mobile merchant fields
   isMobile?: boolean;
@@ -546,6 +547,7 @@ export async function getActiveMerchants(): Promise<Merchant[]> {
       boostWheelPriceCents: typeof data.boostWheelPriceCents === "number" ? data.boostWheelPriceCents : undefined,
       boostMode: data.boostMode === 'always' ? 'always' : data.boostMode === 'checkin' ? 'checkin' : undefined,
       businessHours: data.businessHours && typeof data.businessHours === 'object' ? data.businessHours : undefined,
+      showBusinessHours: data.showBusinessHours !== false,
       isMobile: data.isMobile ?? false,
       mobileLat: typeof data.mobileLat === 'number' ? data.mobileLat : undefined,
       mobileLng: typeof data.mobileLng === 'number' ? data.mobileLng : undefined,
