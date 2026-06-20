@@ -567,8 +567,9 @@ export default function DiscoverPage() {
           const showBoost = m.boostActive === true && (
             !m.isMobile || m.boostMode === 'always' || isActiveMobile
           );
-          // Coming Soon: merchant hasn't fully connected Stripe AND doesn't have active boost
-          const isComingSoon = (!m.stripeAccountId || !m.stripeChargesEnabled) && !m.boostActive;
+// Coming Soon: no photo OR (no Stripe AND no active boost)
+           const hasPhoto = !!(m.photoProcessedUrls?.[0] || m.photoUrls?.[0]);
+           const isComingSoon = !hasPhoto || ((!m.stripeAccountId || !m.stripeChargesEnabled) && !m.boostActive);
           return (
             <a
               key={m.id}
