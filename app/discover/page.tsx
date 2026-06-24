@@ -607,11 +607,7 @@ export default function DiscoverPage() {
                       COMING SOON
                     </span>
                   )}
-                  {m.foundingNumber && m.foundingNumber <= 20 && (
-                    <span style={{ fontSize: 11, fontWeight: 900, background: "#0ea5e9", color: "#fff", borderRadius: 999, padding: "2px 8px", letterSpacing: 0.3, display: "inline-flex", alignItems: "center", gap: 2 }}>
-                      💎 Diamond
-                    </span>
-                  )}
+
                 </div>
                 <div style={{ fontSize: 15, fontWeight: 500, color: "#6b7280", marginTop: 5 }}>
                   {m.category ? titleCase(m.category) : ""}
