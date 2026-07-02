@@ -338,6 +338,8 @@ export default function MerchantDashboardPage() {
   const [newEventRecurring, setNewEventRecurring] = useState(false);
   const [newEventRecurrencePattern, setNewEventRecurrencePattern] = useState<'daily' | 'weekly' | 'biweekly' | 'monthly'>('weekly');
   const [newEventPriceCents, setNewEventPriceCents] = useState(135);
+  const [newEventValidFrom, setNewEventValidFrom] = useState('');
+  const [newEventValidTo, setNewEventValidTo] = useState('');
   const [createEventBusy, setCreateEventBusy] = useState(false);
 
   /* ---------- AUTH ---------- */
@@ -1106,6 +1108,10 @@ export default function MerchantDashboardPage() {
           setNewEventRecurrencePattern={setNewEventRecurrencePattern}
           newEventPriceCents={newEventPriceCents}
           setNewEventPriceCents={setNewEventPriceCents}
+          newEventValidFrom={newEventValidFrom}
+          setNewEventValidFrom={setNewEventValidFrom}
+          newEventValidTo={newEventValidTo}
+          setNewEventValidTo={setNewEventValidTo}
           createEventBusy={createEventBusy}
           setCreateEventBusy={setCreateEventBusy}
           setStatus={setStatus}
@@ -1334,6 +1340,10 @@ function TicketEventSection(props: {
   setNewEventRecurrencePattern: (v: 'daily' | 'weekly' | 'biweekly' | 'monthly') => void;
   newEventPriceCents: number;
   setNewEventPriceCents: (v: number) => void;
+  newEventValidFrom: string;
+  setNewEventValidFrom: (v: string) => void;
+  newEventValidTo: string;
+  setNewEventValidTo: (v: string) => void;
   createEventBusy: boolean;
   setCreateEventBusy: (v: boolean) => void;
   setStatus: (v: string | null) => void;
@@ -1353,6 +1363,8 @@ function TicketEventSection(props: {
     newEventRecurring, setNewEventRecurring,
     newEventRecurrencePattern, setNewEventRecurrencePattern,
     newEventPriceCents, setNewEventPriceCents,
+    newEventValidFrom, setNewEventValidFrom,
+    newEventValidTo, setNewEventValidTo,
     createEventBusy, setCreateEventBusy,
     setStatus,
     card, btnPrimary, btnSecondary, btnDanger,
@@ -1379,15 +1391,15 @@ function TicketEventSection(props: {
 
   async function createEvent() {
     if (!newEventDate || !newEventSpinTime) {
-      setStatus("❌ Please set both the event date and spin time.");
+      setStatus("❌ Please set the spin date and time.");
       return;
     }
 
-    // Combine date + time into ISO string
+    // Combine date + time into ISO string for when the wheel spins
     const spinTimeISO = new Date(`${newEventDate}T${newEventSpinTime}:00`).toISOString();
 
     if (new Date(spinTimeISO).getTime() <= Date.now()) {
-      setStatus("❌ Spin time must be in the future.");
+      setStatus("❌ Spin date/time must be in the future.");
       return;
     }
 
@@ -1406,14 +1418,18 @@ function TicketEventSection(props: {
           spotPriceCents: newEventPriceCents,
           recurring: newEventRecurring,
           recurrencePattern: newEventRecurring ? newEventRecurrencePattern : undefined,
+          validFrom: newEventValidFrom || newEventDate,
+          validTo: newEventValidTo || newEventDate,
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error ?? "Could not create event");
-      setStatus("🎟️ Ticket event created! It's now live on the Discover page.");
+      setStatus("🎟️ Event created! It's now live on the Discover page.");
       setShowCreateEvent(false);
       setNewEventDate('');
       setNewEventSpinTime('');
+      setNewEventValidFrom('');
+      setNewEventValidTo('');
       loadEvents();
     } catch (e: any) {
       setStatus(e?.message ?? "Failed to create event.");
@@ -1446,11 +1462,6 @@ function TicketEventSection(props: {
     } catch { return iso; }
   }
 
-  // Get tomorrow's date as minimum for date picker
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const tomorrowStr = tomorrow.toISOString().split('T')[0];
-
   // Today as minimum (allow same-day events)
   const todayStr = new Date().toISOString().split('T')[0];
 
@@ -1458,11 +1469,11 @@ function TicketEventSection(props: {
     <div style={{ ...card(), border: "2px solid #8b5cf6" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 950, fontSize: 16 }}>
         <span style={{ fontSize: 22 }}>🎟️</span>
-        Ticket Events
+        Wheel Spin Events
       </div>
 
       <div style={{ marginTop: 8, fontSize: 13, color: "#374151", lineHeight: 1.6 }}>
-        Create limited-ticket events with a countdown timer. Customers buy spots, and at the scheduled time, the wheel spins for everyone who entered. Creates scarcity and excitement!
+        Create limited-entry wheel spin events. Customers enter the spin, and at the scheduled time the wheel spins for everyone at once. The prize is valid for the date(s) you choose. Creates scarcity and excitement!
       </div>
 
       {/* Active Events */}
@@ -1481,11 +1492,16 @@ function TicketEventSection(props: {
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
                 <div>
                   <div style={{ fontWeight: 900, fontSize: 14 }}>
-                    📅 {ev.eventDate} • Spin: {formatEventTime(ev.spinTime)}
+                    🎡 Spin: {formatEventTime(ev.spinTime)}
                   </div>
                   <div style={{ fontSize: 13, fontWeight: 800, color: "#7c3aed", marginTop: 4 }}>
-                    🎫 {ev.spotsTaken}/{ev.totalSpots} spots taken • ${(ev.spotPriceCents / 100).toFixed(2)}/spot
+                    {ev.spotsTaken}/{ev.totalSpots} entries • ${(ev.spotPriceCents / 100).toFixed(2)}/entry
                   </div>
+                  {ev.validFrom && (
+                    <div style={{ fontSize: 12, fontWeight: 700, color: "#6b7280", marginTop: 2 }}>
+                      📅 Prize valid: {ev.validFrom}{ev.validTo && ev.validTo !== ev.validFrom ? ` – ${ev.validTo}` : ''}
+                    </div>
+                  )}
                   {ev.recurring && (
                     <div style={{ fontSize: 12, fontWeight: 700, color: "#6b7280", marginTop: 2 }}>
                       🔄 Recurring: {ev.recurrencePattern}
@@ -1512,17 +1528,17 @@ function TicketEventSection(props: {
         </div>
       ) : (
         <div style={{ marginTop: 12, fontSize: 13, fontWeight: 800, opacity: 0.7 }}>
-          No active ticket events. Create one below!
+          No active events. Create one below!
         </div>
       )}
 
       {/* Create Event Form */}
       {showCreateEvent ? (
         <div style={{ marginTop: 14, display: "grid", gap: 12, padding: "14px", borderRadius: 12, background: "#faf5ff", border: "1px solid #e9d5ff" }}>
-          <div style={{ fontWeight: 900, fontSize: 15, color: "#6b21a8" }}>Create New Ticket Event</div>
+          <div style={{ fontWeight: 900, fontSize: 15, color: "#6b21a8" }}>Create New Spin Event</div>
 
           <div style={{ display: "grid", gap: 6 }}>
-            <label style={{ fontSize: 13, fontWeight: 800 }}>Number of tickets available:</label>
+            <label style={{ fontSize: 13, fontWeight: 800 }}>Number of entries available:</label>
             <input
               type="number"
               min={1}
@@ -1534,7 +1550,7 @@ function TicketEventSection(props: {
           </div>
 
           <div style={{ display: "grid", gap: 6 }}>
-            <label style={{ fontSize: 13, fontWeight: 800 }}>Event date:</label>
+            <label style={{ fontSize: 13, fontWeight: 800 }}>When does the wheel spin? (date):</label>
             <input
               type="date"
               min={todayStr}
@@ -1545,7 +1561,7 @@ function TicketEventSection(props: {
           </div>
 
           <div style={{ display: "grid", gap: 6 }}>
-            <label style={{ fontSize: 13, fontWeight: 800 }}>Spin time (when the wheel spins for everyone):</label>
+            <label style={{ fontSize: 13, fontWeight: 800 }}>Spin time (what time does it spin?):</label>
             <input
               type="time"
               value={newEventSpinTime}
@@ -1555,7 +1571,31 @@ function TicketEventSection(props: {
           </div>
 
           <div style={{ display: "grid", gap: 6 }}>
-            <label style={{ fontSize: 13, fontWeight: 800 }}>Ticket price:</label>
+            <label style={{ fontSize: 13, fontWeight: 800 }}>Prize valid from:</label>
+            <input
+              type="date"
+              min={todayStr}
+              value={newEventValidFrom}
+              onChange={(e) => setNewEventValidFrom(e.target.value)}
+              style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid #ddd", fontSize: 14, fontWeight: 800 }}
+            />
+            <div style={{ fontSize: 11, color: "#6b7280", fontWeight: 600 }}>When can the winner redeem? (defaults to spin date if empty)</div>
+          </div>
+
+          <div style={{ display: "grid", gap: 6 }}>
+            <label style={{ fontSize: 13, fontWeight: 800 }}>Prize valid until:</label>
+            <input
+              type="date"
+              min={newEventValidFrom || todayStr}
+              value={newEventValidTo}
+              onChange={(e) => setNewEventValidTo(e.target.value)}
+              style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid #ddd", fontSize: 14, fontWeight: 800 }}
+            />
+            <div style={{ fontSize: 11, color: "#6b7280", fontWeight: 600 }}>Last day the prize can be redeemed (leave empty for same day only)</div>
+          </div>
+
+          <div style={{ display: "grid", gap: 6 }}>
+            <label style={{ fontSize: 13, fontWeight: 800 }}>Entry price:</label>
             <select
               value={newEventPriceCents}
               onChange={(e) => setNewEventPriceCents(Number(e.target.value))}
@@ -1563,7 +1603,7 @@ function TicketEventSection(props: {
             >
               {(merchant.wheels && merchant.wheels.length > 0 ? merchant.wheels : [{ spinPriceCents: 135 }]).map((w) => (
                 <option key={w.spinPriceCents} value={w.spinPriceCents}>
-                  ${(w.spinPriceCents / 100).toFixed(2)} per ticket
+                  ${(w.spinPriceCents / 100).toFixed(2)} per entry
                 </option>
               ))}
             </select>
@@ -1602,7 +1642,7 @@ function TicketEventSection(props: {
               disabled={createEventBusy}
               style={{ ...btnPrimary(createEventBusy), flex: 1 }}
             >
-              {createEventBusy ? "Creating..." : "🎟️ Create Ticket Event"}
+              {createEventBusy ? "Creating..." : "🎡 Create Spin Event"}
             </button>
             <button
               onClick={() => setShowCreateEvent(false)}
@@ -1617,7 +1657,7 @@ function TicketEventSection(props: {
           onClick={() => setShowCreateEvent(true)}
           style={{ ...btnPrimary(false), marginTop: 12, width: "100%" }}
         >
-          🎟️ Create Ticket Event
+          🎡 Create Spin Event
         </button>
       )}
     </div>

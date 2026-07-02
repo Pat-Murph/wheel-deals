@@ -130,8 +130,8 @@ export async function POST(req: Request) {
           price_data: {
             currency: "usd",
             product_data: {
-              name: `${result.merchantName} — ${spots} Ticket${spots > 1 ? 's' : ''}`,
-              description: `${spots} spot${spots > 1 ? 's' : ''} in the ticket event wheel spin`,
+              name: `${result.merchantName} — ${spots} Spin Entr${spots > 1 ? 'ies' : 'y'}`,
+              description: `${spots} entr${spots > 1 ? 'ies' : 'y'} in the wheel spin event`,
             },
             unit_amount: result.spotPriceCents,
           },
@@ -151,7 +151,7 @@ export async function POST(req: Request) {
         deviceFingerprint: deviceFingerprint || "",
       },
       success_url: `${origin}/api/ticket-events/verify?session_id={CHECKOUT_SESSION_ID}&eventId=${eventId}&uid=${uid}&spots=${spots}`,
-      cancel_url: `${origin}/wheel?merchantId=${result.merchantId}&event_cancelled=1`,
+      cancel_url: `${origin}/wheel?merchantId=${result.merchantId}&eventId=${eventId}&event_cancelled=1`,
     });
 
     return NextResponse.json({ ok: true, checkoutUrl: session.url });

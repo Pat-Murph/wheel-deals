@@ -589,7 +589,7 @@ export default function DiscoverPage() {
               >
                 {/* Urgency badge */}
                 <div style={{ position: "absolute", top: 10, right: 10, background: "#7c3aed", color: "#fff", fontSize: 11, fontWeight: 900, padding: "3px 10px", borderRadius: 999, letterSpacing: 0.3 }}>
-                  🎟️ LIMITED TICKETS
+                  🎡 LIMITED SPOTS
                 </div>
 
                 <div style={{ fontSize: 18, fontWeight: 900, lineHeight: 1.2, paddingRight: 110 }}>
@@ -611,7 +611,7 @@ export default function DiscoverPage() {
                       <div style={{ height: "100%", width: `${pctFull}%`, background: "linear-gradient(90deg, #8b5cf6, #7c3aed)", borderRadius: 4, transition: "width 0.3s" }} />
                     </div>
                     <div style={{ fontSize: 11, fontWeight: 700, color: "#6b7280", marginTop: 3 }}>
-                      {ev.spotsTaken}/{ev.totalSpots} claimed
+                      {ev.spotsTaken}/{ev.totalSpots} entered
                     </div>
                   </div>
 
@@ -626,7 +626,7 @@ export default function DiscoverPage() {
 
                 <div style={{ marginTop: 10, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <div style={{ fontSize: 12, fontWeight: 700, color: "#6b7280" }}>
-                    ${(ev.spotPriceCents / 100).toFixed(2)}/ticket • Up to 4 per person
+                    ${(ev.spotPriceCents / 100).toFixed(2)}/entry • Up to 4 per person
                   </div>
                   <div style={{ fontSize: 13, fontWeight: 900, color: "#7c3aed", background: "rgba(139,92,246,0.10)", padding: "6px 12px", borderRadius: 8, border: "1px solid #c4b5fd" }}>
                     Enter Now →
@@ -658,7 +658,11 @@ export default function DiscoverPage() {
           </div>
         )}
 
-        {sortedItems.map((m) => {
+        {sortedItems.filter((m) => {
+          // Hide merchants from regular list if they have an active ticket event
+          const hasActiveEvent = ticketEvents.some((ev: any) => ev.merchantId === m.id && ev.status === 'active' && new Date(ev.spinTime).getTime() > Date.now());
+          return !hasActiveEvent;
+        }).map((m) => {
           const photo = (m.photoProcessedUrls?.[0] ?? m.photoUrls?.[0]) || null;
           // For mobile merchants with boostMode='checkin', only show boost when checked in
           const isActiveMobile = m.isMobile && m.mobileActiveUntil && m.mobileActiveUntil.toDate && m.mobileActiveUntil.toDate() > time;

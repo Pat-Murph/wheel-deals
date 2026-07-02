@@ -27,9 +27,11 @@ function dateKeyLA(d = new Date()) {
 /**
  * POST /api/ticket-events/spin
  * Triggered when spin time arrives. Resolves all entries for the event.
- * Each entry gets a random prize from the merchant's wheel.
  * 
- * Body: { eventId: string }
+ * KEY BEHAVIOR: Everyone who entered gets the SAME prize result for that day.
+ * Each entry gets a unique redemption code, but the prize is shared.
+ * 
+ * Body: { eventId: string, uid?: string }
  * 
  * Can be called by:
  * - Client-side when countdown reaches 0 (first caller wins the race)
@@ -37,13 +39,28 @@ function dateKeyLA(d = new Date()) {
  */
 export async function POST(req: Request) {
   try {
-    const { eventId } = await req.json();
+    const { eventId, uid } = await req.json();
 
     if (!eventId) {
       return NextResponse.json({ error: "Missing eventId" }, { status: 400 });
     }
 
     const eventRef = adminDb.collection("ticketEvents").doc(eventId);
+
+    // Check if event already completed — if so, just return existing results
+    const existingSnap = await eventRef.get();
+    if (!existingSnap.exists) {
+      return NextResponse.json({ error: "Event not found" }, { status: 404 });
+    }
+    const existingData = existingSnap.data() as any;
+
+    if (existingData.status === "completed" && existingData.results) {
+      // Event already spun — return existing results (filtered by uid if provided)
+      const results = uid
+        ? existingData.results.filter((r: any) => r.uid === uid)
+        : existingData.results;
+      return NextResponse.json({ ok: true, results, alreadyCompleted: true });
+    }
 
     // Use transaction to ensure only one spin execution
     const result = await adminDb.runTransaction(async (tx) => {
@@ -67,19 +84,35 @@ export async function POST(req: Request) {
         alreadySpun: false,
         merchantId: event.merchantId,
         spotPriceCents: event.spotPriceCents,
+        validFrom: event.validFrom,
+        validTo: event.validTo,
+        eventDate: event.eventDate,
+        recurring: event.recurring,
+        recurrencePattern: event.recurrencePattern,
+        recurrenceDays: event.recurrenceDays,
+        merchantName: event.merchantName,
+        totalSpots: event.totalSpots,
       };
     });
 
     if (result.alreadySpun) {
-      return NextResponse.json({ ok: true, message: "Event already processed", status: result.status });
+      // If it's completed, try to fetch results
+      const refetchSnap = await eventRef.get();
+      const refetchData = refetchSnap.data() as any;
+      if (refetchData?.results) {
+        const results = uid
+          ? refetchData.results.filter((r: any) => r.uid === uid)
+          : refetchData.results;
+        return NextResponse.json({ ok: true, results, alreadyCompleted: true });
+      }
+      return NextResponse.json({ ok: true, message: "Event already processing", status: result.status });
     }
 
-    // Get the merchant's wheel items (prefer multi-wheel 'wheels' array, fall back to legacy 'wheel')
+    // Get the merchant's wheel items
     const merchantSnap = await adminDb.collection("merchants").doc(result.merchantId).get();
     const merchantData = merchantSnap.data() as any;
     let wheelItems: Array<{ label: string; weight: number }> = [];
     if (Array.isArray(merchantData?.wheels) && merchantData.wheels.length > 0) {
-      // Use the first wheel that matches the event price, or first wheel
       const matchingWheel = merchantData.wheels.find((w: any) => w.spinPriceCents === result.spotPriceCents)
         || merchantData.wheels[0];
       wheelItems = Array.isArray(matchingWheel?.items)
@@ -91,7 +124,6 @@ export async function POST(req: Request) {
     }
 
     if (wheelItems.length === 0) {
-      // No wheel configured — mark as completed with error
       await eventRef.update({
         status: "completed",
         completedAt: FieldValue.serverTimestamp(),
@@ -108,18 +140,25 @@ export async function POST(req: Request) {
       .where("status", "==", "confirmed")
       .get();
 
-    // Weighted random prize selection
+    // ===== ONE SHARED PRIZE FOR EVERYONE =====
+    // Pick a single prize that ALL entrants win
     const totalWeight = wheelItems.reduce((sum, item) => sum + item.weight, 0);
-    function pickPrize(): string {
-      let rand = Math.random() * totalWeight;
-      for (const item of wheelItems) {
-        rand -= item.weight;
-        if (rand <= 0) return item.label;
+    let rand = Math.random() * totalWeight;
+    let sharedPrize = wheelItems[wheelItems.length - 1].label;
+    for (const item of wheelItems) {
+      rand -= item.weight;
+      if (rand <= 0) {
+        sharedPrize = item.label;
+        break;
       }
-      return wheelItems[wheelItems.length - 1].label;
     }
 
-    // Generate results for each entry (each spot gets its own spin)
+    // Determine expiry based on validTo or 30 days
+    const expiresAt = result.validTo
+      ? new Date(result.validTo + "T23:59:59")
+      : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+
+    // Generate results — each entry gets the SAME prize but unique code
     const results: any[] = [];
     const dayKey = dateKeyLA();
     const batch = adminDb.batch();
@@ -129,17 +168,16 @@ export async function POST(req: Request) {
       const entry = entryDoc.data();
       const spotCount = entry.spotCount || 1;
 
+      // Each spot gets its own code (for redemption tracking) but same prize
       for (let i = 0; i < spotCount; i++) {
-        const prizeLabel = pickPrize();
         const code = makeCode(8);
-        const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
-        // Create a spin record (same shape as regular spins for redemption compatibility)
+        // Create a spin record
         const spinRef = adminDb.collection("spins").doc();
         batch.set(spinRef, {
           merchantId: result.merchantId,
           uid: entry.uid,
-          prizeLabel,
+          prizeLabel: sharedPrize,
           status: "issued",
           code,
           type: "ticket_event",
@@ -147,7 +185,7 @@ export async function POST(req: Request) {
           entryId: entryDoc.id,
           spotIndex: i,
           spinPriceCents: result.spotPriceCents,
-          revenueCents: Math.round(result.spotPriceCents * 0.70), // 70% to merchant
+          revenueCents: Math.round(result.spotPriceCents * 0.70),
           createdAt: FieldValue.serverTimestamp(),
           expiresAt,
           dateKey: dayKey,
@@ -166,11 +204,12 @@ export async function POST(req: Request) {
           entryId: entryDoc.id,
           uid: entry.uid,
           spotIndex: i,
-          prize: prizeLabel,
-          prizeLabel,
+          prize: sharedPrize,
           code,
           expiresAt: expiresAt.toISOString(),
           spinId: spinRef.id,
+          validFrom: result.validFrom,
+          validTo: result.validTo,
         });
 
         totalSpinsCount++;
@@ -203,10 +242,11 @@ export async function POST(req: Request) {
       );
     }
 
-    // Mark event as completed with results
+    // Mark event as completed with results + shared prize info
     batch.update(eventRef, {
       status: "completed",
       completedAt: FieldValue.serverTimestamp(),
+      sharedPrize,
       results,
       updatedAt: FieldValue.serverTimestamp(),
     });
@@ -214,16 +254,22 @@ export async function POST(req: Request) {
     await batch.commit();
 
     // If recurring, create the next event instance
-    const eventSnap = await eventRef.get();
-    const eventData = eventSnap.data() as any;
-    if (eventData.recurring && eventData.recurrencePattern) {
-      await createNextRecurringEvent(eventData);
+    const eventSnap2 = await eventRef.get();
+    const eventData2 = eventSnap2.data() as any;
+    if (eventData2.recurring && eventData2.recurrencePattern) {
+      await createNextRecurringEvent(eventData2, eventId);
     }
+
+    // Return results filtered by uid if provided
+    const filteredResults = uid
+      ? results.filter((r: any) => r.uid === uid)
+      : results;
 
     return NextResponse.json({
       ok: true,
+      sharedPrize,
       resultsCount: results.length,
-      results,
+      results: filteredResults,
     });
   } catch (e: any) {
     console.error("ticket-events/spin error:", e);
@@ -236,37 +282,39 @@ export async function POST(req: Request) {
 
 /**
  * Creates the next instance of a recurring event.
+ * Carries forward validFrom/validTo offsets and links to series.
  */
-async function createNextRecurringEvent(prevEvent: any) {
+async function createNextRecurringEvent(prevEvent: any, prevEventId: string) {
   const prevDate = new Date(prevEvent.eventDate + "T00:00:00");
   const prevSpinTime = new Date(prevEvent.spinTime);
   
-  // Calculate the time-of-day offset from the event date
   const spinHour = prevSpinTime.getHours();
   const spinMinute = prevSpinTime.getMinutes();
 
   let nextDate: Date;
+  let dayOffset = 0;
 
   switch (prevEvent.recurrencePattern) {
     case 'daily':
-      nextDate = new Date(prevDate);
-      nextDate.setDate(nextDate.getDate() + 1);
+      dayOffset = 1;
       break;
     case 'weekly':
-      nextDate = new Date(prevDate);
-      nextDate.setDate(nextDate.getDate() + 7);
+      dayOffset = 7;
       break;
     case 'biweekly':
-      nextDate = new Date(prevDate);
-      nextDate.setDate(nextDate.getDate() + 14);
+      dayOffset = 14;
       break;
     case 'monthly':
       nextDate = new Date(prevDate);
       nextDate.setMonth(nextDate.getMonth() + 1);
+      dayOffset = Math.round((nextDate.getTime() - prevDate.getTime()) / (24 * 60 * 60 * 1000));
       break;
     default:
-      return; // Unknown pattern
+      return;
   }
+
+  nextDate = new Date(prevDate);
+  nextDate.setDate(nextDate.getDate() + dayOffset);
 
   // Set the spin time for the next event
   const nextSpinTime = new Date(nextDate);
@@ -277,6 +325,25 @@ async function createNextRecurringEvent(prevEvent: any) {
 
   const nextEventDate = nextDate.toISOString().split("T")[0];
 
+  // Calculate valid dates offset (same relative offset from event date)
+  let nextValidFrom = nextEventDate;
+  let nextValidTo = nextEventDate;
+  if (prevEvent.validFrom && prevEvent.eventDate) {
+    const prevEventDateMs = new Date(prevEvent.eventDate + "T00:00:00").getTime();
+    const prevValidFromMs = new Date(prevEvent.validFrom + "T00:00:00").getTime();
+    const prevValidToMs = prevEvent.validTo
+      ? new Date(prevEvent.validTo + "T00:00:00").getTime()
+      : prevValidFromMs;
+    const fromOffset = Math.round((prevValidFromMs - prevEventDateMs) / (24 * 60 * 60 * 1000));
+    const toOffset = Math.round((prevValidToMs - prevEventDateMs) / (24 * 60 * 60 * 1000));
+    const nextFromDate = new Date(nextDate);
+    nextFromDate.setDate(nextFromDate.getDate() + fromOffset);
+    nextValidFrom = nextFromDate.toISOString().split("T")[0];
+    const nextToDate = new Date(nextDate);
+    nextToDate.setDate(nextToDate.getDate() + toOffset);
+    nextValidTo = nextToDate.toISOString().split("T")[0];
+  }
+
   const eventRef = adminDb.collection("ticketEvents").doc();
   await eventRef.set({
     merchantId: prevEvent.merchantId,
@@ -285,12 +352,15 @@ async function createNextRecurringEvent(prevEvent: any) {
     spotsTaken: 0,
     spinTime: nextSpinTime.toISOString(),
     eventDate: nextEventDate,
+    validFrom: nextValidFrom,
+    validTo: nextValidTo,
     spotPriceCents: prevEvent.spotPriceCents,
     recurring: true,
     recurrencePattern: prevEvent.recurrencePattern,
     recurrenceDays: prevEvent.recurrenceDays || null,
     status: "active",
-    parentEventId: prevEvent.merchantId, // link to original series
+    seriesId: prevEvent.seriesId || prevEventId, // link to original series
+    parentEventId: prevEventId,
     createdAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
   });

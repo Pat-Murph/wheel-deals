@@ -344,8 +344,17 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
           // Check if event has ended
           if (data.event.status === 'completed' || data.event.status === 'spinning') {
             setTicketEventEnded(true);
+            // Auto-load results if event is completed and user had entries
+            if (data.event.status === 'completed' && data.event.results) {
+              const myResults = data.event.results.filter((r: any) => r.uid === uid);
+              if (myResults.length > 0) {
+                setTicketSpinResults(myResults);
+              }
+            }
           } else if (new Date(data.event.spinTime).getTime() <= Date.now()) {
             setTicketEventEnded(true);
+            // Spin time passed but event not yet completed — trigger spin
+            triggerTicketSpin();
           }
         }
       })
@@ -388,14 +397,27 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
         body: JSON.stringify({ eventId: initialEventId, uid }),
       });
       const data = await res.json();
-      if (data.ok && data.results) {
-        // Filter results for this user
-        const myResults = data.results.filter((r: any) => r.uid === uid);
-        setTicketSpinResults(myResults);
+      if (data.ok && data.results && data.results.length > 0) {
+        // Results are already filtered by uid server-side
+        setTicketSpinResults(data.results);
+      } else if (data.ok && data.results && data.results.length === 0) {
+        // User had no entries
+        setTicketError('You did not have any entries in this spin.');
       }
     } catch {
-      // If spin already happened, try to get results
-      setTicketError('Spin completed — check your results!');
+      // If spin already happened, try to get results from status endpoint
+      try {
+        const statusRes = await fetch(`/api/ticket-events/status?eventId=${initialEventId}&uid=${uid}`);
+        const statusData = await statusRes.json();
+        if (statusData.ok && statusData.event?.results) {
+          const myResults = statusData.event.results.filter((r: any) => r.uid === uid);
+          if (myResults.length > 0) {
+            setTicketSpinResults(myResults);
+          }
+        }
+      } catch {
+        setTicketError('Spin completed — check back shortly for results!');
+      }
     }
   }
 
@@ -821,11 +843,14 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
         }}>
           {/* Event header */}
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ fontSize: 24 }}>🎟️</span>
+            <span style={{ fontSize: 24 }}>🎡</span>
             <div>
-              <div style={{ fontSize: 16, fontWeight: 900, color: "#6b21a8" }}>Ticket Event</div>
+              <div style={{ fontSize: 16, fontWeight: 900, color: "#6b21a8" }}>Wheel Spin Event</div>
               <div style={{ fontSize: 12, fontWeight: 700, color: "#7c3aed" }}>
-                📅 {ticketEvent.eventDate}
+                📅 Spins on {ticketEvent.eventDate}
+                {ticketEvent.validFrom && (
+                  <span> · Prize valid: {ticketEvent.validFrom}{ticketEvent.validTo && ticketEvent.validTo !== ticketEvent.validFrom ? ` – ${ticketEvent.validTo}` : ''}</span>
+                )}
               </div>
             </div>
           </div>
@@ -846,7 +871,7 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
               <span style={{ color: (ticketEvent.totalSpots - ticketEvent.spotsTaken) <= 5 ? "#dc2626" : "#7c3aed" }}>
                 {ticketEvent.totalSpots - ticketEvent.spotsTaken} spots left
               </span>
-              <span style={{ color: "#6b7280" }}>{ticketEvent.spotsTaken}/{ticketEvent.totalSpots} claimed</span>
+              <span style={{ color: "#6b7280" }}>{ticketEvent.spotsTaken}/{ticketEvent.totalSpots} entered</span>
             </div>
             <div style={{ height: 10, borderRadius: 5, background: "rgba(139,92,246,0.15)", overflow: "hidden" }}>
               <div style={{
@@ -859,7 +884,7 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
             </div>
           </div>
 
-          {/* User's spots */}
+          {/* User's entries */}
           {ticketUserSpots > 0 && (
             <div style={{
               background: "rgba(34,197,94,0.10)",
@@ -869,19 +894,19 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
               textAlign: "center",
             }}>
               <div style={{ fontSize: 14, fontWeight: 900, color: "#16a34a" }}>
-                ✅ You have {ticketUserSpots} spot{ticketUserSpots > 1 ? 's' : ''} in this event!
+                ✅ You have {ticketUserSpots} entr{ticketUserSpots > 1 ? 'ies' : 'y'} in this spin!
               </div>
               <div style={{ fontSize: 12, fontWeight: 700, color: "#6b7280", marginTop: 4 }}>
-                {ticketEventEnded ? 'The wheel has spun!' : 'Your wheel will spin automatically at the scheduled time.'}
+                {ticketEventEnded ? 'The wheel has spun!' : 'The wheel spins for everyone at the scheduled time.'}
               </div>
             </div>
           )}
 
-          {/* Buy spots (only if event is active and not ended) */}
+          {/* Enter the spin (only if event is active and not ended) */}
           {!ticketEventEnded && ticketUserSpots < 4 && (ticketEvent.totalSpots - ticketEvent.spotsTaken) > 0 && (
             <div style={{ display: "grid", gap: 10 }}>
               <div style={{ fontSize: 13, fontWeight: 800, color: "#374151" }}>
-                Buy tickets — ${(ticketEvent.spotPriceCents / 100).toFixed(2)} each (max 4 per person)
+                Enter the spin — ${(ticketEvent.spotPriceCents / 100).toFixed(2)} each (max 4 per person)
               </div>
               <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                 <label style={{ fontSize: 13, fontWeight: 800, color: "#6b7280" }}>Qty:</label>
@@ -891,7 +916,7 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
                   style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid #ddd", fontSize: 14, fontWeight: 800, background: "#fff" }}
                 >
                   {Array.from({ length: Math.min(4 - ticketUserSpots, ticketEvent.totalSpots - ticketEvent.spotsTaken) }, (_, i) => i + 1).map(n => (
-                    <option key={n} value={n}>{n} ticket{n > 1 ? 's' : ''} — ${((ticketEvent.spotPriceCents * n) / 100).toFixed(2)}</option>
+                    <option key={n} value={n}>{n} entr{n > 1 ? 'ies' : 'y'} — ${((ticketEvent.spotPriceCents * n) / 100).toFixed(2)}</option>
                   ))}
                 </select>
               </div>
@@ -910,7 +935,7 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
                   boxShadow: "0 4px 12px rgba(139,92,246,0.30)",
                 }}
               >
-                {ticketBuying ? 'Processing...' : `🎟️ Buy ${ticketBuyCount} Ticket${ticketBuyCount > 1 ? 's' : ''}`}
+                {ticketBuying ? 'Processing...' : `🎡 Enter ${ticketBuyCount} Spot${ticketBuyCount > 1 ? 's' : ''}`}
               </button>
             </div>
           )}
@@ -918,15 +943,15 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
           {/* Sold out */}
           {!ticketEventEnded && (ticketEvent.totalSpots - ticketEvent.spotsTaken) <= 0 && ticketUserSpots === 0 && (
             <div style={{ textAlign: "center", padding: "12px", background: "rgba(239,68,68,0.08)", borderRadius: 10, border: "1px solid rgba(239,68,68,0.20)" }}>
-              <div style={{ fontSize: 15, fontWeight: 900, color: "#dc2626" }}>🚫 Sold Out!</div>
-              <div style={{ fontSize: 12, fontWeight: 700, color: "#6b7280", marginTop: 4 }}>All spots have been claimed.</div>
+              <div style={{ fontSize: 15, fontWeight: 900, color: "#dc2626" }}>🚫 All Spots Taken!</div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "#6b7280", marginTop: 4 }}>All entries have been claimed for this spin.</div>
             </div>
           )}
 
           {/* Event ended — show results */}
           {ticketEventEnded && ticketSpinResults.length > 0 && (
             <div style={{ display: "grid", gap: 8 }}>
-              <div style={{ fontSize: 15, fontWeight: 900, color: "#16a34a", textAlign: "center" }}>🎉 Your Results!</div>
+              <div style={{ fontSize: 15, fontWeight: 900, color: "#16a34a", textAlign: "center" }}>🎉 Spin Results!</div>
               {ticketSpinResults.map((r: any, i: number) => (
                 <div key={i} style={{
                   background: "white",
@@ -941,6 +966,11 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
                       {r.code}
                     </div>
                   )}
+                  {ticketEvent.validFrom && (
+                    <div style={{ marginTop: 6, fontSize: 12, fontWeight: 700, color: "#6b7280" }}>
+                      Valid: {ticketEvent.validFrom}{ticketEvent.validTo && ticketEvent.validTo !== ticketEvent.validFrom ? ` – ${ticketEvent.validTo}` : ''}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -949,7 +979,12 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
           {/* Event ended but no results yet (user didn't have spots) */}
           {ticketEventEnded && ticketSpinResults.length === 0 && ticketUserSpots === 0 && (
             <div style={{ textAlign: "center", padding: "12px", background: "rgba(0,0,0,0.04)", borderRadius: 10 }}>
-              <div style={{ fontSize: 14, fontWeight: 800, color: "#6b7280" }}>This event has ended.</div>
+              <div style={{ fontSize: 14, fontWeight: 800, color: "#6b7280" }}>This spin event has ended.</div>
+              {ticketEvent.recurring && ticketEvent.recurrencePattern && (
+                <div style={{ fontSize: 12, fontWeight: 700, color: "#7c3aed", marginTop: 6 }}>
+                  🔄 Next event: {ticketEvent.recurrencePattern} — check back soon!
+                </div>
+              )}
             </div>
           )}
 
@@ -987,20 +1022,22 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
       {/* Ticket event loading state */}
       {initialEventId && ticketEventLoading && (
         <div style={{ textAlign: "center", padding: "20px", fontWeight: 800, color: "#7c3aed" }}>
-          Loading ticket event...
+          Loading event...
         </div>
       )}
 
-      {/* Normal wheel flow (hidden when in ticket event mode) */}
-      {!initialEventId && (
+      {/* Normal wheel flow — show for regular merchants OR for event pages (wheel is visual only in event mode) */}
+      {(!initialEventId || (initialEventId && ticketEvent)) && (
         <>
-      {/* Unlock limit note */}
+      {/* Unlock limit note — hide in event mode */}
+      {!initialEventId && (
       <div style={{ fontSize: 12, opacity: 0.6, fontWeight: 700, textAlign: "center" }}>
         Limit: <b>3 unlocks/day</b> per merchant
       </div>
+      )}
 
-      {/* Wheel selector tabs (only shown when merchant has multiple wheels) */}
-      {merchantWheels.length > 1 && (
+      {/* Wheel selector tabs (only shown when merchant has multiple wheels, hidden in event mode) */}
+      {!initialEventId && merchantWheels.length > 1 && (
         <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
           {merchantWheels.map((wc, idx) => {
             const label = wc.spinPriceCents === 135 ? "$1.35"
@@ -1045,8 +1082,8 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
         </div>
       )}
 
-      {/* Free deal proximity gate banner */}
-      {isFreeSpinWheel && (
+      {/* Free deal proximity gate banner — hidden in event mode */}
+      {!initialEventId && isFreeSpinWheel && (
         <div style={{
           background: "linear-gradient(135deg, #fff7ed, #ffedd5)",
           border: "2px solid #f97316",
@@ -1166,7 +1203,32 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
 
       {/* Wheel — hidden behind geo gate if free deal and not within range */}
       <div id="wheel-section" ref={wheelContainerRef} style={{ display: "flex", justifyContent: "center", position: "relative", width: "100%", overflow: "visible" }}>
-        {isFreeSpinWheel && userPos && !freeSpinGatePassed && (
+        {/* Event mode overlay — wheel is visual only, spins at scheduled time */}
+        {initialEventId && ticketEvent && !ticketEventEnded && (
+          <div style={{
+            position: "absolute",
+            inset: 0,
+            background: "rgba(139,92,246,0.08)",
+            backdropFilter: "blur(1px)",
+            borderRadius: 16,
+            zIndex: 10,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexDirection: "column",
+            gap: 4,
+            fontSize: 14,
+            fontWeight: 900,
+            color: "#6b21a8",
+            textAlign: "center",
+            padding: 16,
+          }}>
+            <span style={{ fontSize: 28 }}>🎡</span>
+            <span>Spins at the scheduled time</span>
+            <span style={{ fontSize: 11, fontWeight: 700, color: "#7c3aed" }}>Everyone who entered spins together</span>
+          </div>
+        )}
+        {!initialEventId && isFreeSpinWheel && userPos && !freeSpinGatePassed && (
           <div style={{
             position: "absolute",
             inset: 0,
@@ -1189,9 +1251,10 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
           merchantId={selectedMerchant.id}
           merchantName={(selectedMerchant as any)?.name ?? undefined}
           uid={uid ?? undefined}
-          spinPriceCents={isFreeSpinWheel && freeSpinGatePassed ? 0 : (activeWheel?.spinPriceCents ?? 135)}
-          isFreeSpinBoost={isFreeSpinWheel && freeSpinGatePassed}
+          spinPriceCents={initialEventId ? 99999 : (isFreeSpinWheel && freeSpinGatePassed ? 0 : (activeWheel?.spinPriceCents ?? 135))}
+          isFreeSpinBoost={!initialEventId && isFreeSpinWheel && freeSpinGatePassed}
           onPaymentVerified={(priceCents) => {
+            if (initialEventId) return; // no payment in event mode
             // Lock the tier tabs to the tier that was actually paid
             setPaidTierCents(priceCents);
             // Also auto-select the correct wheel tab for this tier
@@ -1199,6 +1262,7 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
             if (idx >= 0) setSelectedWheelIdx(idx);
           }}
           onSpinLand={(label) => {
+            if (initialEventId) return; // no spin in event mode
             // ✅ Fire celebration INSTANTLY when wheel stops — no server delay
             const totalWeight = wheelItems.reduce((s, it) => s + (Number(it.weight) || 0), 0);
             const winningItem = wheelItems.find((it) => it.label === label);
@@ -1210,6 +1274,7 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
             setCelebrationVisible(true);
           }}
           onResult={(label, extra) => {
+            if (initialEventId) return; // no result in event mode
             setSpinError(null);
             setEmailInput("");
             setEmailStatus(null);

@@ -32,6 +32,8 @@ export async function POST(req: Request) {
       recurring = false,
       recurrencePattern,
       recurrenceDays,
+      validFrom,
+      validTo,
     } = body;
 
     // Validate required fields
@@ -114,6 +116,8 @@ export async function POST(req: Request) {
       spotsTaken: 0,
       spinTime: spinDate.toISOString(),
       eventDate,
+      validFrom: validFrom || eventDate,
+      validTo: validTo || eventDate,
       spotPriceCents: Number(spotPriceCents),
       recurring: !!recurring,
       recurrencePattern: recurring ? (recurrencePattern || 'weekly') : null,
