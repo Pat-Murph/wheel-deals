@@ -11,6 +11,7 @@ import { app } from "../lib/firebase";
 
 type Props = {
   initialMerchantId?: string;
+  initialEventId?: string;
 };
 
 function titleCase(s: string) {
@@ -52,7 +53,7 @@ function normalizeUrl(url: string): string {
   return "https://" + url;
 }
 
-export default function WheelDealsClient({ initialMerchantId }: Props) {
+export default function WheelDealsClient({ initialMerchantId, initialEventId }: Props) {
   const [uid, setUid] = useState<string | null>(null);
 
   useEffect(() => {
@@ -103,6 +104,17 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
   const [userPos, setUserPos] = useState<{ lat: number; lng: number } | null>(null);
   const [geoChecking, setGeoChecking] = useState(false);
   const [geoError, setGeoError] = useState<string | null>(null);
+
+  // Ticket Event state
+  const [ticketEvent, setTicketEvent] = useState<any>(null);
+  const [ticketEventLoading, setTicketEventLoading] = useState(!!initialEventId);
+  const [ticketUserSpots, setTicketUserSpots] = useState(0);
+  const [ticketBuyCount, setTicketBuyCount] = useState(1);
+  const [ticketBuying, setTicketBuying] = useState(false);
+  const [ticketError, setTicketError] = useState<string | null>(null);
+  const [ticketCountdown, setTicketCountdown] = useState('');
+  const [ticketSpinResults, setTicketSpinResults] = useState<any[]>([]);
+  const [ticketEventEnded, setTicketEventEnded] = useState(false);
 
   async function sendCodeByEmail() {
     if (!emailInput.trim() || !issuedCode) return;
@@ -317,6 +329,132 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
       );
     });
   }
+
+  // ===== TICKET EVENT LOGIC =====
+  // Load ticket event data when eventId is provided
+  useEffect(() => {
+    if (!initialEventId || !uid) return;
+    setTicketEventLoading(true);
+    fetch(`/api/ticket-events/status?eventId=${initialEventId}&uid=${uid}`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.ok && data.event) {
+          setTicketEvent(data.event);
+          setTicketUserSpots(data.userSpots || 0);
+          // Check if event has ended
+          if (data.event.status === 'completed' || data.event.status === 'spinning') {
+            setTicketEventEnded(true);
+          } else if (new Date(data.event.spinTime).getTime() <= Date.now()) {
+            setTicketEventEnded(true);
+          }
+        }
+      })
+      .catch(() => {})
+      .finally(() => setTicketEventLoading(false));
+  }, [initialEventId, uid]);
+
+  // Countdown timer for ticket events
+  useEffect(() => {
+    if (!ticketEvent || ticketEventEnded) return;
+    const interval = setInterval(() => {
+      const spinTime = new Date(ticketEvent.spinTime).getTime();
+      const msLeft = spinTime - Date.now();
+      if (msLeft <= 0) {
+        setTicketCountdown('Spinning now!');
+        setTicketEventEnded(true);
+        clearInterval(interval);
+        // Auto-trigger spin
+        triggerTicketSpin();
+        return;
+      }
+      const totalSec = Math.floor(msLeft / 1000);
+      const h = Math.floor(totalSec / 3600);
+      const m = Math.floor((totalSec % 3600) / 60);
+      const s = totalSec % 60;
+      setTicketCountdown(
+        h > 0 ? `${h}h ${m}m ${s}s` : m > 0 ? `${m}m ${s}s` : `${s}s`
+      );
+    }, 1000);
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ticketEvent, ticketEventEnded]);
+
+  async function triggerTicketSpin() {
+    if (!initialEventId || !uid) return;
+    try {
+      const res = await fetch('/api/ticket-events/spin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ eventId: initialEventId, uid }),
+      });
+      const data = await res.json();
+      if (data.ok && data.results) {
+        // Filter results for this user
+        const myResults = data.results.filter((r: any) => r.uid === uid);
+        setTicketSpinResults(myResults);
+      }
+    } catch {
+      // If spin already happened, try to get results
+      setTicketError('Spin completed — check your results!');
+    }
+  }
+
+  async function buyTicketSpots() {
+    if (!initialEventId || !uid || !selectedMerchant) return;
+    setTicketBuying(true);
+    setTicketError(null);
+    try {
+      const res = await fetch('/api/ticket-events/enter', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          eventId: initialEventId,
+          uid,
+          spotCount: ticketBuyCount,
+          returnUrl: window.location.href,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error ?? 'Could not purchase tickets');
+      if (data.checkoutUrl) {
+        window.location.href = data.checkoutUrl;
+      } else if (data.ok) {
+        // Free entry or already handled
+        setTicketUserSpots(prev => prev + ticketBuyCount);
+        // Reload event data
+        const statusRes = await fetch(`/api/ticket-events/status?eventId=${initialEventId}&uid=${uid}`);
+        const statusData = await statusRes.json();
+        if (statusData.ok && statusData.event) setTicketEvent(statusData.event);
+      }
+    } catch (e: any) {
+      setTicketError(e?.message ?? 'Purchase failed');
+    } finally {
+      setTicketBuying(false);
+    }
+  }
+
+  // Check for ticket event payment return (event_success in URL)
+  useEffect(() => {
+    if (!initialEventId || !uid) return;
+    const params = new URLSearchParams(window.location.search);
+    const eventSuccess = params.get('event_success');
+    if (!eventSuccess) return;
+    // Reload event data to get updated spots
+    fetch(`/api/ticket-events/status?eventId=${initialEventId}&uid=${uid}`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.ok && data.event) {
+          setTicketEvent(data.event);
+          setTicketUserSpots(data.userSpots || 0);
+        }
+      })
+      .catch(() => {});
+    // Clean URL
+    const url = new URL(window.location.href);
+    url.searchParams.delete('event_success');
+    window.history.replaceState({}, '', url.toString());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialEventId, uid]);
 
   async function sendSupportMessage() {
     if (!supportMsg.trim()) return;
@@ -670,6 +808,192 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
         </div>
       </div>
 
+      {/* ===== TICKET EVENT MODE ===== */}
+      {initialEventId && ticketEvent && (
+        <div style={{
+          background: "linear-gradient(135deg, #faf5ff 0%, #ede9fe 50%, #ddd6fe 100%)",
+          border: "2px solid #8b5cf6",
+          borderRadius: 16,
+          padding: "18px 16px",
+          display: "flex",
+          flexDirection: "column",
+          gap: 12,
+        }}>
+          {/* Event header */}
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ fontSize: 24 }}>🎟️</span>
+            <div>
+              <div style={{ fontSize: 16, fontWeight: 900, color: "#6b21a8" }}>Ticket Event</div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "#7c3aed" }}>
+                📅 {ticketEvent.eventDate}
+              </div>
+            </div>
+          </div>
+
+          {/* Countdown */}
+          {!ticketEventEnded && (
+            <div style={{ textAlign: "center", padding: "12px 0" }}>
+              <div style={{ fontSize: 12, fontWeight: 800, color: "#6b7280", marginBottom: 4 }}>Wheel spins in</div>
+              <div style={{ fontSize: 28, fontWeight: 1000, color: "#7c3aed", fontFamily: "ui-monospace, monospace" }}>
+                {ticketCountdown || 'Loading...'}
+              </div>
+            </div>
+          )}
+
+          {/* Spots progress */}
+          <div>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, fontWeight: 800, marginBottom: 4 }}>
+              <span style={{ color: (ticketEvent.totalSpots - ticketEvent.spotsTaken) <= 5 ? "#dc2626" : "#7c3aed" }}>
+                {ticketEvent.totalSpots - ticketEvent.spotsTaken} spots left
+              </span>
+              <span style={{ color: "#6b7280" }}>{ticketEvent.spotsTaken}/{ticketEvent.totalSpots} claimed</span>
+            </div>
+            <div style={{ height: 10, borderRadius: 5, background: "rgba(139,92,246,0.15)", overflow: "hidden" }}>
+              <div style={{
+                height: "100%",
+                width: `${Math.round((ticketEvent.spotsTaken / ticketEvent.totalSpots) * 100)}%`,
+                background: "linear-gradient(90deg, #8b5cf6, #7c3aed)",
+                borderRadius: 5,
+                transition: "width 0.3s",
+              }} />
+            </div>
+          </div>
+
+          {/* User's spots */}
+          {ticketUserSpots > 0 && (
+            <div style={{
+              background: "rgba(34,197,94,0.10)",
+              border: "1px solid rgba(34,197,94,0.30)",
+              borderRadius: 12,
+              padding: "10px 14px",
+              textAlign: "center",
+            }}>
+              <div style={{ fontSize: 14, fontWeight: 900, color: "#16a34a" }}>
+                ✅ You have {ticketUserSpots} spot{ticketUserSpots > 1 ? 's' : ''} in this event!
+              </div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "#6b7280", marginTop: 4 }}>
+                {ticketEventEnded ? 'The wheel has spun!' : 'Your wheel will spin automatically at the scheduled time.'}
+              </div>
+            </div>
+          )}
+
+          {/* Buy spots (only if event is active and not ended) */}
+          {!ticketEventEnded && ticketUserSpots < 4 && (ticketEvent.totalSpots - ticketEvent.spotsTaken) > 0 && (
+            <div style={{ display: "grid", gap: 10 }}>
+              <div style={{ fontSize: 13, fontWeight: 800, color: "#374151" }}>
+                Buy tickets — ${(ticketEvent.spotPriceCents / 100).toFixed(2)} each (max 4 per person)
+              </div>
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <label style={{ fontSize: 13, fontWeight: 800, color: "#6b7280" }}>Qty:</label>
+                <select
+                  value={ticketBuyCount}
+                  onChange={(e) => setTicketBuyCount(Number(e.target.value))}
+                  style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid #ddd", fontSize: 14, fontWeight: 800, background: "#fff" }}
+                >
+                  {Array.from({ length: Math.min(4 - ticketUserSpots, ticketEvent.totalSpots - ticketEvent.spotsTaken) }, (_, i) => i + 1).map(n => (
+                    <option key={n} value={n}>{n} ticket{n > 1 ? 's' : ''} — ${((ticketEvent.spotPriceCents * n) / 100).toFixed(2)}</option>
+                  ))}
+                </select>
+              </div>
+              <button
+                onClick={buyTicketSpots}
+                disabled={ticketBuying}
+                style={{
+                  padding: "14px 20px",
+                  borderRadius: 12,
+                  border: "none",
+                  fontWeight: 900,
+                  fontSize: 15,
+                  cursor: ticketBuying ? "not-allowed" : "pointer",
+                  background: "linear-gradient(180deg, #8b5cf6, #7c3aed)",
+                  color: "#fff",
+                  boxShadow: "0 4px 12px rgba(139,92,246,0.30)",
+                }}
+              >
+                {ticketBuying ? 'Processing...' : `🎟️ Buy ${ticketBuyCount} Ticket${ticketBuyCount > 1 ? 's' : ''}`}
+              </button>
+            </div>
+          )}
+
+          {/* Sold out */}
+          {!ticketEventEnded && (ticketEvent.totalSpots - ticketEvent.spotsTaken) <= 0 && ticketUserSpots === 0 && (
+            <div style={{ textAlign: "center", padding: "12px", background: "rgba(239,68,68,0.08)", borderRadius: 10, border: "1px solid rgba(239,68,68,0.20)" }}>
+              <div style={{ fontSize: 15, fontWeight: 900, color: "#dc2626" }}>🚫 Sold Out!</div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "#6b7280", marginTop: 4 }}>All spots have been claimed.</div>
+            </div>
+          )}
+
+          {/* Event ended — show results */}
+          {ticketEventEnded && ticketSpinResults.length > 0 && (
+            <div style={{ display: "grid", gap: 8 }}>
+              <div style={{ fontSize: 15, fontWeight: 900, color: "#16a34a", textAlign: "center" }}>🎉 Your Results!</div>
+              {ticketSpinResults.map((r: any, i: number) => (
+                <div key={i} style={{
+                  background: "white",
+                  border: "1px solid #bbf7d0",
+                  borderRadius: 12,
+                  padding: "12px 14px",
+                  textAlign: "center",
+                }}>
+                  <div style={{ fontSize: 16, fontWeight: 900, color: "#15803d" }}>{r.prize}</div>
+                  {r.code && (
+                    <div style={{ marginTop: 6, fontFamily: "ui-monospace, monospace", fontSize: 18, fontWeight: 1000, letterSpacing: 2 }}>
+                      {r.code}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Event ended but no results yet (user didn't have spots) */}
+          {ticketEventEnded && ticketSpinResults.length === 0 && ticketUserSpots === 0 && (
+            <div style={{ textAlign: "center", padding: "12px", background: "rgba(0,0,0,0.04)", borderRadius: 10 }}>
+              <div style={{ fontSize: 14, fontWeight: 800, color: "#6b7280" }}>This event has ended.</div>
+            </div>
+          )}
+
+          {/* Event ended, user had spots but results not loaded yet */}
+          {ticketEventEnded && ticketSpinResults.length === 0 && ticketUserSpots > 0 && (
+            <div style={{ textAlign: "center", padding: "12px" }}>
+              <div style={{ fontSize: 14, fontWeight: 800, color: "#7c3aed" }}>⏳ Resolving your spin results...</div>
+              <button
+                onClick={triggerTicketSpin}
+                style={{
+                  marginTop: 8,
+                  padding: "10px 20px",
+                  borderRadius: 10,
+                  border: "1px solid #8b5cf6",
+                  fontWeight: 800,
+                  fontSize: 13,
+                  cursor: "pointer",
+                  background: "white",
+                  color: "#7c3aed",
+                }}
+              >
+                Check Results
+              </button>
+            </div>
+          )}
+
+          {ticketError && (
+            <div style={{ padding: "10px 14px", borderRadius: 10, background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.20)", fontWeight: 800, fontSize: 13, color: "#dc2626" }}>
+              {ticketError}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Ticket event loading state */}
+      {initialEventId && ticketEventLoading && (
+        <div style={{ textAlign: "center", padding: "20px", fontWeight: 800, color: "#7c3aed" }}>
+          Loading ticket event...
+        </div>
+      )}
+
+      {/* Normal wheel flow (hidden when in ticket event mode) */}
+      {!initialEventId && (
+        <>
       {/* Unlock limit note */}
       <div style={{ fontSize: 12, opacity: 0.6, fontWeight: 700, textAlign: "center" }}>
         Limit: <b>3 unlocks/day</b> per merchant
@@ -904,6 +1228,9 @@ export default function WheelDealsClient({ initialMerchantId }: Props) {
         <div style={{ padding: 12, borderRadius: 14, border: "1px solid rgba(239,68,68,0.25)", background: "rgba(239,68,68,0.08)", fontWeight: 900, textAlign: "center", fontSize: 14 }}>
           {spinError}
         </div>
+      )}
+
+      </>
       )}
 
       {issuedCode && (

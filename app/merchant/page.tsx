@@ -41,6 +41,7 @@ import {
 type MerchantDoc = {
   name?: string;
   about?: string;
+  category?: string;
   photoUrls?: string[];
   active?: boolean;
   ownerUid?: string;
@@ -326,6 +327,18 @@ export default function MerchantDashboardPage() {
   const [boostWheelPriceCents, setBoostWheelPriceCents] = useState<number>(135);
   const [boostMode, setBoostMode] = useState<'checkin' | 'always'>('checkin');
   const [boostBusy, setBoostBusy] = useState(false);
+
+  // Ticket Events
+  const [ticketEvents, setTicketEvents] = useState<any[]>([]);
+  const [ticketEventsLoading, setTicketEventsLoading] = useState(false);
+  const [showCreateEvent, setShowCreateEvent] = useState(false);
+  const [newEventSpots, setNewEventSpots] = useState(20);
+  const [newEventDate, setNewEventDate] = useState('');
+  const [newEventSpinTime, setNewEventSpinTime] = useState('');
+  const [newEventRecurring, setNewEventRecurring] = useState(false);
+  const [newEventRecurrencePattern, setNewEventRecurrencePattern] = useState<'daily' | 'weekly' | 'biweekly' | 'monthly'>('weekly');
+  const [newEventPriceCents, setNewEventPriceCents] = useState(135);
+  const [createEventBusy, setCreateEventBusy] = useState(false);
 
   /* ---------- AUTH ---------- */
   useEffect(() => {
@@ -1069,6 +1082,40 @@ export default function MerchantDashboardPage() {
         )}
       </div>
 
+      {/* Ticket Events — only for "tickets and events" category */}
+      {(merchant.category || '').toLowerCase().trim() === 'tickets and events' && (
+        <TicketEventSection
+          merchantId={merchantId}
+          uid={user.uid}
+          merchant={merchant}
+          ticketEvents={ticketEvents}
+          setTicketEvents={setTicketEvents}
+          ticketEventsLoading={ticketEventsLoading}
+          setTicketEventsLoading={setTicketEventsLoading}
+          showCreateEvent={showCreateEvent}
+          setShowCreateEvent={setShowCreateEvent}
+          newEventSpots={newEventSpots}
+          setNewEventSpots={setNewEventSpots}
+          newEventDate={newEventDate}
+          setNewEventDate={setNewEventDate}
+          newEventSpinTime={newEventSpinTime}
+          setNewEventSpinTime={setNewEventSpinTime}
+          newEventRecurring={newEventRecurring}
+          setNewEventRecurring={setNewEventRecurring}
+          newEventRecurrencePattern={newEventRecurrencePattern}
+          setNewEventRecurrencePattern={setNewEventRecurrencePattern}
+          newEventPriceCents={newEventPriceCents}
+          setNewEventPriceCents={setNewEventPriceCents}
+          createEventBusy={createEventBusy}
+          setCreateEventBusy={setCreateEventBusy}
+          setStatus={setStatus}
+          card={card}
+          btnPrimary={btnPrimary}
+          btnSecondary={btnSecondary}
+          btnDanger={btnDanger}
+        />
+      )}
+
       {/* Stats */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px,1fr))", gap: 10 }}>
         <Stat title="Unlocks today" value={String(spinsToday)} />
@@ -1260,6 +1307,319 @@ function Stat(props: { title: string; value: string }) {
     >
       <div style={{ fontWeight: 900, opacity: 0.7 }}>{props.title}</div>
       <div style={{ fontSize: 24, fontWeight: 1000 }}>{props.value}</div>
+    </div>
+  );
+}
+
+/* ============== TICKET EVENT SECTION ============== */
+function TicketEventSection(props: {
+  merchantId: string;
+  uid: string;
+  merchant: MerchantDoc;
+  ticketEvents: any[];
+  setTicketEvents: (v: any[]) => void;
+  ticketEventsLoading: boolean;
+  setTicketEventsLoading: (v: boolean) => void;
+  showCreateEvent: boolean;
+  setShowCreateEvent: (v: boolean) => void;
+  newEventSpots: number;
+  setNewEventSpots: (v: number) => void;
+  newEventDate: string;
+  setNewEventDate: (v: string) => void;
+  newEventSpinTime: string;
+  setNewEventSpinTime: (v: string) => void;
+  newEventRecurring: boolean;
+  setNewEventRecurring: (v: boolean) => void;
+  newEventRecurrencePattern: 'daily' | 'weekly' | 'biweekly' | 'monthly';
+  setNewEventRecurrencePattern: (v: 'daily' | 'weekly' | 'biweekly' | 'monthly') => void;
+  newEventPriceCents: number;
+  setNewEventPriceCents: (v: number) => void;
+  createEventBusy: boolean;
+  setCreateEventBusy: (v: boolean) => void;
+  setStatus: (v: string | null) => void;
+  card: () => React.CSSProperties;
+  btnPrimary: (disabled?: boolean) => React.CSSProperties;
+  btnSecondary: (disabled?: boolean) => React.CSSProperties;
+  btnDanger: (disabled?: boolean) => React.CSSProperties;
+}) {
+  const {
+    merchantId, uid, merchant,
+    ticketEvents, setTicketEvents,
+    ticketEventsLoading, setTicketEventsLoading,
+    showCreateEvent, setShowCreateEvent,
+    newEventSpots, setNewEventSpots,
+    newEventDate, setNewEventDate,
+    newEventSpinTime, setNewEventSpinTime,
+    newEventRecurring, setNewEventRecurring,
+    newEventRecurrencePattern, setNewEventRecurrencePattern,
+    newEventPriceCents, setNewEventPriceCents,
+    createEventBusy, setCreateEventBusy,
+    setStatus,
+    card, btnPrimary, btnSecondary, btnDanger,
+  } = props;
+
+  // Load events on mount
+  useEffect(() => {
+    loadEvents();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [merchantId]);
+
+  async function loadEvents() {
+    setTicketEventsLoading(true);
+    try {
+      const res = await fetch(`/api/ticket-events/status?merchantId=${merchantId}`);
+      const data = await res.json();
+      if (data.ok) setTicketEvents(data.events || []);
+    } catch {
+      // silent
+    } finally {
+      setTicketEventsLoading(false);
+    }
+  }
+
+  async function createEvent() {
+    if (!newEventDate || !newEventSpinTime) {
+      setStatus("❌ Please set both the event date and spin time.");
+      return;
+    }
+
+    // Combine date + time into ISO string
+    const spinTimeISO = new Date(`${newEventDate}T${newEventSpinTime}:00`).toISOString();
+
+    if (new Date(spinTimeISO).getTime() <= Date.now()) {
+      setStatus("❌ Spin time must be in the future.");
+      return;
+    }
+
+    setCreateEventBusy(true);
+    setStatus(null);
+    try {
+      const res = await fetch("/api/ticket-events/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          merchantId,
+          uid,
+          totalSpots: newEventSpots,
+          spinTime: spinTimeISO,
+          eventDate: newEventDate,
+          spotPriceCents: newEventPriceCents,
+          recurring: newEventRecurring,
+          recurrencePattern: newEventRecurring ? newEventRecurrencePattern : undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error ?? "Could not create event");
+      setStatus("🎟️ Ticket event created! It's now live on the Discover page.");
+      setShowCreateEvent(false);
+      setNewEventDate('');
+      setNewEventSpinTime('');
+      loadEvents();
+    } catch (e: any) {
+      setStatus(e?.message ?? "Failed to create event.");
+    } finally {
+      setCreateEventBusy(false);
+    }
+  }
+
+  async function manageEvent(eventId: string, action: 'pause' | 'resume' | 'cancel') {
+    try {
+      const res = await fetch("/api/ticket-events/manage", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ eventId, uid, action }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error ?? "Action failed");
+      setStatus(`✅ Event ${action}d successfully.`);
+      loadEvents();
+    } catch (e: any) {
+      setStatus(e?.message ?? "Action failed.");
+    }
+  }
+
+  function formatEventTime(iso: string) {
+    try {
+      return new Date(iso).toLocaleString(undefined, {
+        month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
+      });
+    } catch { return iso; }
+  }
+
+  // Get tomorrow's date as minimum for date picker
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const tomorrowStr = tomorrow.toISOString().split('T')[0];
+
+  // Today as minimum (allow same-day events)
+  const todayStr = new Date().toISOString().split('T')[0];
+
+  return (
+    <div style={{ ...card(), border: "2px solid #8b5cf6" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 950, fontSize: 16 }}>
+        <span style={{ fontSize: 22 }}>🎟️</span>
+        Ticket Events
+      </div>
+
+      <div style={{ marginTop: 8, fontSize: 13, color: "#374151", lineHeight: 1.6 }}>
+        Create limited-ticket events with a countdown timer. Customers buy spots, and at the scheduled time, the wheel spins for everyone who entered. Creates scarcity and excitement!
+      </div>
+
+      {/* Active Events */}
+      {ticketEventsLoading ? (
+        <div style={{ marginTop: 12, fontSize: 13, fontWeight: 800, opacity: 0.7 }}>Loading events...</div>
+      ) : ticketEvents.length > 0 ? (
+        <div style={{ marginTop: 12, display: "grid", gap: 10 }}>
+          <div style={{ fontSize: 13, fontWeight: 900, color: "#6b21a8" }}>Active Events:</div>
+          {ticketEvents.map((ev: any) => (
+            <div key={ev.id} style={{
+              padding: "12px 14px",
+              borderRadius: 12,
+              background: "linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%)",
+              border: "1px solid #c4b5fd",
+            }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+                <div>
+                  <div style={{ fontWeight: 900, fontSize: 14 }}>
+                    📅 {ev.eventDate} • Spin: {formatEventTime(ev.spinTime)}
+                  </div>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: "#7c3aed", marginTop: 4 }}>
+                    🎫 {ev.spotsTaken}/{ev.totalSpots} spots taken • ${(ev.spotPriceCents / 100).toFixed(2)}/spot
+                  </div>
+                  {ev.recurring && (
+                    <div style={{ fontSize: 12, fontWeight: 700, color: "#6b7280", marginTop: 2 }}>
+                      🔄 Recurring: {ev.recurrencePattern}
+                    </div>
+                  )}
+                </div>
+                <div style={{ display: "flex", gap: 6 }}>
+                  <button
+                    onClick={() => manageEvent(ev.id, 'pause')}
+                    style={{ ...btnSecondary(false), padding: "6px 10px", fontSize: 12 }}
+                  >
+                    Pause
+                  </button>
+                  <button
+                    onClick={() => manageEvent(ev.id, 'cancel')}
+                    style={{ ...btnDanger(false), padding: "6px 10px", fontSize: 12 }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div style={{ marginTop: 12, fontSize: 13, fontWeight: 800, opacity: 0.7 }}>
+          No active ticket events. Create one below!
+        </div>
+      )}
+
+      {/* Create Event Form */}
+      {showCreateEvent ? (
+        <div style={{ marginTop: 14, display: "grid", gap: 12, padding: "14px", borderRadius: 12, background: "#faf5ff", border: "1px solid #e9d5ff" }}>
+          <div style={{ fontWeight: 900, fontSize: 15, color: "#6b21a8" }}>Create New Ticket Event</div>
+
+          <div style={{ display: "grid", gap: 6 }}>
+            <label style={{ fontSize: 13, fontWeight: 800 }}>Number of tickets available:</label>
+            <input
+              type="number"
+              min={1}
+              max={500}
+              value={newEventSpots}
+              onChange={(e) => setNewEventSpots(Math.max(1, Math.min(500, Number(e.target.value))))}
+              style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid #ddd", fontSize: 14, fontWeight: 800 }}
+            />
+          </div>
+
+          <div style={{ display: "grid", gap: 6 }}>
+            <label style={{ fontSize: 13, fontWeight: 800 }}>Event date:</label>
+            <input
+              type="date"
+              min={todayStr}
+              value={newEventDate}
+              onChange={(e) => setNewEventDate(e.target.value)}
+              style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid #ddd", fontSize: 14, fontWeight: 800 }}
+            />
+          </div>
+
+          <div style={{ display: "grid", gap: 6 }}>
+            <label style={{ fontSize: 13, fontWeight: 800 }}>Spin time (when the wheel spins for everyone):</label>
+            <input
+              type="time"
+              value={newEventSpinTime}
+              onChange={(e) => setNewEventSpinTime(e.target.value)}
+              style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid #ddd", fontSize: 14, fontWeight: 800 }}
+            />
+          </div>
+
+          <div style={{ display: "grid", gap: 6 }}>
+            <label style={{ fontSize: 13, fontWeight: 800 }}>Ticket price:</label>
+            <select
+              value={newEventPriceCents}
+              onChange={(e) => setNewEventPriceCents(Number(e.target.value))}
+              style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid #ddd", fontSize: 14, fontWeight: 800, background: "#fff" }}
+            >
+              {(merchant.wheels && merchant.wheels.length > 0 ? merchant.wheels : [{ spinPriceCents: 135 }]).map((w) => (
+                <option key={w.spinPriceCents} value={w.spinPriceCents}>
+                  ${(w.spinPriceCents / 100).toFixed(2)} per ticket
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <input
+              type="checkbox"
+              id="recurring"
+              checked={newEventRecurring}
+              onChange={(e) => setNewEventRecurring(e.target.checked)}
+              style={{ width: 18, height: 18 }}
+            />
+            <label htmlFor="recurring" style={{ fontSize: 13, fontWeight: 800 }}>Make this a recurring event</label>
+          </div>
+
+          {newEventRecurring && (
+            <div style={{ display: "grid", gap: 6 }}>
+              <label style={{ fontSize: 13, fontWeight: 800 }}>Repeat:</label>
+              <select
+                value={newEventRecurrencePattern}
+                onChange={(e) => setNewEventRecurrencePattern(e.target.value as any)}
+                style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid #ddd", fontSize: 14, fontWeight: 800, background: "#fff" }}
+              >
+                <option value="daily">Daily</option>
+                <option value="weekly">Weekly</option>
+                <option value="biweekly">Every 2 weeks</option>
+                <option value="monthly">Monthly</option>
+              </select>
+            </div>
+          )}
+
+          <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
+            <button
+              onClick={createEvent}
+              disabled={createEventBusy}
+              style={{ ...btnPrimary(createEventBusy), flex: 1 }}
+            >
+              {createEventBusy ? "Creating..." : "🎟️ Create Ticket Event"}
+            </button>
+            <button
+              onClick={() => setShowCreateEvent(false)}
+              style={{ ...btnSecondary(false), padding: "10px 16px" }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button
+          onClick={() => setShowCreateEvent(true)}
+          style={{ ...btnPrimary(false), marginTop: 12, width: "100%" }}
+        >
+          🎟️ Create Ticket Event
+        </button>
+      )}
     </div>
   );
 }
