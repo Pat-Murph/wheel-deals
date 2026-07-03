@@ -843,13 +843,12 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
         }}>
           {/* Event header */}
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ fontSize: 24 }}>🎡</span>
             <div>
-              <div style={{ fontSize: 16, fontWeight: 900, color: "#6b21a8" }}>Wheel Spin Event</div>
+              <div style={{ fontSize: 16, fontWeight: 900, color: "#6b21a8" }}>Limited Deal Unlock</div>
               <div style={{ fontSize: 12, fontWeight: 700, color: "#7c3aed" }}>
-                📅 Spins on {ticketEvent.eventDate}
+                Unlocks on {ticketEvent.eventDate}
                 {ticketEvent.validFrom && (
-                  <span> · Prize valid: {ticketEvent.validFrom}{ticketEvent.validTo && ticketEvent.validTo !== ticketEvent.validFrom ? ` – ${ticketEvent.validTo}` : ''}</span>
+                  <span> · Deal valid: {ticketEvent.validFrom}{ticketEvent.validTo && ticketEvent.validTo !== ticketEvent.validFrom ? ` – ${ticketEvent.validTo}` : ''}</span>
                 )}
               </div>
             </div>
@@ -858,7 +857,7 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
           {/* Countdown */}
           {!ticketEventEnded && (
             <div style={{ textAlign: "center", padding: "12px 0" }}>
-              <div style={{ fontSize: 12, fontWeight: 800, color: "#6b7280", marginBottom: 4 }}>Wheel spins in</div>
+              <div style={{ fontSize: 12, fontWeight: 800, color: "#6b7280", marginBottom: 4 }}>Deal unlocks in</div>
               <div style={{ fontSize: 28, fontWeight: 1000, color: "#7c3aed", fontFamily: "ui-monospace, monospace" }}>
                 {ticketCountdown || 'Loading...'}
               </div>
@@ -871,7 +870,7 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
               <span style={{ color: (ticketEvent.totalSpots - ticketEvent.spotsTaken) <= 5 ? "#dc2626" : "#7c3aed" }}>
                 {ticketEvent.totalSpots - ticketEvent.spotsTaken} spots left
               </span>
-              <span style={{ color: "#6b7280" }}>{ticketEvent.spotsTaken}/{ticketEvent.totalSpots} entered</span>
+              <span style={{ color: "#6b7280" }}>{ticketEvent.spotsTaken}/{ticketEvent.totalSpots} joined</span>
             </div>
             <div style={{ height: 10, borderRadius: 5, background: "rgba(139,92,246,0.15)", overflow: "hidden" }}>
               <div style={{
@@ -894,19 +893,19 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
               textAlign: "center",
             }}>
               <div style={{ fontSize: 14, fontWeight: 900, color: "#16a34a" }}>
-                ✅ You have {ticketUserSpots} entr{ticketUserSpots > 1 ? 'ies' : 'y'} in this spin!
+                ✅ You have {ticketUserSpots} spot{ticketUserSpots > 1 ? 's' : ''} reserved!
               </div>
               <div style={{ fontSize: 12, fontWeight: 700, color: "#6b7280", marginTop: 4 }}>
-                {ticketEventEnded ? 'The wheel has spun!' : 'The wheel spins for everyone at the scheduled time.'}
+                {ticketEventEnded ? 'Your deal has been unlocked!' : 'Deals unlock for everyone at the scheduled time.'}
               </div>
             </div>
           )}
 
-          {/* Enter the spin (only if event is active and not ended) */}
+          {/* Join the unlock (only if event is active and not ended) */}
           {!ticketEventEnded && ticketUserSpots < 4 && (ticketEvent.totalSpots - ticketEvent.spotsTaken) > 0 && (
             <div style={{ display: "grid", gap: 10 }}>
               <div style={{ fontSize: 13, fontWeight: 800, color: "#374151" }}>
-                Enter the spin — ${(ticketEvent.spotPriceCents / 100).toFixed(2)} each (max 4 per person)
+                Unlock a deal — ${(ticketEvent.spotPriceCents / 100).toFixed(2)} each (max 4 per person)
               </div>
               <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                 <label style={{ fontSize: 13, fontWeight: 800, color: "#6b7280" }}>Qty:</label>
@@ -916,7 +915,7 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
                   style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid #ddd", fontSize: 14, fontWeight: 800, background: "#fff" }}
                 >
                   {Array.from({ length: Math.min(4 - ticketUserSpots, ticketEvent.totalSpots - ticketEvent.spotsTaken) }, (_, i) => i + 1).map(n => (
-                    <option key={n} value={n}>{n} entr{n > 1 ? 'ies' : 'y'} — ${((ticketEvent.spotPriceCents * n) / 100).toFixed(2)}</option>
+                    <option key={n} value={n}>{n} spot{n > 1 ? 's' : ''} — ${((ticketEvent.spotPriceCents * n) / 100).toFixed(2)}</option>
                   ))}
                 </select>
               </div>
@@ -935,7 +934,7 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
                   boxShadow: "0 4px 12px rgba(139,92,246,0.30)",
                 }}
               >
-                {ticketBuying ? 'Processing...' : `🎡 Enter ${ticketBuyCount} Spot${ticketBuyCount > 1 ? 's' : ''}`}
+                {ticketBuying ? 'Processing...' : `Unlock ${ticketBuyCount} Spot${ticketBuyCount > 1 ? 's' : ''}`}
               </button>
             </div>
           )}
@@ -943,15 +942,15 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
           {/* Sold out */}
           {!ticketEventEnded && (ticketEvent.totalSpots - ticketEvent.spotsTaken) <= 0 && ticketUserSpots === 0 && (
             <div style={{ textAlign: "center", padding: "12px", background: "rgba(239,68,68,0.08)", borderRadius: 10, border: "1px solid rgba(239,68,68,0.20)" }}>
-              <div style={{ fontSize: 15, fontWeight: 900, color: "#dc2626" }}>🚫 All Spots Taken!</div>
-              <div style={{ fontSize: 12, fontWeight: 700, color: "#6b7280", marginTop: 4 }}>All entries have been claimed for this spin.</div>
+              <div style={{ fontSize: 15, fontWeight: 900, color: "#dc2626" }}>All Spots Taken!</div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "#6b7280", marginTop: 4 }}>All spots have been claimed for this unlock.</div>
             </div>
           )}
 
           {/* Event ended — show results */}
           {ticketEventEnded && ticketSpinResults.length > 0 && (
             <div style={{ display: "grid", gap: 8 }}>
-              <div style={{ fontSize: 15, fontWeight: 900, color: "#16a34a", textAlign: "center" }}>🎉 Spin Results!</div>
+              <div style={{ fontSize: 15, fontWeight: 900, color: "#16a34a", textAlign: "center" }}>Your Deal!</div>
               {ticketSpinResults.map((r: any, i: number) => (
                 <div key={i} style={{
                   background: "white",
@@ -979,7 +978,7 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
           {/* Event ended but no results yet (user didn't have spots) */}
           {ticketEventEnded && ticketSpinResults.length === 0 && ticketUserSpots === 0 && (
             <div style={{ textAlign: "center", padding: "12px", background: "rgba(0,0,0,0.04)", borderRadius: 10 }}>
-              <div style={{ fontSize: 14, fontWeight: 800, color: "#6b7280" }}>This spin event has ended.</div>
+              <div style={{ fontSize: 14, fontWeight: 800, color: "#6b7280" }}>This event has ended.</div>
               {ticketEvent.recurring && ticketEvent.recurrencePattern && (
                 <div style={{ fontSize: 12, fontWeight: 700, color: "#7c3aed", marginTop: 6 }}>
                   🔄 Next event: {ticketEvent.recurrencePattern} — check back soon!
@@ -991,7 +990,7 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
           {/* Event ended, user had spots but results not loaded yet */}
           {ticketEventEnded && ticketSpinResults.length === 0 && ticketUserSpots > 0 && (
             <div style={{ textAlign: "center", padding: "12px" }}>
-              <div style={{ fontSize: 14, fontWeight: 800, color: "#7c3aed" }}>⏳ Resolving your spin results...</div>
+              <div style={{ fontSize: 14, fontWeight: 800, color: "#7c3aed" }}>Resolving your deal...</div>
               <button
                 onClick={triggerTicketSpin}
                 style={{
@@ -1006,7 +1005,7 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
                   color: "#7c3aed",
                 }}
               >
-                Check Results
+                View Deal
               </button>
             </div>
           )}
@@ -1203,31 +1202,7 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
 
       {/* Wheel — hidden behind geo gate if free deal and not within range */}
       <div id="wheel-section" ref={wheelContainerRef} style={{ display: "flex", justifyContent: "center", position: "relative", width: "100%", overflow: "visible" }}>
-        {/* Event mode overlay — wheel is visual only, spins at scheduled time */}
-        {initialEventId && ticketEvent && !ticketEventEnded && (
-          <div style={{
-            position: "absolute",
-            inset: 0,
-            background: "rgba(139,92,246,0.08)",
-            backdropFilter: "blur(1px)",
-            borderRadius: 16,
-            zIndex: 10,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            flexDirection: "column",
-            gap: 4,
-            fontSize: 14,
-            fontWeight: 900,
-            color: "#6b21a8",
-            textAlign: "center",
-            padding: 16,
-          }}>
-            <span style={{ fontSize: 28 }}>🎡</span>
-            <span>Spins at the scheduled time</span>
-            <span style={{ fontSize: 11, fontWeight: 700, color: "#7c3aed" }}>Everyone who entered spins together</span>
-          </div>
-        )}
+        {/* Event mode — wheel is fully visible so customers can see possible deals */}
         {!initialEventId && isFreeSpinWheel && userPos && !freeSpinGatePassed && (
           <div style={{
             position: "absolute",

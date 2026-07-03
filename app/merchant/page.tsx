@@ -1391,7 +1391,7 @@ function TicketEventSection(props: {
 
   async function createEvent() {
     if (!newEventDate || !newEventSpinTime) {
-      setStatus("❌ Please set the spin date and time.");
+      setStatus("❌ Please set the unlock date and time.");
       return;
     }
 
@@ -1399,7 +1399,7 @@ function TicketEventSection(props: {
     const spinTimeISO = new Date(`${newEventDate}T${newEventSpinTime}:00`).toISOString();
 
     if (new Date(spinTimeISO).getTime() <= Date.now()) {
-      setStatus("❌ Spin date/time must be in the future.");
+      setStatus("❌ Unlock date/time must be in the future.");
       return;
     }
 
@@ -1424,7 +1424,7 @@ function TicketEventSection(props: {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error ?? "Could not create event");
-      setStatus("🎟️ Event created! It's now live on the Discover page.");
+      setStatus("Event created! It's now live on the Discover page.");
       setShowCreateEvent(false);
       setNewEventDate('');
       setNewEventSpinTime('');
@@ -1468,12 +1468,11 @@ function TicketEventSection(props: {
   return (
     <div style={{ ...card(), border: "2px solid #8b5cf6" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 950, fontSize: 16 }}>
-        <span style={{ fontSize: 22 }}>🎟️</span>
-        Wheel Spin Events
+        Limited Deal Events
       </div>
 
       <div style={{ marginTop: 8, fontSize: 13, color: "#374151", lineHeight: 1.6 }}>
-        Create limited-entry wheel spin events. Customers enter the spin, and at the scheduled time the wheel spins for everyone at once. The prize is valid for the date(s) you choose. Creates scarcity and excitement!
+        Create limited-spot deal events. Customers join to unlock a deal, and at the scheduled time the deal unlocks for everyone at once. The deal is valid for the date(s) you choose. Creates scarcity and excitement!
       </div>
 
       {/* Active Events */}
@@ -1492,14 +1491,14 @@ function TicketEventSection(props: {
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
                 <div>
                   <div style={{ fontWeight: 900, fontSize: 14 }}>
-                    🎡 Spin: {formatEventTime(ev.spinTime)}
+                    Unlocks: {formatEventTime(ev.spinTime)}
                   </div>
                   <div style={{ fontSize: 13, fontWeight: 800, color: "#7c3aed", marginTop: 4 }}>
-                    {ev.spotsTaken}/{ev.totalSpots} entries • ${(ev.spotPriceCents / 100).toFixed(2)}/entry
+                    {ev.spotsTaken}/{ev.totalSpots} joined • ${(ev.spotPriceCents / 100).toFixed(2)}/spot
                   </div>
                   {ev.validFrom && (
                     <div style={{ fontSize: 12, fontWeight: 700, color: "#6b7280", marginTop: 2 }}>
-                      📅 Prize valid: {ev.validFrom}{ev.validTo && ev.validTo !== ev.validFrom ? ` – ${ev.validTo}` : ''}
+                      Deal valid: {ev.validFrom}{ev.validTo && ev.validTo !== ev.validFrom ? ` – ${ev.validTo}` : ''}
                     </div>
                   )}
                   {ev.recurring && (
@@ -1535,10 +1534,10 @@ function TicketEventSection(props: {
       {/* Create Event Form */}
       {showCreateEvent ? (
         <div style={{ marginTop: 14, display: "grid", gap: 12, padding: "14px", borderRadius: 12, background: "#faf5ff", border: "1px solid #e9d5ff" }}>
-          <div style={{ fontWeight: 900, fontSize: 15, color: "#6b21a8" }}>Create New Spin Event</div>
+          <div style={{ fontWeight: 900, fontSize: 15, color: "#6b21a8" }}>Create New Limited Deal Event</div>
 
           <div style={{ display: "grid", gap: 6 }}>
-            <label style={{ fontSize: 13, fontWeight: 800 }}>Number of entries available:</label>
+            <label style={{ fontSize: 13, fontWeight: 800 }}>Number of spots available:</label>
             <input
               type="number"
               min={1}
@@ -1550,7 +1549,7 @@ function TicketEventSection(props: {
           </div>
 
           <div style={{ display: "grid", gap: 6 }}>
-            <label style={{ fontSize: 13, fontWeight: 800 }}>When does the wheel spin? (date):</label>
+            <label style={{ fontSize: 13, fontWeight: 800 }}>When does the deal unlock? (date):</label>
             <input
               type="date"
               min={todayStr}
@@ -1561,7 +1560,7 @@ function TicketEventSection(props: {
           </div>
 
           <div style={{ display: "grid", gap: 6 }}>
-            <label style={{ fontSize: 13, fontWeight: 800 }}>Spin time (what time does it spin?):</label>
+            <label style={{ fontSize: 13, fontWeight: 800 }}>Unlock time (what time does it unlock?):</label>
             <input
               type="time"
               value={newEventSpinTime}
@@ -1579,7 +1578,7 @@ function TicketEventSection(props: {
               onChange={(e) => setNewEventValidFrom(e.target.value)}
               style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid #ddd", fontSize: 14, fontWeight: 800 }}
             />
-            <div style={{ fontSize: 11, color: "#6b7280", fontWeight: 600 }}>When can the winner redeem? (defaults to spin date if empty)</div>
+            <div style={{ fontSize: 11, color: "#6b7280", fontWeight: 600 }}>When can the winner redeem? (defaults to unlock date if empty)</div>
           </div>
 
           <div style={{ display: "grid", gap: 6 }}>
@@ -1595,7 +1594,7 @@ function TicketEventSection(props: {
           </div>
 
           <div style={{ display: "grid", gap: 6 }}>
-            <label style={{ fontSize: 13, fontWeight: 800 }}>Entry price:</label>
+            <label style={{ fontSize: 13, fontWeight: 800 }}>Price per spot:</label>
             <select
               value={newEventPriceCents}
               onChange={(e) => setNewEventPriceCents(Number(e.target.value))}
@@ -1603,7 +1602,7 @@ function TicketEventSection(props: {
             >
               {(merchant.wheels && merchant.wheels.length > 0 ? merchant.wheels : [{ spinPriceCents: 135 }]).map((w) => (
                 <option key={w.spinPriceCents} value={w.spinPriceCents}>
-                  ${(w.spinPriceCents / 100).toFixed(2)} per entry
+                  ${(w.spinPriceCents / 100).toFixed(2)} per spot
                 </option>
               ))}
             </select>
@@ -1642,7 +1641,7 @@ function TicketEventSection(props: {
               disabled={createEventBusy}
               style={{ ...btnPrimary(createEventBusy), flex: 1 }}
             >
-              {createEventBusy ? "Creating..." : "🎡 Create Spin Event"}
+              {createEventBusy ? "Creating..." : "Create Event"}
             </button>
             <button
               onClick={() => setShowCreateEvent(false)}
@@ -1657,7 +1656,7 @@ function TicketEventSection(props: {
           onClick={() => setShowCreateEvent(true)}
           style={{ ...btnPrimary(false), marginTop: 12, width: "100%" }}
         >
-          🎡 Create Spin Event
+          Create Event
         </button>
       )}
     </div>

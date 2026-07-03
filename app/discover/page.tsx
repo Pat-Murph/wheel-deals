@@ -557,7 +557,7 @@ export default function DiscoverPage() {
       {ticketEvents.length > 0 && (
         <div style={{ padding: "12px 12px 0", display: "flex", flexDirection: "column", gap: 10 }}>
           {ticketEvents.filter((ev: any) => {
-            // Only show events that haven't passed spin time
+            // Only show events that haven't passed unlock time
             return new Date(ev.spinTime).getTime() > Date.now() && ev.status === 'active';
           }).map((ev: any) => {
             const spotsLeft = ev.totalSpots - ev.spotsTaken;
@@ -569,6 +569,9 @@ export default function DiscoverPage() {
             const secs = totalSec % 60;
             const countdown = hours > 0 ? `${hours}h ${mins}m ${secs}s` : mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
             const pctFull = Math.round((ev.spotsTaken / ev.totalSpots) * 100);
+            // Find merchant photo from loaded items
+            const matchedMerchant = items.find((m) => m.id === ev.merchantId);
+            const eventPhoto = matchedMerchant?.photoProcessedUrls?.[0] ?? matchedMerchant?.photoUrls?.[0] ?? null;
 
             return (
               <a
@@ -589,11 +592,20 @@ export default function DiscoverPage() {
               >
                 {/* Urgency badge */}
                 <div style={{ position: "absolute", top: 10, right: 10, background: "#7c3aed", color: "#fff", fontSize: 11, fontWeight: 900, padding: "3px 10px", borderRadius: 999, letterSpacing: 0.3 }}>
-                  🎡 LIMITED SPOTS
+                  LIMITED SPOTS
                 </div>
 
-                <div style={{ fontSize: 18, fontWeight: 900, lineHeight: 1.2, paddingRight: 110 }}>
-                  {ev.merchantName || 'Ticket Event'}
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  {eventPhoto && (
+                    <img
+                      src={eventPhoto}
+                      alt={ev.merchantName}
+                      style={{ width: 56, height: 56, borderRadius: 10, objectFit: "cover", border: "2px solid #c4b5fd" }}
+                    />
+                  )}
+                  <div style={{ fontSize: 18, fontWeight: 900, lineHeight: 1.2, paddingRight: 110 }}>
+                    {ev.merchantName || 'Limited Event'}
+                  </div>
                 </div>
 
                 <div style={{ display: "flex", alignItems: "center", gap: 14, marginTop: 10, flexWrap: "wrap" }}>
@@ -611,13 +623,13 @@ export default function DiscoverPage() {
                       <div style={{ height: "100%", width: `${pctFull}%`, background: "linear-gradient(90deg, #8b5cf6, #7c3aed)", borderRadius: 4, transition: "width 0.3s" }} />
                     </div>
                     <div style={{ fontSize: 11, fontWeight: 700, color: "#6b7280", marginTop: 3 }}>
-                      {ev.spotsTaken}/{ev.totalSpots} entered
+                      {ev.spotsTaken}/{ev.totalSpots} joined
                     </div>
                   </div>
 
                   {/* Countdown */}
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-                    <div style={{ fontSize: 11, fontWeight: 800, color: "#6b7280" }}>Spins in</div>
+                    <div style={{ fontSize: 11, fontWeight: 800, color: "#6b7280" }}>Unlocks in</div>
                     <div style={{ fontSize: 16, fontWeight: 1000, color: msLeft < 3600000 ? "#dc2626" : "#7c3aed", fontFamily: "ui-monospace, monospace" }}>
                       {countdown}
                     </div>
@@ -626,10 +638,10 @@ export default function DiscoverPage() {
 
                 <div style={{ marginTop: 10, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <div style={{ fontSize: 12, fontWeight: 700, color: "#6b7280" }}>
-                    ${(ev.spotPriceCents / 100).toFixed(2)}/entry • Up to 4 per person
+                    Up to 4 per person
                   </div>
                   <div style={{ fontSize: 13, fontWeight: 900, color: "#7c3aed", background: "rgba(139,92,246,0.10)", padding: "6px 12px", borderRadius: 8, border: "1px solid #c4b5fd" }}>
-                    Enter Now →
+                    Join Now →
                   </div>
                 </div>
               </a>
