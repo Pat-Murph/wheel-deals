@@ -967,7 +967,7 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
                   )}
                   {ticketEvent.validFrom && (
                     <div style={{ marginTop: 6, fontSize: 12, fontWeight: 700, color: "#6b7280" }}>
-                      Valid: {ticketEvent.validFrom}{ticketEvent.validTo && ticketEvent.validTo !== ticketEvent.validFrom ? ` – ${ticketEvent.validTo}` : ''}
+                      Deal valid: {ticketEvent.validFrom}{ticketEvent.validTo && ticketEvent.validTo !== ticketEvent.validFrom ? ` – ${ticketEvent.validTo}` : ''}
                     </div>
                   )}
                 </div>

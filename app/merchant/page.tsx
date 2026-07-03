@@ -1570,7 +1570,7 @@ function TicketEventSection(props: {
           </div>
 
           <div style={{ display: "grid", gap: 6 }}>
-            <label style={{ fontSize: 13, fontWeight: 800 }}>Prize valid from:</label>
+            <label style={{ fontSize: 13, fontWeight: 800 }}>Deal valid from:</label>
             <input
               type="date"
               min={todayStr}
@@ -1578,11 +1578,11 @@ function TicketEventSection(props: {
               onChange={(e) => setNewEventValidFrom(e.target.value)}
               style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid #ddd", fontSize: 14, fontWeight: 800 }}
             />
-            <div style={{ fontSize: 11, color: "#6b7280", fontWeight: 600 }}>When can the winner redeem? (defaults to unlock date if empty)</div>
+            <div style={{ fontSize: 11, color: "#6b7280", fontWeight: 600 }}>When can the customer redeem? (defaults to unlock date if empty)</div>
           </div>
 
           <div style={{ display: "grid", gap: 6 }}>
-            <label style={{ fontSize: 13, fontWeight: 800 }}>Prize valid until:</label>
+            <label style={{ fontSize: 13, fontWeight: 800 }}>Deal valid until:</label>
             <input
               type="date"
               min={newEventValidFrom || todayStr}
@@ -1590,7 +1590,7 @@ function TicketEventSection(props: {
               onChange={(e) => setNewEventValidTo(e.target.value)}
               style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid #ddd", fontSize: 14, fontWeight: 800 }}
             />
-            <div style={{ fontSize: 11, color: "#6b7280", fontWeight: 600 }}>Last day the prize can be redeemed (leave empty for same day only)</div>
+            <div style={{ fontSize: 11, color: "#6b7280", fontWeight: 600 }}>Last day the deal can be redeemed (leave empty for same day only)</div>
           </div>
 
           <div style={{ display: "grid", gap: 6 }}>
