@@ -956,18 +956,35 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
                   background: "white",
                   border: "1px solid #bbf7d0",
                   borderRadius: 12,
-                  padding: "12px 14px",
+                  padding: "14px 16px",
                   textAlign: "center",
                 }}>
-                  <div style={{ fontSize: 16, fontWeight: 900, color: "#15803d" }}>{r.prize}</div>
+                  <div style={{ fontSize: 18, fontWeight: 900, color: "#15803d" }}>{r.prize}</div>
                   {r.code && (
-                    <div style={{ marginTop: 6, fontFamily: "ui-monospace, monospace", fontSize: 18, fontWeight: 1000, letterSpacing: 2 }}>
-                      {r.code}
+                    <>
+                      <div style={{ marginTop: 8 }}>
+                        <img
+                          src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(r.code)}`}
+                          alt="QR Code"
+                          style={{ width: 150, height: 150, margin: "0 auto", display: "block" }}
+                        />
+                      </div>
+                      <div style={{ marginTop: 8, fontFamily: "ui-monospace, monospace", fontSize: 20, fontWeight: 1000, letterSpacing: 2 }}>
+                        {r.code}
+                      </div>
+                      <div style={{ marginTop: 4, fontSize: 11, color: "#6b7280", fontWeight: 600 }}>
+                        Show this code or QR to the merchant to redeem. One-time use only.
+                      </div>
+                    </>
+                  )}
+                  {r.expiresAt && (
+                    <div style={{ marginTop: 6, fontSize: 11, color: "#9ca3af", fontWeight: 600 }}>
+                      Expires: {new Date(r.expiresAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
                     </div>
                   )}
                   {ticketEvent.validFrom && (
                     <div style={{ marginTop: 6, fontSize: 12, fontWeight: 700, color: "#6b7280" }}>
-                      Deal valid: {ticketEvent.validFrom}{ticketEvent.validTo && ticketEvent.validTo !== ticketEvent.validFrom ? ` – ${ticketEvent.validTo}` : ''}
+                      Deal valid: {ticketEvent.validFrom}{ticketEvent.validTo && ticketEvent.validTo !== ticketEvent.validFrom ? ` \u2013 ${ticketEvent.validTo}` : ''}
                     </div>
                   )}
                 </div>

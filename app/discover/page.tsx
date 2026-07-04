@@ -13,6 +13,8 @@ import {
   DISCOVER_CATEGORIES,
 } from "../../lib/merchants";
 import { getFoundingMerchantCount, FOUNDING_MERCHANT_LIMIT } from "../../lib/founding";
+import { getAuth, onAuthStateChanged, signInAnonymously } from "firebase/auth";
+import { app } from "../../lib/firebase";
 
 function titleCase(s: string) {
   return (s || "")
@@ -82,6 +84,8 @@ export default function DiscoverPage() {
 
   // Ticket Events
   const [ticketEvents, setTicketEvents] = useState<any[]>([]);
+  const [myCompletedEvents, setMyCompletedEvents] = useState<any[]>([]);
+  const [uid, setUid] = useState<string | null>(null);
 
   // Helper: update pos state AND persist to sessionStorage
   function updatePos(newPos: { lat: number; lng: number }) {
@@ -94,6 +98,22 @@ export default function DiscoverPage() {
     return () => clearInterval(timer);
   }, []);
 
+  // Get user uid
+  useEffect(() => {
+    const auth = getAuth(app);
+    const unsub = onAuthStateChanged(auth, async (u) => {
+      if (u) {
+        setUid(u.uid);
+      } else {
+        try {
+          const cred = await signInAnonymously(auth);
+          setUid(cred.user.uid);
+        } catch {}
+      }
+    });
+    return () => unsub();
+  }, []);
+
   // Load active ticket events
   useEffect(() => {
     fetch('/api/ticket-events/status')
@@ -103,6 +123,17 @@ export default function DiscoverPage() {
       })
       .catch(() => {});
   }, []);
+
+  // Load user's completed events (so they can view their deal codes)
+  useEffect(() => {
+    if (!uid) return;
+    fetch(`/api/ticket-events/status?uid=${uid}&mode=my-events`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.ok && data.events) setMyCompletedEvents(data.events);
+      })
+      .catch(() => {});
+  }, [uid]);
 
   useEffect(() => {
     getFoundingMerchantCount()
@@ -642,6 +673,63 @@ export default function DiscoverPage() {
                   </div>
                   <div style={{ fontSize: 13, fontWeight: 900, color: "#7c3aed", background: "rgba(139,92,246,0.10)", padding: "6px 12px", borderRadius: 8, border: "1px solid #c4b5fd" }}>
                     Join Now →
+                  </div>
+                </div>
+              </a>
+            );
+          })}
+        </div>
+      )}
+
+      {/* YOUR COMPLETED DEALS */}
+      {myCompletedEvents.length > 0 && (
+        <div style={{ padding: "12px 12px 0" }}>
+          {myCompletedEvents.map((ev: any) => {
+            const merchant = items.find(m => m.id === ev.merchantId);
+            const merchantName = ev.merchantName || merchant?.name || "Deal";
+            return (
+              <a
+                key={ev.id}
+                href={`/wheel?merchantId=${ev.merchantId}&eventId=${ev.id}`}
+                style={{
+                  display: "block",
+                  border: "2px solid #15803d",
+                  borderRadius: 14,
+                  padding: "14px 16px",
+                  marginBottom: 10,
+                  background: "linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)",
+                  textDecoration: "none",
+                  color: "inherit",
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div>
+                    <div style={{ fontWeight: 900, fontSize: 15, color: "#15803d" }}>
+                      Your Deal is Ready!
+                    </div>
+                    <div style={{ fontWeight: 700, fontSize: 13, color: "#374151", marginTop: 2 }}>
+                      {merchantName}
+                    </div>
+                    {ev.results && ev.results.length > 0 && ev.results[0]?.prize && (
+                      <div style={{ fontWeight: 800, fontSize: 14, color: "#7c3aed", marginTop: 4 }}>
+                        {ev.results[0].prize}
+                      </div>
+                    )}
+                    {ev.validFrom && (
+                      <div style={{ fontSize: 11, color: "#6b7280", marginTop: 4, fontWeight: 600 }}>
+                        Valid: {ev.validFrom}{ev.validTo && ev.validTo !== ev.validFrom ? ` – ${ev.validTo}` : ''}
+                      </div>
+                    )}
+                  </div>
+                  <div style={{
+                    background: "#15803d",
+                    color: "#fff",
+                    fontWeight: 800,
+                    fontSize: 12,
+                    padding: "8px 14px",
+                    borderRadius: 8,
+                  }}>
+                    View Deal →
                   </div>
                 </div>
               </a>

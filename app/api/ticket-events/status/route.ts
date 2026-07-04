@@ -62,6 +62,49 @@ export async function GET(req: Request) {
       return NextResponse.json({ ok: true, events });
     }
 
+    // If uid + mode=my-events, return all events (active or completed) where user has entries
+    const mode = url.searchParams.get("mode");
+    if (uid && mode === "my-events") {
+      // Find all entries for this user across all events
+      const entriesSnap = await adminDb
+        .collectionGroup("entries")
+        .where("uid", "==", uid)
+        .get();
+
+      if (entriesSnap.empty) {
+        return NextResponse.json({ ok: true, events: [] });
+      }
+
+      // Get unique event IDs from entries
+      const eventIds = [...new Set(entriesSnap.docs.map(d => d.ref.parent.parent?.id).filter(Boolean))] as string[];
+
+      // Fetch those events
+      const myEvents = [];
+      for (const eid of eventIds) {
+        const evSnap = await adminDb.collection("ticketEvents").doc(eid).get();
+        if (evSnap.exists) {
+          const evData = evSnap.data() as any;
+          // Only include completed events or events past their spin time
+          if (evData.status === "completed" || new Date(evData.spinTime).getTime() <= Date.now()) {
+            // Get user's spot count
+            const userEntries = entriesSnap.docs.filter(d => d.ref.parent.parent?.id === eid);
+            const userSpots = userEntries.reduce((sum, d) => sum + (d.data().spotCount || 1), 0);
+            // Results are stored on the event doc, filtered by uid
+            const allResults = evData.results || [];
+            const userResults = allResults.filter((r: any) => r.uid === uid);
+            myEvents.push({
+              id: evSnap.id,
+              ...evData,
+              userSpots,
+              results: userResults,
+            });
+          }
+        }
+      }
+
+      return NextResponse.json({ ok: true, events: myEvents });
+    }
+
     // Get ALL active events (for discover page)
     const allEventsSnap = await adminDb
       .collection("ticketEvents")
