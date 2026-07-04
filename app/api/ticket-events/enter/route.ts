@@ -2,11 +2,7 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { FieldValue } from "firebase-admin/firestore";
-import Stripe from "stripe";
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2024-04-10" as any,
-});
+import { stripe } from "@/lib/stripeServer";
 
 /**
  * POST /api/ticket-events/enter
