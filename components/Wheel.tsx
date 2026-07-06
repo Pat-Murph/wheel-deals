@@ -44,6 +44,9 @@ type Props = {
 
   // ✅ called after payment is verified with the exact tier price that was paid
   onPaymentVerified?: (spinPriceCents: number) => void;
+
+  // ✅ when true, hide all payment/spin buttons (event mode — display only)
+  hideControls?: boolean;
 };
 
 function clamp(n: number, min: number, max: number) {
@@ -306,6 +309,7 @@ export default function Wheel({
   spinPriceCents,
   isFreeSpinBoost = false,
   onPaymentVerified,
+  hideControls = false,
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
@@ -1338,6 +1342,8 @@ export default function Wheel({
           alignItems: "center",
         }}
       >
+        {!hideControls && (
+        <>
         {!paidSpinReady ? (
           <button
             onClick={payForSpin}
@@ -1358,7 +1364,7 @@ export default function Wheel({
                 : "0 12px 30px rgba(0,0,0,0.12), 0 0 20px rgba(255,217,61,0.22)",
             }}
           >
-            {payBusy ? (isFreeSpinBoost ? "Claiming free deal…" : "Opening checkout…") : (isFreeSpinBoost ? "🔥 Claim Free Deal" : `Unlock Deal — Pay ${spinPriceLabel(spinPriceCents)}`)}
+            {payBusy ? (isFreeSpinBoost ? "Claiming free deal\u2026" : "Opening checkout\u2026") : (isFreeSpinBoost ? "\ud83d\udd25 Claim Free Deal" : `Unlock Deal \u2014 Pay ${spinPriceLabel(spinPriceCents)}`)}
           </button>
         ) : (
           <button
@@ -1383,6 +1389,7 @@ export default function Wheel({
             {spinning ? "Unlocking..." : `Unlock (${spinPriceLabel(spinPriceCents)})`}
           </button>
         )}
+        </>)}
 
         {/* ✅ Music toggle */}
         <button

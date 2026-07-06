@@ -111,12 +111,27 @@ export async function GET(req: Request) {
       .where("status", "==", "active")
       .get();
 
+    // Also get recently completed events (within 7 days) so customers can still access their deal
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const completedEventsSnap = await adminDb
+      .collection("ticketEvents")
+      .where("status", "==", "completed")
+      .get();
+
+    const recentlyCompleted = completedEventsSnap.docs
+      .filter((d) => {
+        const data = d.data() as any;
+        const completedAt = data.completedAt?.toDate?.() ?? new Date(data.completedAt ?? 0);
+        return completedAt >= sevenDaysAgo;
+      })
+      .map((d) => ({ id: d.id, ...d.data() }));
+
     const events = allEventsSnap.docs.map((d) => ({
       id: d.id,
       ...d.data(),
     }));
 
-    return NextResponse.json({ ok: true, events });
+    return NextResponse.json({ ok: true, events, recentlyCompleted });
   } catch (e: any) {
     console.error("ticket-events/status error:", e);
     return NextResponse.json(

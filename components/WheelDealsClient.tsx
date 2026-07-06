@@ -975,6 +975,22 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
                       <div style={{ marginTop: 4, fontSize: 11, color: "#6b7280", fontWeight: 600 }}>
                         Show this code or QR to the merchant to redeem. One-time use only.
                       </div>
+                      <div style={{ marginTop: 8, display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
+                        <button
+                          onClick={() => { navigator.clipboard.writeText(r.code); alert('Code copied!'); }}
+                          style={{ padding: "8px 14px", borderRadius: 8, border: "1px solid #d1d5db", background: "white", fontWeight: 800, fontSize: 12, cursor: "pointer" }}
+                        >
+                          Copy Code
+                        </button>
+                        {typeof navigator !== 'undefined' && navigator.share && (
+                          <button
+                            onClick={() => navigator.share({ title: `Wheel Deals - ${r.prize}`, text: `My deal code: ${r.code}\nDeal: ${r.prize}\nShow this to the merchant to redeem.` })}
+                            style={{ padding: "8px 14px", borderRadius: 8, border: "1px solid #d1d5db", background: "white", fontWeight: 800, fontSize: 12, cursor: "pointer" }}
+                          >
+                            Save / Share
+                          </button>
+                        )}
+                      </div>
                     </>
                   )}
                   {r.expiresAt && (
@@ -1244,6 +1260,7 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
           merchantName={(selectedMerchant as any)?.name ?? undefined}
           uid={uid ?? undefined}
           spinPriceCents={initialEventId ? 99999 : (isFreeSpinWheel && freeSpinGatePassed ? 0 : (activeWheel?.spinPriceCents ?? 135))}
+          hideControls={!!initialEventId}
           isFreeSpinBoost={!initialEventId && isFreeSpinWheel && freeSpinGatePassed}
           onPaymentVerified={(priceCents) => {
             if (initialEventId) return; // no payment in event mode
