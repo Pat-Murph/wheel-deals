@@ -588,7 +588,7 @@ export default function DiscoverPage() {
       {ticketEvents.length > 0 && (
         <div style={{ padding: "12px 12px 0", display: "flex", flexDirection: "column", gap: 10 }}>
           {ticketEvents.filter((ev: any) => {
-            // Only show events that haven't passed unlock time
+            // Show active events that haven't passed unlock time
             return new Date(ev.spinTime).getTime() > Date.now() && ev.status === 'active';
           }).map((ev: any) => {
             const spotsLeft = ev.totalSpots - ev.spotsTaken;
@@ -623,7 +623,7 @@ export default function DiscoverPage() {
               >
                 {/* Urgency badge */}
                 <div style={{ position: "absolute", top: 10, right: 10, background: "#7c3aed", color: "#fff", fontSize: 11, fontWeight: 900, padding: "3px 10px", borderRadius: 999, letterSpacing: 0.3 }}>
-                  LIMITED SPOTS
+                  DAILY DROP
                 </div>
 
                 <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -681,59 +681,111 @@ export default function DiscoverPage() {
         </div>
       )}
 
-      {/* YOUR COMPLETED DEALS */}
+      {/* YOUR EVENTS (completed = show deal, active = show pending) */}
       {myCompletedEvents.length > 0 && (
         <div style={{ padding: "12px 12px 0" }}>
           {myCompletedEvents.map((ev: any) => {
             const merchant = items.find(m => m.id === ev.merchantId);
             const merchantName = ev.merchantName || merchant?.name || "Deal";
-            return (
-              <a
-                key={ev.id}
-                href={`/wheel?merchantId=${ev.merchantId}&eventId=${ev.id}`}
-                style={{
-                  display: "block",
-                  border: "2px solid #15803d",
-                  borderRadius: 14,
-                  padding: "14px 16px",
-                  marginBottom: 10,
-                  background: "linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)",
-                  textDecoration: "none",
-                  color: "inherit",
-                }}
-              >
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <div>
-                    <div style={{ fontWeight: 900, fontSize: 15, color: "#15803d" }}>
-                      Your Deal is Ready!
-                    </div>
-                    <div style={{ fontWeight: 700, fontSize: 13, color: "#374151", marginTop: 2 }}>
-                      {merchantName}
-                    </div>
-                    {ev.results && ev.results.length > 0 && ev.results[0]?.prize && (
+            const isCompleted = ev.status === 'completed';
+            const isPastSpinTime = new Date(ev.spinTime).getTime() <= Date.now();
+            const hasResults = ev.results && ev.results.length > 0 && ev.results[0]?.prize;
+
+            // If completed with results — show green "Your Deal is Ready" card
+            if (isCompleted && hasResults) {
+              return (
+                <a
+                  key={ev.id}
+                  href={`/wheel?merchantId=${ev.merchantId}&eventId=${ev.id}`}
+                  style={{
+                    display: "block",
+                    border: "2px solid #15803d",
+                    borderRadius: 14,
+                    padding: "14px 16px",
+                    marginBottom: 10,
+                    background: "linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)",
+                    textDecoration: "none",
+                    color: "inherit",
+                  }}
+                >
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div>
+                      <div style={{ fontWeight: 900, fontSize: 15, color: "#15803d" }}>
+                        Your Deal is Ready!
+                      </div>
+                      <div style={{ fontWeight: 700, fontSize: 13, color: "#374151", marginTop: 2 }}>
+                        {merchantName}
+                      </div>
                       <div style={{ fontWeight: 800, fontSize: 14, color: "#7c3aed", marginTop: 4 }}>
                         {ev.results[0].prize}
                       </div>
-                    )}
-                    {ev.validFrom && (
-                      <div style={{ fontSize: 11, color: "#6b7280", marginTop: 4, fontWeight: 600 }}>
-                        Valid: {ev.validFrom}{ev.validTo && ev.validTo !== ev.validFrom ? ` – ${ev.validTo}` : ''}
+                      {ev.validFrom && (
+                        <div style={{ fontSize: 11, color: "#6b7280", marginTop: 4, fontWeight: 600 }}>
+                          Valid: {ev.validFrom}{ev.validTo && ev.validTo !== ev.validFrom ? ` \u2013 ${ev.validTo}` : ''}
+                        </div>
+                      )}
+                    </div>
+                    <div style={{
+                      background: "#15803d",
+                      color: "#fff",
+                      fontWeight: 800,
+                      fontSize: 12,
+                      padding: "8px 14px",
+                      borderRadius: 8,
+                    }}>
+                      View Deal \u2192
+                    </div>
+                  </div>
+                </a>
+              );
+            }
+
+            // If past spin time but not yet completed — show "resolving" card
+            if (isPastSpinTime && !isCompleted) {
+              return (
+                <a
+                  key={ev.id}
+                  href={`/wheel?merchantId=${ev.merchantId}&eventId=${ev.id}`}
+                  style={{
+                    display: "block",
+                    border: "2px solid #f59e0b",
+                    borderRadius: 14,
+                    padding: "14px 16px",
+                    marginBottom: 10,
+                    background: "linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)",
+                    textDecoration: "none",
+                    color: "inherit",
+                  }}
+                >
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div>
+                      <div style={{ fontWeight: 900, fontSize: 15, color: "#d97706" }}>
+                        Deal Unlocking...
                       </div>
-                    )}
+                      <div style={{ fontWeight: 700, fontSize: 13, color: "#374151", marginTop: 2 }}>
+                        {merchantName}
+                      </div>
+                      <div style={{ fontSize: 11, color: "#6b7280", marginTop: 4, fontWeight: 600 }}>
+                        Tap to view your deal
+                      </div>
+                    </div>
+                    <div style={{
+                      background: "#d97706",
+                      color: "#fff",
+                      fontWeight: 800,
+                      fontSize: 12,
+                      padding: "8px 14px",
+                      borderRadius: 8,
+                    }}>
+                      View \u2192
+                    </div>
                   </div>
-                  <div style={{
-                    background: "#15803d",
-                    color: "#fff",
-                    fontWeight: 800,
-                    fontSize: 12,
-                    padding: "8px 14px",
-                    borderRadius: 8,
-                  }}>
-                    View Deal →
-                  </div>
-                </div>
-              </a>
-            );
+                </a>
+              );
+            }
+
+            // Active event user has joined but not yet unlocked — don't show duplicate (already in active section)
+            return null;
           })}
         </div>
       )}

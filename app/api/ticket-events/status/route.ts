@@ -84,8 +84,8 @@ export async function GET(req: Request) {
         const evSnap = await adminDb.collection("ticketEvents").doc(eid).get();
         if (evSnap.exists) {
           const evData = evSnap.data() as any;
-          // Only include completed events or events past their spin time
-          if (evData.status === "completed" || new Date(evData.spinTime).getTime() <= Date.now()) {
+          // Include all events where user has entries (active, completed, or past spin time)
+          if (evData.status === "completed" || evData.status === "active" || new Date(evData.spinTime).getTime() <= Date.now()) {
             // Get user's spot count
             const userEntries = entriesSnap.docs.filter(d => d.ref.parent.parent?.id === eid);
             const userSpots = userEntries.reduce((sum, d) => sum + (d.data().spotCount || 1), 0);
