@@ -614,11 +614,7 @@ export default function MerchantDashboardPage() {
   async function toggleActive() {
     if (!merchantId || !merchant) return;
     const next = !merchant.active;
-    // Require at least one photo to go live
-    if (next && (!merchant.photoUrls || merchant.photoUrls.length === 0)) {
-      setStatus("❌ You need to upload at least one photo before going live. Go to Edit Merchant to add photos.");
-      return;
-    }
+    // Photo no longer required to go live
     setBusy(true);
     setStatus(null);
     try {
