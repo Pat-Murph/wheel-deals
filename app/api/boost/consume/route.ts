@@ -28,6 +28,20 @@ export async function POST(req: NextRequest) {
 
     // ── Step 1: entitlement grant (no prizeLabel yet) ──────────────────────
     if (!finalize) {
+      // ── Block merchant accounts from claiming free deals ────────────────
+      // Prevent people from creating fake merchant accounts to farm free deals
+      const merchantAccountCheck = await adminDb
+        .collection("merchants")
+        .where("uid", "==", uid)
+        .limit(1)
+        .get();
+      if (!merchantAccountCheck.empty) {
+        return NextResponse.json(
+          { error: "Business owner accounts cannot claim free deals. Please use a customer account." },
+          { status: 403 }
+        );
+      }
+
       // ── 1-per-customer-EVER enforcement ─────────────────────────────────
       // Track by BOTH device fingerprint AND uid to prevent:
       //   - Same device, new account → caught by device fingerprint
@@ -92,6 +106,19 @@ export async function POST(req: NextRequest) {
     }
 
     // ── Step 2: finalize (after unlock animation completes) ──────────────────
+    // Re-check merchant account block on finalize too
+    const merchantAccountCheck2 = await adminDb
+      .collection("merchants")
+      .where("uid", "==", uid)
+      .limit(1)
+      .get();
+    if (!merchantAccountCheck2.empty) {
+      return NextResponse.json(
+        { error: "Business owner accounts cannot claim free deals." },
+        { status: 403 }
+      );
+    }
+
     const code = generateCode();
     const spinId = "boost-" + randomBytes(6).toString("hex");
     const today = todayUTC();
