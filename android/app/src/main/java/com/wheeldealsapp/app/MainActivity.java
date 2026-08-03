@@ -1,4 +1,4 @@
-package com.wheeldeals.app;
+package com.wheeldealsapp.app;
 
 import com.getcapacitor.BridgeActivity;
 
