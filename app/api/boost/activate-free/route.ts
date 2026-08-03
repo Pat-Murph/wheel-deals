@@ -19,10 +19,10 @@ export async function POST(req: Request) {
 
     const data = mSnap.data()!;
 
-    // Verify this merchant is a Diamond founding merchant (first 20)
+    // Verify this merchant is a founding merchant (first 300)
     const foundingNumber = data.foundingNumber;
-    if (!foundingNumber || foundingNumber > 20) {
-      return NextResponse.json({ error: "Only Diamond founding merchants (first 20) get free boosts" }, { status: 403 });
+    if (!foundingNumber || foundingNumber > 300) {
+      return NextResponse.json({ error: "Only founding merchants (first 300) get free boosts" }, { status: 403 });
     }
 
     // Verify the requesting user is the owner
@@ -39,7 +39,7 @@ export async function POST(req: Request) {
       boostPurchasedAt: new Date().toISOString(),
     });
 
-    return NextResponse.json({ ok: true, message: "Free boost activated for Diamond merchant" });
+    return NextResponse.json({ ok: true, message: "Free boost activated for founding merchant" });
   } catch (err: any) {
     console.error("Free boost activation error:", err);
     return NextResponse.json({ error: err?.message ?? "Server error" }, { status: 500 });

@@ -245,8 +245,6 @@ export default function DiscoverPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pos]);
 
-  // The boost radius: a boosted merchant only gets priority if user is within 50 miles of IT
-  const BOOST_RADIUS_MILES = 50;
 
   // Client-side mobile merchant distance threshold (miles).
   // Mobile merchants beyond this radius are hidden from the discover list.
@@ -278,23 +276,8 @@ export default function DiscoverPage() {
     });
 
     return [...withDist].sort((a, b) => {
-      // Boost only SORTS a merchant to the top if the user is within 50 miles of it.
-      // For mobile merchants with boostMode='checkin', only boost when checked in.
-      function isBoostVisible(m: MerchantResult) {
-        if (!m.boostActive) return false;
-        if (m.isMobile && m.boostMode !== 'always') {
-          const checkedIn = m.mobileActiveUntil && m.mobileActiveUntil.toDate && m.mobileActiveUntil.toDate() > time;
-          if (!checkedIn) return false;
-        }
-        return true;
-      }
-      const aWithinBoost = isBoostVisible(a) && a.distanceMiles != null && a.distanceMiles <= BOOST_RADIUS_MILES;
-      const bWithinBoost = isBoostVisible(b) && b.distanceMiles != null && b.distanceMiles <= BOOST_RADIUS_MILES;
-      const aBoost = aWithinBoost ? 1 : 0;
-      const bBoost = bWithinBoost ? 1 : 0;
-      if (aBoost !== bBoost) return bBoost - aBoost;
-
-      // Fall back to distance (closest first)
+      // Sort purely by distance (closest first) — boost no longer affects sort order.
+      // Boosted merchants still get orange border + fire badge visually.
       const da = a.distanceMiles;
       const db = b.distanceMiles;
       if (da == null && db == null) return 0;

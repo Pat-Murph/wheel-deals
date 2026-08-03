@@ -575,15 +575,15 @@ export default function MerchantDashboardPage() {
     }
   }, [merchantId]);
 
-  const isDiamond = (merchant?.foundingNumber ?? 999) <= 20;
+  const isFreeBoostEligible = (merchant?.foundingNumber ?? 999) <= 300;
 
   async function purchaseBoost() {
     if (!merchantId || !user) return;
     setBoostBusy(true);
     setStatus(null);
     try {
-      if (isDiamond) {
-        // Diamond merchants get free boost — activate directly without payment
+      if (isFreeBoostEligible) {
+        // Founding merchants (first 300) get free boost — activate directly without payment
         const res = await fetch("/api/boost/activate-free", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -1038,14 +1038,14 @@ export default function MerchantDashboardPage() {
         </div>
 
         <div style={{ marginTop: 8, fontSize: 13, color: "#374151", lineHeight: 1.6 }}>
-          {isDiamond ? (
-            <>As a <b>💎 Diamond</b> founding merchant, you get <b>free boosts</b>! Activate to unlock <b>10 free deals</b> on a wheel of your choice.
-            Your listing gets a <b>fire badge</b> and appears at the top of the Discover page
-            (sorted by proximity to each customer). Customers must be within <b>200 meters</b> of your store to claim the free deal — driving foot traffic directly to you.</>
+          {isFreeBoostEligible ? (
+            <>As a founding merchant, you get <b>free boosts</b>! Activate to unlock <b>10 free deals</b> on a wheel of your choice.
+            Your listing gets a <b>fire badge</b> and <b>orange border</b> on the Discover page to stand out.
+            Customers must be within <b>200 meters</b> of your store to claim the free deal — driving foot traffic directly to you.</>
           ) : (
             <>Pay <b>$5.00</b> to unlock <b>10 free deals</b> on a wheel of your choice.
-            Your listing gets a <b>fire badge</b> and appears at the top of the Discover page
-            (sorted by proximity to each customer). Customers must be within <b>200 meters</b> of your store to claim the free deal — driving foot traffic directly to you.</>
+            Your listing gets a <b>fire badge</b> and <b>orange border</b> on the Discover page to stand out.
+            Customers must be within <b>200 meters</b> of your store to claim the free deal — driving foot traffic directly to you.</>
           )}
         </div>
 
@@ -1102,7 +1102,7 @@ export default function MerchantDashboardPage() {
               disabled={boostBusy}
               style={{ ...btnPrimary(boostBusy), display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
             >
-              {boostBusy ? (isDiamond ? "Activating…" : "Redirecting to payment…") : isDiamond ? "🔥 Activate Free Boost — 💎 Diamond Perk" : "🔥 Unlock 10 Free Deals — $5.00"}
+              {boostBusy ? (isFreeBoostEligible ? "Activating…" : "Redirecting to payment…") : isFreeBoostEligible ? "🔥 Activate Free Boost" : "🔥 Unlock 10 Free Deals — $5.00"}
             </button>
           </div>
         )}
