@@ -794,6 +794,34 @@ export default function MerchantDashboardPage() {
             {status}
           </div>
         )}
+
+        {/* Become a Merchant CTA */}
+        <div style={{ marginTop: 32, padding: 20, borderRadius: 14, background: "linear-gradient(135deg, #1a2a44 0%, #2d4a7a 100%)", color: "#fff" }}>
+          <h2 style={{ margin: "0 0 8px", fontSize: 20, fontWeight: 900 }}>New here? Become a Merchant</h2>
+          <p style={{ margin: "0 0 6px", fontSize: 14, opacity: 0.9 }}>Get your business discovered by local customers.</p>
+          <ul style={{ margin: "0 0 14px", paddingLeft: 18, fontSize: 13, opacity: 0.85, lineHeight: 1.6 }}>
+            <li>Free to sign up — no monthly fees</li>
+            <li>Build promotional deals customers unlock</li>
+            <li>Earn from every deal unlocked</li>
+            <li>Bring real foot traffic to your store</li>
+          </ul>
+          <a
+            href="/merchant/onboard"
+            style={{ display: "block", textAlign: "center", padding: "12px 0", borderRadius: 12, background: "#F59E0B", color: "#000", fontWeight: 900, fontSize: 16, textDecoration: "none" }}
+          >
+            Get Started — It&apos;s Free
+          </a>
+        </div>
+
+        {/* Back to Discover */}
+        <div style={{ marginTop: 16, textAlign: "center" }}>
+          <a
+            href="/discover"
+            style={{ display: "inline-block", padding: "10px 24px", borderRadius: 12, border: "2px solid #ddd", background: "#fff", color: "#333", fontWeight: 700, fontSize: 14, textDecoration: "none" }}
+          >
+            ← Back to Discover
+          </a>
+        </div>
       </main>
     );
   }
