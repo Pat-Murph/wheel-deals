@@ -1329,7 +1329,7 @@ export default function MerchantOnboardPage() {
           <textarea
             value={about}
             onChange={(e) => setAbout(e.target.value)}
-            placeholder="About your business (shown to customers)"
+            placeholder="Additional terms and instructions (shown to customers)"
             style={{ ...inputStyle(), minHeight: 110, resize: "vertical" }}
             disabled={!user || busy}
             maxLength={1200}

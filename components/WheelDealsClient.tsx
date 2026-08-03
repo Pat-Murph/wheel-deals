@@ -268,7 +268,13 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
   // Is the active wheel a boosted free-deal wheel?
   const isFreeSpinWheel = useMemo(() => {
     if (!(selectedMerchant as any)?.boostActive) return false;
-    const boostPrice = (selectedMerchant as any)?.boostWheelPriceCents;
+    // Mobile merchants must be checked in (active mobile session) to show boost on wheel page
+    const m = selectedMerchant as any;
+    if (m?.isMobile) {
+      const activeUntil = m?.mobileActiveUntil?.toDate?.();
+      if (!activeUntil || activeUntil <= new Date()) return false;
+    }
+    const boostPrice = m?.boostWheelPriceCents;
     return boostPrice != null && activeWheel?.spinPriceCents === boostPrice;
   }, [selectedMerchant, activeWheel]);
 
