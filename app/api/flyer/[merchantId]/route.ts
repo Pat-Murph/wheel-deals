@@ -215,7 +215,7 @@ export async function GET(
   <div class="footer">
     <div class="footer-brand">Wheel Deals — Unlock Local Savings</div>
     <div class="footer-text">
-      Unlock prices start at $1.35 &nbsp;·&nbsp; Deals are non-cash promotional offers &nbsp;·&nbsp; Must be 18+<br/>
+      Unlock prices start at $1.35 &nbsp;·&nbsp; Deals are non-cash promotional offers<br/>
       A deal is always awarded on every unlock. No cash value. Terms may vary — contact merchant for details.
     </div>
   </div>
