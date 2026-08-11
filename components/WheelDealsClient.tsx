@@ -1120,6 +1120,12 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
         </div>
       )}
 
+      {/* Set boostCycleId on window for client-side anti-abuse tracking */}
+      {isFreeSpinWheel && (() => {
+        try { (window as any).__boostCycleId = (selectedMerchant as any)?.boostPurchasedAt ?? ""; } catch {}
+        return null;
+      })()}
+
       {/* Free deal proximity gate banner — hidden in event mode */}
       {!initialEventId && isFreeSpinWheel && (
         <div style={{

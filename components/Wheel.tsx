@@ -849,12 +849,20 @@ export default function Wheel({
     // ✅ Free boost unlock path — no Stripe charge, just grant entitlement directly
     if (isFreeSpinBoost) {
       try {
-        // Get device fingerprint for 1-per-device-per-day enforcement
+        // Get device fingerprint for anti-abuse enforcement
         let deviceFingerprint: string | undefined;
         try {
-          const { getDeviceFingerprint } = await import("@/lib/deviceFingerprint");
+          const { getDeviceFingerprint, hasClaimedBoostLocally } = await import("@/lib/deviceFingerprint");
           deviceFingerprint = await getDeviceFingerprint();
-        } catch { /* non-fatal */ }
+          // Client-side quick check (server is authoritative, this just saves a round-trip)
+          const boostCycleId = (window as any).__boostCycleId;
+          if (boostCycleId && hasClaimedBoostLocally(merchantId!, boostCycleId)) {
+            throw new Error("You already claimed your free deal for this boost cycle. Come back when the merchant activates a new boost!");
+          }
+        } catch (fpErr: any) {
+          if (fpErr?.message?.includes("already claimed")) throw fpErr;
+          /* non-fatal fingerprint error */ 
+        }
 
         const res = await fetch("/api/boost/consume", {
           method: "POST",
@@ -1006,12 +1014,21 @@ export default function Wheel({
       if (!effectiveUid) throw new Error("Missing uid");
       if (!verifiedSessionId) throw new Error("Missing sessionId");
 
+      // Get device fingerprint for finalize (needed for boost anti-abuse)
+      let finalizeFingerprint: string | undefined;
+      if (isFreeSpinBoost) {
+        try {
+          const { getDeviceFingerprint } = await import("@/lib/deviceFingerprint");
+          finalizeFingerprint = await getDeviceFingerprint();
+        } catch { /* non-fatal */ }
+      }
+
       const consumeRes = await fetch(isFreeSpinBoost ? "/api/boost/consume" : "/api/spins/consume", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(
           isFreeSpinBoost
-            ? { merchantId, uid: effectiveUid, prizeLabel: resLabel, finalize: true }
+            ? { merchantId, uid: effectiveUid, prizeLabel: resLabel, finalize: true, deviceFingerprint: finalizeFingerprint }
             : { sessionId: verifiedSessionId, merchantId, uid: effectiveUid, prizeLabel: resLabel }
         ),
       });
@@ -1029,6 +1046,15 @@ export default function Wheel({
       setPayStatus("✅ Deal unlocked! Show your code to redeem within 30 days!");
       setVerifiedSessionId(null); // prevent reuse
       setVerifiedUid(null); // clear verified uid after use
+
+      // Mark boost as claimed locally (anti-abuse layer)
+      if (isFreeSpinBoost && merchantId) {
+        try {
+          const { markBoostClaimedLocally } = await import("@/lib/deviceFingerprint");
+          const boostCycleId = (window as any).__boostCycleId;
+          if (boostCycleId) markBoostClaimedLocally(merchantId, boostCycleId);
+        } catch { /* non-fatal */ }
+      }
 
       // ✅ notify parent so you can show ONE unified code + QR in WheelDealsClient
       onResult?.(resLabel, { code: nextCode, spinId: nextSpinId, expiresAt: nextExpiresAt });

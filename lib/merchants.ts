@@ -45,6 +45,7 @@ export type Merchant = {
   boostWheelPriceCents?: number;
   /** For mobile merchants: 'checkin' = 200m geo-gate at check-in location, 'always' = 25mi radius always available */
   boostMode?: 'checkin' | 'always';
+  boostPurchasedAt?: string;
 
   // Founding tier
   foundingNumber?: number;
@@ -546,6 +547,7 @@ export async function getActiveMerchants(): Promise<Merchant[]> {
       boostFreeSpinsRemaining: typeof data.boostFreeSpinsRemaining === "number" ? data.boostFreeSpinsRemaining : 0,
       boostWheelPriceCents: typeof data.boostWheelPriceCents === "number" ? data.boostWheelPriceCents : undefined,
       boostMode: data.boostMode === 'always' ? 'always' : data.boostMode === 'checkin' ? 'checkin' : undefined,
+      boostPurchasedAt: data.boostPurchasedAt ?? undefined,
       businessHours: data.businessHours && typeof data.businessHours === 'object' ? data.businessHours : undefined,
       showBusinessHours: data.showBusinessHours !== false,
       isMobile: data.isMobile ?? false,

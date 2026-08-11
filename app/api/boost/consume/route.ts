@@ -9,18 +9,18 @@ function generateCode(): string {
 }
 
 /**
- * Free deal limit logic:
- * - 1 free deal per customer per boost activation cycle
+ * Free deal limit logic (tightened):
+ * - 1 free deal per device per boost activation cycle
+ * - Device fingerprint is the PRIMARY enforcement (UID changes on sign-out)
+ * - Also tracks by UID as secondary check
+ * - Also checks users/{uid} doc to block merchant accounts
  * - Customer can get another free deal ONLY when BOTH conditions are met:
  *   1. Merchant has REACTIVATED boost (new boostPurchasedAt timestamp)
- *   2. At least 24 hours have passed since the customer's last free deal from this merchant
+ *   2. At least 24 hours have passed since the last free deal from this device/user
  *
- * We store usage in: merchants/{merchantId}/boostUserUsage/{uid}
- *   - usedAt: timestamp of last free deal claim
- *   - boostCycleId: the boostPurchasedAt value when the deal was claimed
- *
- * And: merchants/{merchantId}/boostDeviceUsage/{fingerprint}
- *   - same fields for device-level tracking
+ * Storage:
+ *   merchants/{merchantId}/boostDeviceUsage/{fingerprint} — PRIMARY (survives sign-out)
+ *   merchants/{merchantId}/boostUserUsage/{uid} — SECONDARY
  */
 
 const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
@@ -38,12 +38,12 @@ export async function POST(req: NextRequest) {
     // ── Step 1: entitlement grant (no prizeLabel yet) ──────────────────────
     if (!finalize) {
       // ── Block merchant accounts from claiming free deals ────────────────
-      const merchantAccountCheck = await adminDb
-        .collection("merchants")
-        .where("uid", "==", uid)
-        .limit(1)
-        .get();
-      if (!merchantAccountCheck.empty) {
+      // Check both ownerUid field on merchants AND users/{uid}.merchantId link
+      const [merchantByOwner, userDoc] = await Promise.all([
+        adminDb.collection("merchants").where("ownerUid", "==", uid).limit(1).get(),
+        adminDb.collection("users").doc(uid).get(),
+      ]);
+      if (!merchantByOwner.empty || (userDoc.exists && (userDoc.data() as any)?.merchantId)) {
         return NextResponse.json(
           { error: "Business owner accounts cannot claim free deals. Please use a customer account." },
           { status: 403 }
@@ -58,8 +58,43 @@ export async function POST(req: NextRequest) {
       const merchantData = merchantSnap.data()!;
       const currentBoostCycleId = merchantData.boostPurchasedAt ?? "unknown";
 
-      // ── 1-per-activation-cycle + 24h cooldown enforcement ──────────────
-      // Check UID usage
+      // ── DEVICE FINGERPRINT CHECK (PRIMARY — required) ──────────────────
+      // Device fingerprint is mandatory for free deal claims
+      if (!deviceFingerprint) {
+        return NextResponse.json(
+          { error: "Unable to verify your device. Please enable cookies and try again." },
+          { status: 400 }
+        );
+      }
+
+      const deviceUsageRef = adminDb
+        .collection("merchants")
+        .doc(merchantId)
+        .collection("boostDeviceUsage")
+        .doc(deviceFingerprint);
+      const deviceUsageSnap = await deviceUsageRef.get();
+
+      if (deviceUsageSnap.exists) {
+        const usageData = deviceUsageSnap.data()!;
+        const lastCycleId = usageData.boostCycleId ?? "";
+        const lastUsedAt = usageData.usedAt?.toDate?.() ?? new Date(usageData.usedAt ?? 0);
+        const msSinceLast = Date.now() - lastUsedAt.getTime();
+
+        if (lastCycleId === currentBoostCycleId) {
+          return NextResponse.json(
+            { error: "You already claimed your free deal for this boost cycle. Come back when the merchant activates a new boost!" },
+            { status: 429 }
+          );
+        }
+        if (msSinceLast < TWENTY_FOUR_HOURS_MS) {
+          return NextResponse.json(
+            { error: "Please wait 24 hours between free deal claims. Try again later!" },
+            { status: 429 }
+          );
+        }
+      }
+
+      // ── UID CHECK (SECONDARY) ──────────────────────────────────────────
       const userUsageRef = adminDb
         .collection("merchants")
         .doc(merchantId)
@@ -70,50 +105,19 @@ export async function POST(req: NextRequest) {
         const usageData = userUsageSnap.data()!;
         const lastCycleId = usageData.boostCycleId ?? "";
         const lastUsedAt = usageData.usedAt?.toDate?.() ?? new Date(usageData.usedAt ?? 0);
-        const hoursSinceLast = Date.now() - lastUsedAt.getTime();
+        const msSinceLast = Date.now() - lastUsedAt.getTime();
 
-        // Block if same activation cycle OR less than 24 hours
         if (lastCycleId === currentBoostCycleId) {
           return NextResponse.json(
             { error: "You already claimed your free deal for this boost cycle. Come back when the merchant activates a new boost!" },
             { status: 429 }
           );
         }
-        if (hoursSinceLast < TWENTY_FOUR_HOURS_MS) {
+        if (msSinceLast < TWENTY_FOUR_HOURS_MS) {
           return NextResponse.json(
             { error: "Please wait 24 hours between free deal claims. Try again later!" },
             { status: 429 }
           );
-        }
-      }
-
-      // Check device fingerprint usage
-      if (deviceFingerprint) {
-        const usageRef = adminDb
-          .collection("merchants")
-          .doc(merchantId)
-          .collection("boostDeviceUsage")
-          .doc(deviceFingerprint);
-        const usageSnap = await usageRef.get();
-
-        if (usageSnap.exists) {
-          const usageData = usageSnap.data()!;
-          const lastCycleId = usageData.boostCycleId ?? "";
-          const lastUsedAt = usageData.usedAt?.toDate?.() ?? new Date(usageData.usedAt ?? 0);
-          const hoursSinceLast = Date.now() - lastUsedAt.getTime();
-
-          if (lastCycleId === currentBoostCycleId) {
-            return NextResponse.json(
-              { error: "You already claimed your free deal for this boost cycle. Come back when the merchant activates a new boost!" },
-              { status: 429 }
-            );
-          }
-          if (hoursSinceLast < TWENTY_FOUR_HOURS_MS) {
-            return NextResponse.json(
-              { error: "Please wait 24 hours between free deal claims. Try again later!" },
-              { status: 429 }
-            );
-          }
         }
       }
 
@@ -142,15 +146,22 @@ export async function POST(req: NextRequest) {
 
     // ── Step 2: finalize (after unlock animation completes) ──────────────────
     // Re-check merchant account block on finalize too
-    const merchantAccountCheck2 = await adminDb
-      .collection("merchants")
-      .where("uid", "==", uid)
-      .limit(1)
-      .get();
-    if (!merchantAccountCheck2.empty) {
+    const [merchantByOwner2, userDoc2] = await Promise.all([
+      adminDb.collection("merchants").where("ownerUid", "==", uid).limit(1).get(),
+      adminDb.collection("users").doc(uid).get(),
+    ]);
+    if (!merchantByOwner2.empty || (userDoc2.exists && (userDoc2.data() as any)?.merchantId)) {
       return NextResponse.json(
         { error: "Business owner accounts cannot claim free deals." },
         { status: 403 }
+      );
+    }
+
+    // Device fingerprint required for finalize too
+    if (!deviceFingerprint) {
+      return NextResponse.json(
+        { error: "Unable to verify your device." },
+        { status: 400 }
       );
     }
 
@@ -170,61 +181,44 @@ export async function POST(req: NextRequest) {
         throw new Error("No free deals remaining");
       }
 
-      // Double-check UID usage inside transaction
-      const userUsageRef = adminDb
+      // Double-check device usage inside transaction
+      const deviceUsageRef = adminDb
         .collection("merchants")
         .doc(merchantId)
-        .collection("boostUserUsage")
-        .doc(uid);
-      const userUsageSnap = await tx.get(userUsageRef);
-      if (userUsageSnap.exists) {
-        const usageData = userUsageSnap.data()!;
+        .collection("boostDeviceUsage")
+        .doc(deviceFingerprint);
+      const deviceUsageSnap = await tx.get(deviceUsageRef);
+      if (deviceUsageSnap.exists) {
+        const usageData = deviceUsageSnap.data()!;
         const lastCycleId = usageData.boostCycleId ?? "";
         const lastUsedAt = usageData.usedAt?.toDate?.() ?? new Date(usageData.usedAt ?? 0);
-        const hoursSinceLast = Date.now() - lastUsedAt.getTime();
+        const msSinceLast = Date.now() - lastUsedAt.getTime();
 
         if (lastCycleId === currentBoostCycleId) {
           throw new Error("You already claimed your free deal for this boost cycle.");
         }
-        if (hoursSinceLast < TWENTY_FOUR_HOURS_MS) {
+        if (msSinceLast < TWENTY_FOUR_HOURS_MS) {
           throw new Error("Please wait 24 hours between free deal claims.");
         }
       }
-      // Mark UID as used for this cycle
-      tx.set(userUsageRef, {
+      // Mark device as used for this cycle
+      tx.set(deviceUsageRef, {
         uid,
         usedAt: FieldValue.serverTimestamp(),
         boostCycleId: currentBoostCycleId,
       });
 
-      // Double-check device fingerprint inside transaction
-      if (deviceFingerprint) {
-        const usageRef = adminDb
-          .collection("merchants")
-          .doc(merchantId)
-          .collection("boostDeviceUsage")
-          .doc(deviceFingerprint);
-        const usageSnap = await tx.get(usageRef);
-        if (usageSnap.exists) {
-          const usageData = usageSnap.data()!;
-          const lastCycleId = usageData.boostCycleId ?? "";
-          const lastUsedAt = usageData.usedAt?.toDate?.() ?? new Date(usageData.usedAt ?? 0);
-          const hoursSinceLast = Date.now() - lastUsedAt.getTime();
-
-          if (lastCycleId === currentBoostCycleId) {
-            throw new Error("You already claimed your free deal for this boost cycle.");
-          }
-          if (hoursSinceLast < TWENTY_FOUR_HOURS_MS) {
-            throw new Error("Please wait 24 hours between free deal claims.");
-          }
-        }
-        // Mark device as used for this cycle
-        tx.set(usageRef, {
-          uid,
-          usedAt: FieldValue.serverTimestamp(),
-          boostCycleId: currentBoostCycleId,
-        });
-      }
+      // Also mark UID usage
+      const userUsageRef = adminDb
+        .collection("merchants")
+        .doc(merchantId)
+        .collection("boostUserUsage")
+        .doc(uid);
+      tx.set(userUsageRef, {
+        uid,
+        usedAt: FieldValue.serverTimestamp(),
+        boostCycleId: currentBoostCycleId,
+      });
 
       const newRemaining = remaining - 1;
       const updates: Record<string, any> = {
