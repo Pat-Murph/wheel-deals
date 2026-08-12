@@ -171,7 +171,8 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
 
   const selectedMerchant = useMemo(() => {
     if (!merchants.length) return null;
-    return merchants.find((m) => m.id === selectedMerchantId) ?? merchants[0];
+    if (!selectedMerchantId) return null; // Don't fall back to merchants[0] before ID is set
+    return merchants.find((m) => m.id === selectedMerchantId) ?? null;
   }, [merchants, selectedMerchantId, merchants.length]);
 
   useEffect(() => {
