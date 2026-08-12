@@ -179,9 +179,10 @@ export default function ReferralPage() {
               <div style={{ display: "grid", gap: 8 }}>
                 {[
                   "✅ 100% FREE to sign up — no monthly fees, no contracts",
-                  "✅ Only pay when customers actually engage with your deals",
+                  "✅ Build a custom promo wheel that fits YOUR business — no steep discounts forced, you choose what works",
+                  "✅ Earn when customers unlock deals on your wheel",
+                  "✅ Get discovered by local customers searching for deals nearby",
                   "✅ Drive real foot traffic to your location",
-                  "✅ Customers unlock deals on a fun, interactive wheel",
                   "✅ Built-in scarcity creates urgency — customers come NOW",
                   "✅ Track redemptions and see real ROI on every promotion",
                   "✅ Perfect for restaurants, shops, services, food trucks & more",
