@@ -378,6 +378,42 @@ export default function DiscoverPage() {
         </div>
       )}
 
+      {/* Referral program banner */}
+      <a href="/referral" style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: 10,
+        background: "linear-gradient(135deg, #fef3c7, #fde68a)",
+        padding: "10px 14px",
+        textDecoration: "none",
+        color: "#78350f",
+        flexShrink: 0,
+        borderBottom: "1px solid #f59e0b",
+      }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+          <div style={{ fontSize: 13, fontWeight: 900, color: "#92400e" }}>
+            💰 Referral Program — Earn up to $100!
+          </div>
+          <div style={{ fontSize: 11, fontWeight: 600, color: "#78350f" }}>
+            Refer a business owner to Wheel Deals and get paid. Limited time.
+          </div>
+        </div>
+        <div style={{
+          fontSize: 11,
+          fontWeight: 800,
+          color: "#92400e",
+          background: "#fff",
+          padding: "6px 10px",
+          borderRadius: 8,
+          whiteSpace: "nowrap",
+          border: "1px solid #f59e0b",
+          flexShrink: 0,
+        }}>
+          Learn more
+        </div>
+      </a>
+
 
       {/* SEARCH BARS */}
       <div style={{

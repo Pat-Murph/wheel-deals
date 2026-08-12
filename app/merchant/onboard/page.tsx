@@ -172,6 +172,7 @@ async function saveMerchantForUser(args: {
   mobileServiceRadiusMiles?: number | null;
   businessHours?: Record<string, { open: string; close: string; closed?: boolean }>;
   showBusinessHours?: boolean;
+  referrerEmail?: string;
 }) {
   const {
     uid,
@@ -199,6 +200,7 @@ async function saveMerchantForUser(args: {
     mobileServiceRadiusMiles,
     businessHours,
     showBusinessHours = true,
+    referrerEmail = "",
   } = args;
 
   const wheelItems = (Array.isArray(wheel) ? wheel : [])
@@ -261,6 +263,7 @@ async function saveMerchantForUser(args: {
     mobileServiceRadiusMiles: typeof mobileServiceRadiusMiles === 'number' ? mobileServiceRadiusMiles : 25,
     businessHours: businessHours ?? {},
     showBusinessHours: showBusinessHours !== false,
+    ...(referrerEmail.trim() && !isEdit ? { referrerEmail: referrerEmail.trim().toLowerCase() } : {}),
   };
 
   if (isEdit) {
@@ -362,6 +365,7 @@ export default function MerchantOnboardPage() {
   const [about, setAbout] = useState("");
   const [website, setWebsite] = useState("");
   const [phone, setPhone] = useState("");
+  const [referrerEmail, setReferrerEmail] = useState("");
   const [isMobile, setIsMobile] = useState(false);
   const [mobileServiceLat, setMobileServiceLat] = useState<number | null>(null);
   const [mobileServiceLng, setMobileServiceLng] = useState<number | null>(null);
@@ -889,6 +893,7 @@ export default function MerchantOnboardPage() {
 
         // ✅ NEW
         termsAccepted: true,
+        referrerEmail: referrerEmail.trim(),
       });
 
       setMerchantId(res.merchantId);
@@ -1358,6 +1363,23 @@ export default function MerchantOnboardPage() {
           <div style={{ fontWeight: 800, opacity: 0.6, fontSize: 13 }}>
             Website and phone are optional — if added, customers can tap to visit your site or call you directly from the wheel page.
           </div>
+
+          {/* Referrer email — only shown for new sign-ups */}
+          {!isEdit && (
+            <div style={{ marginTop: 8 }}>
+              <input
+                value={referrerEmail}
+                onChange={(e) => setReferrerEmail(e.target.value)}
+                placeholder="Referrer's email (if someone referred you)"
+                style={inputStyle()}
+                disabled={!user || busy}
+                type="email"
+              />
+              <div style={{ fontWeight: 700, opacity: 0.6, fontSize: 12, marginTop: 4 }}>
+                Were you referred by someone? Enter their email so they can earn a referral reward.
+              </div>
+            </div>
+          )}
 
           {/* Business Hours — optional for mobile businesses */}
           <div style={{ marginTop: 8 }}>
