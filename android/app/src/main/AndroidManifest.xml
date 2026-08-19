@@ -22,6 +22,14 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
+            <!-- Deep link: recapture app URLs opened in Chrome (e.g. after Stripe redirect) -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="wheel-deals-nine.vercel.app" />
+            </intent-filter>
+
         </activity>
 
         <provider

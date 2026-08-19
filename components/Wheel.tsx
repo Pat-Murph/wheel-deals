@@ -1171,6 +1171,26 @@ export default function Wheel({
           </div>
         )}
 
+        {/* Show "Open in App" button when user lands here in a browser after Stripe redirect */}
+        {paidSpinReady && typeof window !== "undefined" && !(window as any).Capacitor && /Android/i.test(navigator.userAgent) && (
+          <a
+            href={`intent://wheel-deals-nine.vercel.app/wheel?merchantId=${encodeURIComponent(merchantId || '')}#Intent;scheme=https;package=com.wheeldealsapp.app;end`}
+            style={{
+              display: "inline-block",
+              marginTop: 10,
+              padding: "10px 20px",
+              background: "#f59e0b",
+              color: "#1e293b",
+              borderRadius: 8,
+              fontWeight: 900,
+              fontSize: 14,
+              textDecoration: "none",
+            }}
+          >
+            Open in Wheel Deals App
+          </a>
+        )}
+
         {spinId && (
           <div style={{ marginTop: 6, fontSize: 12, opacity: 0.55, color: "#cbd5e1" }}>
             Unlock ID: {spinId}
