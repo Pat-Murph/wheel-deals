@@ -7,17 +7,15 @@
  * The beast shown is determined by the winning slice's weight (probability).
  * Each rarity tier contains multiple beasts — one is randomly selected per unlock.
  *
- * 100 WHEEL DEALS BEASTS across 7 rarity tiers.
- *
  * RARITY TIERS  (weight = share of total wheel weight, i.e. probability)
  * ─────────────────────────────────────────────────────────────────────────
- * Legendary   < 1 %       — rarest beasts   (~8)
- * Ultra Rare  1–1.99 %    — very special    (~10)
- * Very Rare   2–4.99 %    — special         (~15)
- * Rare        5–9.99 %    — exciting        (~17)
- * Uncommon   10–24.99 %   — nice            (~20)
- * Solid      25–49.99 %   — good            (~15)
- * Common     50–100 %     — standard        (~15)
+ * Legendary   < 1 %     — rarest beasts
+ * Ultra Rare  1–1.99 %  — very special
+ * Very Rare   2–4.99 %  — special
+ * Rare        5–9.99 %  — exciting
+ * Uncommon   10–24.99 %  — nice
+ * Solid      25–49.99 %  — good
+ * Common     50–100 %    — standard
  */
 
 import React, { useEffect, useRef, useState } from "react";
@@ -39,192 +37,115 @@ export type RarityTier = {
   beasts: Beast[];
 };
 
+const beast = (id: string, name: string, emoji: string): Beast => ({
+  id,
+  name,
+  emoji,
+  imagePath: `/animals/${id}-chains.webp`,
+});
+
 export const RARITY_TIERS: RarityTier[] = [
   {
-    id: "legendary",
-    label: "LEGENDARY UNLOCK!",
-    minWeightPct: 0,
-    maxWeightPct: 0.99,
-    bgGradient: "linear-gradient(135deg, #1a0000 0%, #3d0000 50%, #1a0000 100%)",
-    glowColor: "#ff2200",
+    id: "legendary", label: "LEGENDARY UNLOCK!", minWeightPct: 0, maxWeightPct: 0.99,
+    bgGradient: "linear-gradient(135deg, #1a0000 0%, #3d0000 50%, #1a0000 100%)", glowColor: "#ff2200",
     beasts: [
-      { id: "dragon", name: "Infernox", emoji: "🐉", imagePath: "/animals/dragon-chains.png" },
-      { id: "demon-lord", name: "Hellrend", emoji: "👹", imagePath: "/animals/demon-lord-chains.png" },
-      { id: "hydra", name: "Venomspew", emoji: "🐍", imagePath: "/animals/hydra-chains.png" },
-      { id: "bone-dragon", name: "Deathwyrm", emoji: "💀", imagePath: "/animals/bone-dragon-chains.png" },
-      { id: "thunder-god", name: "Stormborn", emoji: "⚡", imagePath: "/animals/thunder-god-chains.png" },
-      { id: "celestial-angel", name: "Divinewrath", emoji: "👼", imagePath: "/animals/celestial-angel-chains.png" },
-      { id: "void-walker", name: "Oblivion", emoji: "🌑", imagePath: "/animals/void-walker-chains.png" },
-      { id: "chaos-knight", name: "Riftbreaker", emoji: "🌀", imagePath: "/animals/chaos-knight-chains.png" },
+      beast("dragon", "Infernox", "🐉"), beast("demon-lord", "Hellrend", "👹"),
+      beast("hydra", "Venomspew", "🐍"), beast("bone-dragon", "Deathwyrm", "💀"),
+      beast("thunder-god", "Stormborn", "⚡"), beast("celestial-angel", "Divinewrath", "👼"),
+      beast("void-walker", "Oblivion", "🌑"), beast("chaos-knight", "Riftbreaker", "🌀"),
     ],
   },
   {
-    id: "ultra-rare",
-    label: "ULTRA RARE UNLOCK!",
-    minWeightPct: 1,
-    maxWeightPct: 1.99,
-    bgGradient: "linear-gradient(135deg, #1a0a00 0%, #4d1a00 50%, #1a0a00 100%)",
-    glowColor: "#ff6600",
+    id: "ultra-rare", label: "ULTRA RARE UNLOCK!", minWeightPct: 1, maxWeightPct: 1.99,
+    bgGradient: "linear-gradient(135deg, #1a0a00 0%, #4d1a00 50%, #1a0a00 100%)", glowColor: "#ff6600",
     beasts: [
-      { id: "phoenix", name: "Emberwing", emoji: "🔥", imagePath: "/animals/phoenix-chains.png" },
-      { id: "chimera", name: "Triflame", emoji: "🦁", imagePath: "/animals/chimera-chains.png" },
-      { id: "valkyrie", name: "Brightblade", emoji: "⚔️", imagePath: "/animals/valkyrie-chains.png" },
-      { id: "serpent-king", name: "Coilstrike", emoji: "🐍", imagePath: "/animals/serpent-king-chains.png" },
-      { id: "storm-dragon", name: "Tempestclaw", emoji: "🐉", imagePath: "/animals/storm-dragon-chains.png" },
-      { id: "dark-samurai", name: "Oniblader", emoji: "⚔️", imagePath: "/animals/dark-samurai-chains.png" },
-      { id: "fire-giant", name: "Surtr", emoji: "🔥", imagePath: "/animals/fire-giant-chains.png" },
-      { id: "ancient-sphinx", name: "Goldriddle", emoji: "🦁", imagePath: "/animals/ancient-sphinx-chains.png" },
-      { id: "phoenix-queen", name: "Emberstorm", emoji: "🔥", imagePath: "/animals/phoenix-queen-chains.png" },
-      { id: "hellhound", name: "Cerberus", emoji: "🐕", imagePath: "/animals/hellhound-chains.png" },
+      beast("phoenix", "Emberwing", "🔥"), beast("chimera", "Triflame", "🦁"),
+      beast("valkyrie", "Brightblade", "⚔️"), beast("serpent-king", "Coilstrike", "🐍"),
+      beast("storm-dragon", "Tempestclaw", "🐉"), beast("dark-samurai", "Oniblader", "⚔️"),
+      beast("fire-giant", "Surtr", "🔥"), beast("ancient-sphinx", "Goldriddle", "🦁"),
+      beast("phoenix-queen", "Emberstorm", "🔥"), beast("hellhound", "Cerberus", "🐕"),
     ],
   },
   {
-    id: "very-rare",
-    label: "VERY RARE UNLOCK!",
-    minWeightPct: 2,
-    maxWeightPct: 4.99,
-    bgGradient: "linear-gradient(135deg, #000d1a 0%, #001a3d 50%, #000d1a 100%)",
-    glowColor: "#0099ff",
+    id: "very-rare", label: "VERY RARE UNLOCK!", minWeightPct: 2, maxWeightPct: 4.99,
+    bgGradient: "linear-gradient(135deg, #000d1a 0%, #001a3d 50%, #000d1a 100%)", glowColor: "#0099ff",
     beasts: [
-      { id: "eagle", name: "Skypiercer", emoji: "🦅", imagePath: "/animals/eagle-chains.png" },
-      { id: "griffin", name: "Talon Rex", emoji: "🦅", imagePath: "/animals/griffin-chains.png" },
-      { id: "thunder-hawk", name: "Voltstrike", emoji: "⚡", imagePath: "/animals/thunder-hawk-chains.png" },
-      { id: "ice-golem", name: "Glacius", emoji: "🧊", imagePath: "/animals/ice-golem-chains.png" },
-      { id: "kitsune", name: "Sakura", emoji: "🦊", imagePath: "/animals/kitsune-chains.png" },
-      { id: "jade-dragon", name: "Emeraldscale", emoji: "🐉", imagePath: "/animals/jade-dragon-chains.png" },
-      { id: "kraken", name: "Abyssal", emoji: "🐙", imagePath: "/animals/kraken-chains.png" },
-      { id: "plasma-wolf", name: "Neonhowl", emoji: "🐺", imagePath: "/animals/plasma-wolf-chains.png" },
-      { id: "death-knight", name: "Doomguard", emoji: "⚔️", imagePath: "/animals/death-knight-chains.png" },
-      { id: "shadow-assassin", name: "Phantomblade", emoji: "🗡️", imagePath: "/animals/shadow-assassin-chains.png" },
-      { id: "lava-titan", name: "Magmacrusher", emoji: "🌋", imagePath: "/animals/lava-titan-chains.png" },
-      { id: "dark-paladin", name: "Doomsworn", emoji: "⚔️", imagePath: "/animals/dark-paladin-chains.png" },
-      { id: "bone-reaper", name: "Soulharvest", emoji: "💀", imagePath: "/animals/bone-reaper-chains.png" },
-      { id: "necromancer", name: "Gravecaller", emoji: "💀", imagePath: "/animals/necromancer-chains.png" },
-      { id: "ice-witch", name: "Frostweaver", emoji: "❄️", imagePath: "/animals/ice-witch-chains.png" },
+      beast("eagle", "Skypiercer", "🦅"), beast("griffin", "Talon Rex", "🦅"),
+      beast("thunder-hawk", "Voltstrike", "⚡"), beast("ice-golem", "Glacius", "🧊"),
+      beast("kitsune", "Sakura", "🦊"), beast("jade-dragon", "Emeraldscale", "🐉"),
+      beast("kraken", "Abyssal", "🐙"), beast("plasma-wolf", "Neonhowl", "🐺"),
+      beast("death-knight", "Doomguard", "⚔️"), beast("shadow-assassin", "Phantomblade", "🗡️"),
+      beast("lava-titan", "Magmacrusher", "🌋"), beast("dark-paladin", "Doomsworn", "⚔️"),
+      beast("bone-reaper", "Soulharvest", "💀"), beast("necromancer", "Gravecaller", "💀"),
+      beast("ice-witch", "Frostweaver", "❄️"),
     ],
   },
   {
-    id: "rare",
-    label: "RARE UNLOCK!",
-    minWeightPct: 5,
-    maxWeightPct: 9.99,
-    bgGradient: "linear-gradient(135deg, #1a0d00 0%, #3d2000 50%, #1a0d00 100%)",
-    glowColor: "#ff8800",
+    id: "rare", label: "RARE UNLOCK!", minWeightPct: 5, maxWeightPct: 9.99,
+    bgGradient: "linear-gradient(135deg, #1a0d00 0%, #3d2000 50%, #1a0d00 100%)", glowColor: "#ff8800",
     beasts: [
-      { id: "tiger", name: "Voltclaw", emoji: "🐯", imagePath: "/animals/tiger-chains.png" },
-      { id: "shadow-panther", name: "Voidfang", emoji: "🐆", imagePath: "/animals/shadow-panther-chains.png" },
-      { id: "dark-elf", name: "Shadowveil", emoji: "🗡️", imagePath: "/animals/dark-elf-chains.png" },
-      { id: "fairy-queen", name: "Frostbane", emoji: "❄️", imagePath: "/animals/fairy-queen-chains.png" },
-      { id: "fox-enchantress", name: "Crimsonveil", emoji: "🦊", imagePath: "/animals/fox-enchantress-chains.png" },
-      { id: "snow-leopard", name: "Frostpaw", emoji: "🐆", imagePath: "/animals/snow-leopard-chains.png" },
-      { id: "shadow-cat", name: "Nightshade", emoji: "🐈‍⬛", imagePath: "/animals/shadow-cat-chains.png" },
-      { id: "serpent-dancer", name: "Venomcharm", emoji: "🐍", imagePath: "/animals/serpent-dancer-chains.png" },
-      { id: "wolf-queen", name: "Moonhowl", emoji: "🐺", imagePath: "/animals/wolf-queen-chains.png" },
-      { id: "tiger-empress", name: "Amberclaw", emoji: "🐯", imagePath: "/animals/tiger-empress-chains.png" },
-      { id: "blood-elf", name: "Scarletmage", emoji: "🧝", imagePath: "/animals/blood-elf-chains.png" },
-      { id: "moon-elf", name: "Lunarblade", emoji: "🌙", imagePath: "/animals/moon-elf-chains.png" },
-      { id: "storm-witch", name: "Tempestra", emoji: "⚡", imagePath: "/animals/storm-witch-chains.png" },
-      { id: "shadow-wizard", name: "Voidcaster", emoji: "🧙", imagePath: "/animals/shadow-wizard-chains.png" },
-      { id: "frost-elf", name: "Glacialblade", emoji: "❄️", imagePath: "/animals/frost-elf-chains.png" },
-      { id: "dark-ranger", name: "Shadowarrow", emoji: "🏹", imagePath: "/animals/dark-ranger-chains.png" },
-      { id: "death-moth", name: "Gravewing", emoji: "🦋", imagePath: "/animals/death-moth-chains.png" },
+      beast("tiger", "Voltclaw", "🐆"), beast("shadow-panther", "Voidfang", "🐆"),
+      beast("dark-elf", "Shadowveil", "🗡️"), beast("fairy-queen", "Frostbane", "❄️"),
+      beast("fox-enchantress", "Crimsonveil", "🦊"), beast("snow-leopard", "Frostpaw", "🐆"),
+      beast("shadow-cat", "Nightshade", "🐈‍⬛"), beast("serpent-dancer", "Venomcharm", "🐍"),
+      beast("wolf-queen", "Moonhowl", "🐺"), beast("tiger-empress", "Amberclaw", "🐯"),
+      beast("blood-elf", "Scarletmage", "🧝"), beast("moon-elf", "Lunarblade", "🌙"),
+      beast("storm-witch", "Tempestra", "⚡"), beast("shadow-wizard", "Voidcaster", "🧙"),
+      beast("frost-elf", "Glacialblade", "❄️"), beast("dark-ranger", "Shadowarrow", "🏹"),
+      beast("death-moth", "Gravewing", "🦋"),
     ],
   },
   {
-    id: "uncommon",
-    label: "UNCOMMON UNLOCK!",
-    minWeightPct: 10,
-    maxWeightPct: 24.99,
-    bgGradient: "linear-gradient(135deg, #0d0d1a 0%, #1a1a3d 50%, #0d0d1a 100%)",
-    glowColor: "#9966ff",
+    id: "uncommon", label: "UNCOMMON UNLOCK!", minWeightPct: 10, maxWeightPct: 24.99,
+    bgGradient: "linear-gradient(135deg, #0d0d1a 0%, #1a1a3d 50%, #0d0d1a 100%)", glowColor: "#9966ff",
     beasts: [
-      { id: "wolf", name: "Spirithowl", emoji: "🐺", imagePath: "/animals/wolf-chains.png" },
-      { id: "werewolf", name: "Bloodmaw", emoji: "🐺", imagePath: "/animals/werewolf-chains.png" },
-      { id: "harpy", name: "Stormscreech", emoji: "🦅", imagePath: "/animals/harpy-chains.png" },
-      { id: "forest-sprite", name: "Thornroot", emoji: "🌿", imagePath: "/animals/forest-sprite-chains.png" },
-      { id: "scorpion-warlord", name: "Venomstrike", emoji: "🦂", imagePath: "/animals/scorpion-warlord-chains.png" },
-      { id: "frost-bear", name: "Glacialmaw", emoji: "🐻", imagePath: "/animals/frost-bear-chains.png" },
-      { id: "raven-lord", name: "Darkwing", emoji: "🐦‍⬛", imagePath: "/animals/raven-lord-chains.png" },
-      { id: "rhino-tank", name: "Ironhorn", emoji: "🦏", imagePath: "/animals/rhino-tank-chains.png" },
-      { id: "spider-queen", name: "Webweaver", emoji: "🕷️", imagePath: "/animals/spider-queen-chains.png" },
-      { id: "blood-wolf", name: "Crimsonmaw", emoji: "🐺", imagePath: "/animals/blood-wolf-chains.png" },
-      { id: "crystal-golem", name: "Amethyst", emoji: "💎", imagePath: "/animals/crystal-golem-chains.png" },
-      { id: "siren", name: "Abyssong", emoji: "🧜", imagePath: "/animals/siren-chains.png" },
-      { id: "war-fairy", name: "Thornsting", emoji: "🧚", imagePath: "/animals/war-fairy-chains.png" },
-      { id: "ember-fairy", name: "Sparkblaze", emoji: "🧚", imagePath: "/animals/ember-fairy-chains.png" },
-      { id: "poison-fairy", name: "Toxicbloom", emoji: "🧚", imagePath: "/animals/poison-fairy-chains.png" },
-      { id: "berserker-viking", name: "Ragnar", emoji: "⚔️", imagePath: "/animals/berserker-viking-chains.png" },
-      { id: "wild-druid", name: "Oakfury", emoji: "🌿", imagePath: "/animals/wild-druid-chains.png" },
-      { id: "inferno-fox", name: "Helltail", emoji: "🦊", imagePath: "/animals/inferno-fox-chains.png" },
-      { id: "gargoyle", name: "Stonewake", emoji: "🗿", imagePath: "/animals/gargoyle-chains.png" },
-      { id: "warg-rider", name: "Packleader", emoji: "🐺", imagePath: "/animals/warg-rider-chains.png" },
+      beast("wolf", "Spirithowl", "🐺"), beast("werewolf", "Bloodmaw", "🐺"),
+      beast("harpy", "Stormscreech", "🦅"), beast("forest-sprite", "Thornroot", "🌿"),
+      beast("scorpion-warlord", "Venomstrike", "🦂"), beast("frost-bear", "Glacialmaw", "🐻"),
+      beast("raven-lord", "Darkwing", "🐦‍⬛"), beast("rhino-tank", "Ironhorn", "🦏"),
+      beast("spider-queen", "Webweaver", "🕷️"), beast("blood-wolf", "Crimsonmaw", "🐺"),
+      beast("crystal-golem", "Amethyst", "💎"), beast("siren", "Abyssong", "🧜"),
+      beast("war-fairy", "Thornsting", "🧚"), beast("ember-fairy", "Sparkblaze", "🧚"),
+      beast("poison-fairy", "Toxicbloom", "🧚"), beast("berserker-viking", "Ragnar", "⚔️"),
+      beast("wild-druid", "Oakfury", "🌿"), beast("inferno-fox", "Helltail", "🦊"),
+      beast("gargoyle", "Stonewake", "🗿"), beast("warg-rider", "Packleader", "🐺"),
     ],
   },
   {
-    id: "solid",
-    label: "SOLID UNLOCK!",
-    minWeightPct: 25,
-    maxWeightPct: 49.99,
-    bgGradient: "linear-gradient(135deg, #0d1a00 0%, #1a3d00 50%, #0d1a00 100%)",
-    glowColor: "#44cc00",
+    id: "solid", label: "SOLID UNLOCK!", minWeightPct: 25, maxWeightPct: 49.99,
+    bgGradient: "linear-gradient(135deg, #0d1a00 0%, #1a3d00 50%, #0d1a00 100%)", glowColor: "#44cc00",
     beasts: [
-      { id: "bull", name: "Ironcharge", emoji: "🐂", imagePath: "/animals/bull-chains.png" },
-      { id: "minotaur", name: "Ironhoof", emoji: "🐂", imagePath: "/animals/minotaur-chains.png" },
-      { id: "centaur", name: "Goldstrike", emoji: "🐴", imagePath: "/animals/centaur-chains.png" },
-      { id: "shark-berserker", name: "Bloodfin", emoji: "🦈", imagePath: "/animals/shark-berserker-chains.png" },
-      { id: "bat-lord", name: "Nightfang", emoji: "🦇", imagePath: "/animals/bat-lord-chains.png" },
-      { id: "croc-hunter", name: "Swampjaw", emoji: "🐊", imagePath: "/animals/croc-hunter-chains.png" },
-      { id: "storm-ram", name: "Thunderhorn", emoji: "🐏", imagePath: "/animals/storm-ram-chains.png" },
-      { id: "viper-assassin", name: "Fangstrike", emoji: "🐍", imagePath: "/animals/viper-assassin-chains.png" },
-      { id: "doom-stag", name: "Shadowrack", emoji: "🦌", imagePath: "/animals/doom-stag-chains.png" },
-      { id: "blood-hawk", name: "Crimsonwing", emoji: "🦅", imagePath: "/animals/blood-hawk-chains.png" },
-      { id: "iron-dwarf", name: "Forgehammer", emoji: "⚒️", imagePath: "/animals/iron-dwarf-chains.png" },
-      { id: "stone-dwarf", name: "Magmabeard", emoji: "⚒️", imagePath: "/animals/stone-dwarf-chains.png" },
-      { id: "shadow-fox", name: "Duskfang", emoji: "🦊", imagePath: "/animals/shadow-fox-chains.png" },
-      { id: "magma-drake", name: "Cinderjaw", emoji: "🐉", imagePath: "/animals/magma-drake-chains.png" },
-      { id: "war-elephant", name: "Titanstep", emoji: "🐘", imagePath: "/animals/war-elephant-chains.png" },
+      beast("bull", "Ironcharge", "🐂"), beast("minotaur", "Ironhoof", "🐂"),
+      beast("centaur", "Goldstrike", "🐴"), beast("shark-berserker", "Bloodfin", "🦈"),
+      beast("bat-lord", "Nightfang", "🦇"), beast("croc-hunter", "Swampjaw", "🐊"),
+      beast("storm-ram", "Thunderhorn", "🐏"), beast("viper-assassin", "Fangstrike", "🐍"),
+      beast("doom-stag", "Shadowrack", "🦌"), beast("blood-hawk", "Crimsonwing", "🦅"),
+      beast("iron-dwarf", "Forgehammer", "⚒️"), beast("stone-dwarf", "Magmabeard", "⚒️"),
+      beast("shadow-fox", "Duskfang", "🦊"), beast("magma-drake", "Cinderjaw", "🐉"),
+      beast("war-elephant", "Titanstep", "🐘"),
     ],
   },
   {
-    id: "common",
-    label: "UNLOCKED!",
-    minWeightPct: 50,
-    maxWeightPct: 100,
-    bgGradient: "linear-gradient(135deg, #0a0a1a 0%, #1a1000 40%, #2a1800 100%)",
-    glowColor: "#F4B400",
+    id: "common", label: "UNLOCKED!", minWeightPct: 50, maxWeightPct: 100,
+    bgGradient: "linear-gradient(135deg, #0a0a1a 0%, #1a1000 40%, #2a1800 100%)", glowColor: "#F4B400",
     beasts: [
-      { id: "gorilla", name: "Thunderfist", emoji: "🦍", imagePath: "/animals/gorilla-chains.png" },
-      { id: "orc", name: "Skullcrusher", emoji: "👹", imagePath: "/animals/orc-chains.png" },
-      { id: "goblin-shaman", name: "Hexclaw", emoji: "🧙", imagePath: "/animals/goblin-shaman-chains.png" },
-      { id: "mermaid", name: "Riptide", emoji: "🧜", imagePath: "/animals/mermaid-chains.png" },
-      { id: "iron-boar", name: "Tuskbreaker", emoji: "🐗", imagePath: "/animals/iron-boar-chains.png" },
-      { id: "plague-rat", name: "Rotfang", emoji: "🐀", imagePath: "/animals/plague-rat-chains.png" },
-      { id: "flame-stallion", name: "Hellrider", emoji: "🐴", imagePath: "/animals/flame-stallion-chains.png" },
-      { id: "nightmare-horse", name: "Dreadmane", emoji: "🐴", imagePath: "/animals/nightmare-horse-chains.png" },
-      { id: "mantis-blade", name: "Scytheclaw", emoji: "🦗", imagePath: "/animals/mantis-blade-chains.png" },
-      { id: "sand-wurm", name: "Dunebreaker", emoji: "🪱", imagePath: "/animals/sand-wurm-chains.png" },
-      { id: "mountain-troll", name: "Bouldersmash", emoji: "🧌", imagePath: "/animals/mountain-troll-chains.png" },
-      { id: "goblin-king", name: "Grimecrown", emoji: "👑", imagePath: "/animals/goblin-king-chains.png" },
-      { id: "acid-toad", name: "Toxicroak", emoji: "🐸", imagePath: "/animals/acid-toad-chains.png" },
-      { id: "cursed-pirate", name: "Deadtide", emoji: "🏴‍☠️", imagePath: "/animals/cursed-pirate-chains.png" },
-      { id: "thunder-ape", name: "Stormfist", emoji: "🦍", imagePath: "/animals/thunder-ape-chains.png" },
+      beast("gorilla", "Thunderfist", "🦍"), beast("orc", "Skullcrusher", "👹"),
+      beast("goblin-shaman", "Hexclaw", "🧙"), beast("mermaid", "Riptide", "🧜"),
+      beast("iron-boar", "Tuskbreaker", "🐗"), beast("plague-rat", "Rotfang", "🐀"),
+      beast("flame-stallion", "Hellrider", "🐴"), beast("nightmare-horse", "Dreadmane", "🐴"),
+      beast("mantis-blade", "Scytheclaw", "🦗"), beast("sand-wurm", "Dunebreaker", "🪱"),
+      beast("mountain-troll", "Bouldersmash", "🧌"), beast("goblin-king", "Grimecrown", "👑"),
+      beast("acid-toad", "Toxicroak", "🐸"), beast("cursed-pirate", "Deadtide", "🏴‍☠️"),
+      beast("thunder-ape", "Stormfist", "🦍"),
     ],
   },
 ];
 
-/** Flatten all beasts for preloading */
-const ALL_BEASTS = RARITY_TIERS.flatMap((t) => t.beasts);
-
-/** Preload all beast images IMMEDIATELY when this module is imported (runs once).
- *  This ensures images are in the browser cache before the celebration popup appears. */
-if (typeof window !== "undefined") {
-  ALL_BEASTS.forEach((beast) => {
-    if (beast.imagePath) {
-      const img = new window.Image();
-      img.src = beast.imagePath;
-    }
-  });
-}
+/**
+ * Beast assets load only when selected. This avoids downloading the entire
+ * 100-image collection on every wheel-page visit while keeping the short
+ * celebration timing unchanged.
+ */
 
 /** Pick the right rarity tier for a given slice weight percentage */
 export function getRarityTier(sliceWeightPct: number): RarityTier {
@@ -288,14 +209,16 @@ type Props = {
   sliceWeightPct: number;
   /** The deal label that was won */
   dealLabel: string;
+  /** Preselected Beast, used when a post-unlock share card needs to match the celebration exactly */
+  selectedBeast?: { tier: RarityTier; beast: Beast };
   /** Called when the overlay finishes and should be dismissed */
   onDone: () => void;
 };
 
-export default function SpinCelebration({ sliceWeightPct, dealLabel, onDone }: Props) {
-  // Pick beast once on mount (useRef so it doesn't change on re-render)
-  const picked = useRef(getRandomBeast(sliceWeightPct));
-  const { tier, beast } = picked.current;
+export default function SpinCelebration({ sliceWeightPct, dealLabel, selectedBeast, onDone }: Props) {
+  // Use the preselected Beast when supplied; otherwise choose one once on mount.
+  const fallbackPick = useRef(getRandomBeast(sliceWeightPct));
+  const { tier, beast } = selectedBeast ?? fallbackPick.current;
 
   const [phase, setPhase] = useState<"enter" | "hold" | "exit">("hold");
   const [particles, setParticles] = useState<{ id: number; x: number; y: number; size: number; color: string; vx: number; vy: number }[]>([]);

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Wheel, { WheelItem } from "./Wheel";
 import { QRCodeCanvas } from "qrcode.react";
 import { getActiveMerchants, type Merchant } from "../lib/merchants";
-import SpinCelebration from "./SpinCelebration";
+import SpinCelebration, { getRandomBeast, type Beast, type RarityTier } from "./SpinCelebration";
 
 import { getAuth, onAuthStateChanged, signInAnonymously } from "firebase/auth";
 import { app } from "../lib/firebase";
@@ -88,6 +88,8 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
   const [celebrationLabel, setCelebrationLabel] = useState("");
   // Pending result — shown after celebration dismisses
   const pendingResultRef = useRef<{ label: string; code: string; expiresAt?: string } | null>(null);
+  // Beast info for share card — saved when celebration fires
+  const [lastBeast, setLastBeast] = useState<{ beast: Beast; tier: RarityTier } | null>(null);
   const [emailInput, setEmailInput] = useState("");
   const [emailSending, setEmailSending] = useState(false);
   const [emailStatus, setEmailStatus] = useState<string | null>(null);
@@ -1293,6 +1295,9 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
               : 50;
             setCelebrationLabel(label);
             setCelebrationWeightPct(weightPct);
+            // Save beast info for share card
+            const beastResult = getRandomBeast(weightPct);
+            setLastBeast(beastResult);
             setCelebrationVisible(true);
           }}
           onResult={(label, extra) => {
@@ -1378,6 +1383,90 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
         </div>
       )}
 
+      {/* Share Your Beast card — shown after unlock */}
+      {issuedCode && lastBeast && (
+        <div style={{
+          padding: 16, borderRadius: 14, background: lastBeast.tier.bgGradient,
+          display: "flex", flexDirection: "column", alignItems: "center", gap: 12,
+          width: "100%", boxSizing: "border-box",
+          boxShadow: `0 4px 24px ${lastBeast.tier.glowColor}33`,
+          border: `2px solid ${lastBeast.tier.glowColor}44`,
+        }}>
+          <div style={{ fontWeight: 950, fontSize: 16, color: lastBeast.tier.glowColor, letterSpacing: 1, textTransform: "uppercase" }}>
+            {lastBeast.tier.label}
+          </div>
+          <img
+            src={lastBeast.beast.imagePath}
+            alt={lastBeast.beast.name}
+            style={{
+              width: 200, height: 200, objectFit: "contain",
+              filter: `drop-shadow(0 0 16px ${lastBeast.tier.glowColor})`,
+              borderRadius: 12,
+            }}
+          />
+          <div style={{ fontWeight: 950, fontSize: 20, color: "#fff", letterSpacing: 2, textTransform: "uppercase",
+            textShadow: `0 0 12px ${lastBeast.tier.glowColor}` }}>
+            {lastBeast.beast.name}
+          </div>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center" }}>
+            <button
+              onClick={async () => {
+                try {
+                  const response = await fetch(lastBeast.beast.imagePath);
+                  const blob = await response.blob();
+                  if (navigator.share && navigator.canShare?.({ files: [new File([blob], `${lastBeast.beast.name}-WheelDeals.webp`, { type: "image/webp" })] })) {
+                    await navigator.share({
+                      title: `I unlocked ${lastBeast.beast.name} on Wheel Deals!`,
+                      text: `${lastBeast.tier.label} - ${lastBeast.beast.name}! Unlock deals at local businesses with Wheel Deals.`,
+                      files: [new File([blob], `${lastBeast.beast.name}-WheelDeals.webp`, { type: "image/webp" })],
+                    });
+                  } else {
+                    // Fallback: download the image
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.download = `${lastBeast.beast.name}-WheelDeals.webp`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                  }
+                } catch {}
+              }}
+              style={{
+                padding: "10px 20px", borderRadius: 10, border: "none", fontWeight: 950, fontSize: 14,
+                cursor: "pointer", color: "#111",
+                background: "linear-gradient(180deg, rgba(255,217,61,0.95), rgba(255,155,61,0.95))",
+              }}
+            >
+              Share Beast
+            </button>
+            <button
+              onClick={async () => {
+                try {
+                  const response = await fetch(lastBeast.beast.imagePath);
+                  const blob = await response.blob();
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement("a");
+                  a.href = url;
+                  a.download = `${lastBeast.beast.name}-WheelDeals.webp`;
+                  a.click();
+                  URL.revokeObjectURL(url);
+                } catch {}
+              }}
+              style={{
+                padding: "10px 20px", borderRadius: 10, border: `1px solid ${lastBeast.tier.glowColor}66`,
+                fontWeight: 950, fontSize: 14, cursor: "pointer",
+                color: "#fff", background: "rgba(255,255,255,0.1)",
+              }}
+            >
+              Save Image
+            </button>
+          </div>
+          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", textAlign: "center", fontWeight: 600 }}>
+            Collect all 100 Wheel Deals Beasts!
+          </div>
+        </div>
+      )}
+
       {/* Support modal */}
       {supportOpen && (
         <div onClick={() => setSupportOpen(false)} style={{
@@ -1454,6 +1543,7 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
         <SpinCelebration
           sliceWeightPct={celebrationWeightPct}
           dealLabel={celebrationLabel}
+          selectedBeast={lastBeast ?? undefined}
           onDone={() => {
             setCelebrationVisible(false);
             // Now reveal the code card
