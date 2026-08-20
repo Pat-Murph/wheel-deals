@@ -48,10 +48,12 @@ export default function PayReturnPage() {
         // Redirect back to the wheel page with session_id so it can unlock
         window.location.href = `/wheel?merchantId=${encodeURIComponent(merchantId)}&session_id=${encodeURIComponent(sessionId)}`;
       } catch (e: any) {
-        setStatus("Something went wrong — redirecting back…");
+        // Keep the session ID on the wheel URL. The wheel has a retrying verifier,
+        // so a brief Stripe/app handoff delay cannot strand a completed payment.
+        setStatus("Confirming your payment — returning to the wheel…");
         setTimeout(() => {
-          window.location.href = `/wheel?merchantId=${encodeURIComponent(merchantId)}&pay_error=1`;
-        }, 1500);
+          window.location.href = `/wheel?merchantId=${encodeURIComponent(merchantId)}&session_id=${encodeURIComponent(sessionId)}`;
+        }, 900);
       }
     })();
   }, []);

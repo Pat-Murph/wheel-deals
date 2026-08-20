@@ -552,17 +552,26 @@ export default function Wheel({
     shimmerRafRef.current = requestAnimationFrame(step);
   };
 
-  // ✅ After Stripe redirects back to /wheel?session_id=..., verify and grant the unlock.
+  // After Stripe returns, recover the session from the URL or the verified recovery record.
+  // A short retry window handles the occasional handoff race between Stripe and the app resume.
   useEffect(() => {
     const LS_KEY = "wd_paid_session";
+    let cancelled = false;
 
-    // Primary path: session_id in URL (set directly by Stripe success_url)
-    const sp = new URLSearchParams(window.location.search);
-    const sessionId = sp.get("session_id");
-    if (sessionId) {
-      (async () => {
-        setPayBusy(true);
-        setPayStatus("Verifying payment…");
+    const pause = (ms: number) => new Promise((resolve) => window.setTimeout(resolve, ms));
+    const restoreWheelPosition = () => {
+      window.setTimeout(() => {
+        const wheelEl = document.getElementById("wheel-section");
+        if (wheelEl) wheelEl.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 100);
+    };
+
+    const verifyAndRestore = async (sessionId: string) => {
+      setPayBusy(true);
+      setPayStatus("Verifying payment…");
+      let lastError = "Payment verification is still processing.";
+
+      for (let attempt = 0; attempt < 6; attempt += 1) {
         try {
           const res = await fetch("/api/stripe/spin/verify", {
             method: "POST",
@@ -570,55 +579,77 @@ export default function Wheel({
             body: JSON.stringify({ sessionId }),
           });
           const data = await res.json().catch(() => ({}));
-          if (!res.ok || !data?.ok)
-            throw new Error(data?.error ?? "Payment not verified");
-          setPaidSpinReady(true);
-          setVerifiedSessionId(sessionId);
-          if (data.uid) setVerifiedUid(data.uid);
-          if (data.spinPriceCents) {
-            setPaidSpinPriceCents(data.spinPriceCents);
-            onPaymentVerified?.(data.spinPriceCents);
-          }
-          setPayStatus("✅ Payment verified — unlock now!");
-          // Clean session_id from URL
-          sp.delete("session_id");
-          const next = sp.toString();
-          window.history.replaceState({}, "", `${window.location.pathname}${next ? `?${next}` : ""}`);
-          // ✅ Scroll to the wheel section so user doesn't land at top of page
-          setTimeout(() => {
-            const wheelEl = document.getElementById("wheel-section");
-            if (wheelEl) wheelEl.scrollIntoView({ behavior: "smooth", block: "center" });
-          }, 100);
-        } catch (e: any) {
-          setPayStatus(e?.message ?? "Payment verify failed.");
-          setPaidSpinReady(false);
-          setVerifiedSessionId(null);
-        } finally {
-          setPayBusy(false);
-        }
-      })();
-      return;
-    }
 
-    // Bonus: also check localStorage in case a new-tab flow completed
-    try {
-      const raw = localStorage.getItem(LS_KEY);
-      if (raw) {
-        const payload = JSON.parse(raw) as { sessionId: string; merchantId: string; uid: string | null; ts: number };
-        if (Date.now() - payload.ts < 10 * 60 * 1000 && (!merchantId || payload.merchantId === merchantId)) {
-          localStorage.removeItem(LS_KEY);
-          setPaidSpinReady(true);
-          setVerifiedSessionId(payload.sessionId);
-          if (payload.uid) setVerifiedUid(payload.uid);
-          setPayStatus("✅ Payment verified — unlock now!");
-          // ✅ Scroll to the wheel section
-          setTimeout(() => {
-            const wheelEl = document.getElementById("wheel-section");
-            if (wheelEl) wheelEl.scrollIntoView({ behavior: "smooth", block: "center" });
-          }, 100);
+          if (res.ok && data?.ok) {
+            if (cancelled) return;
+            setPaidSpinReady(true);
+            setVerifiedSessionId(sessionId);
+            if (data.uid) setVerifiedUid(data.uid);
+            if (data.spinPriceCents) {
+              setPaidSpinPriceCents(data.spinPriceCents);
+              onPaymentVerified?.(data.spinPriceCents);
+            }
+            try {
+              localStorage.setItem(LS_KEY, JSON.stringify({
+                sessionId,
+                merchantId: data.merchantId ?? merchantId ?? "",
+                uid: data.uid ?? null,
+                ts: Date.now(),
+              }));
+            } catch { /* storage is only a recovery aid */ }
+            setPayStatus("✅ Payment verified — unlock now!");
+
+            const sp = new URLSearchParams(window.location.search);
+            if (sp.get("session_id") === sessionId) {
+              sp.delete("session_id");
+              const next = sp.toString();
+              window.history.replaceState({}, "", `${window.location.pathname}${next ? `?${next}` : ""}`);
+            }
+            restoreWheelPosition();
+            return;
+          }
+
+          lastError = data?.error ?? lastError;
+        } catch (e: any) {
+          lastError = e?.message ?? lastError;
+        }
+
+        if (attempt < 5) {
+          setPayStatus("Confirming payment…");
+          await pause(800 * (attempt + 1));
+          if (cancelled) return;
         }
       }
-    } catch { /* ignore */ }
+
+      if (!cancelled) {
+        setPayStatus(lastError || "We could not confirm this payment yet. Please return to this wheel in a moment.");
+        setPaidSpinReady(false);
+        setVerifiedSessionId(null);
+      }
+    };
+
+    const sp = new URLSearchParams(window.location.search);
+    let sessionId = sp.get("session_id");
+
+    // If Android resumes the app without preserving the query string, recover the
+    // session that the payment-return page stored in this same app WebView.
+    if (!sessionId) {
+      try {
+        const raw = localStorage.getItem(LS_KEY);
+        if (raw) {
+          const payload = JSON.parse(raw) as { sessionId?: string; merchantId?: string; ts?: number };
+          const isRecent = typeof payload.ts === "number" && Date.now() - payload.ts < 24 * 60 * 60 * 1000;
+          const isForMerchant = !merchantId || !payload.merchantId || payload.merchantId === merchantId;
+          if (isRecent && isForMerchant && payload.sessionId) sessionId = payload.sessionId;
+        }
+      } catch { /* recovery storage is optional */ }
+    }
+
+    if (sessionId) void verifyAndRestore(sessionId);
+
+    return () => {
+      cancelled = true;
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [merchantId]);
 

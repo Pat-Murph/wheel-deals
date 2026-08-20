@@ -126,8 +126,9 @@ export async function POST(req: Request) {
         metadata: { merchantId, uid, spinPriceCents: String(tier.priceCents) },
       },
 
-      // ✅ Redirect directly back to the wheel page with session_id so it can verify and unlock.
-      success_url: `${origin}/wheel?merchantId=${encodeURIComponent(merchantId)}&session_id={CHECKOUT_SESSION_ID}`,
+      // Send successful payments through the recovery page first. It verifies the
+      // Stripe session before returning the customer to the exact wheel they paid for.
+      success_url: `${origin}/pay-return?merchantId=${encodeURIComponent(merchantId)}&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/wheel?merchantId=${encodeURIComponent(merchantId)}&cancelled=1`,
     });
 
