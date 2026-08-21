@@ -1059,7 +1059,7 @@ export default function Wheel({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(
           isFreeSpinBoost
-            ? { merchantId, uid: effectiveUid, prizeLabel: resLabel, finalize: true, deviceFingerprint: finalizeFingerprint }
+            ? { sessionId: verifiedSessionId, merchantId, uid: effectiveUid, prizeLabel: resLabel, finalize: true, deviceFingerprint: finalizeFingerprint }
             : { sessionId: verifiedSessionId, merchantId, uid: effectiveUid, prizeLabel: resLabel }
         ),
       });
