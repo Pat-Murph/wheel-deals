@@ -67,23 +67,28 @@ export async function POST(req: Request) {
       );
     }
 
-    // ✅ Idempotent entitlement creation without rewriting createdAt on re-verify
+    // A checkout session may only unlock one deal. Re-verification is allowed
+    // while its entitlement is unused, but a completed session must never make
+    // a new wheel unlock ready after the customer navigates away and returns.
     const paidRef = adminDb.collection("paidSpins").doc(sessionId);
+    let alreadyUsed = false;
 
     await adminDb.runTransaction(async (tx) => {
       const existing = await tx.get(paidRef);
 
       if (existing.exists) {
+        if ((existing.data() as any)?.used === true) {
+          alreadyUsed = true;
+          return;
+        }
         tx.set(
           paidRef,
           {
-            // keep canonical fields updated if you want
             merchantId,
             uid,
             amountTotal: session.amount_total ?? 0,
             currency: session.currency,
             verifiedAt: FieldValue.serverTimestamp(),
-            // do NOT force used=false here; preserve reality
           },
           { merge: true }
         );
@@ -100,6 +105,13 @@ export async function POST(req: Request) {
         verifiedAt: FieldValue.serverTimestamp(),
       });
     });
+
+    if (alreadyUsed) {
+      return NextResponse.json(
+        { ok: false, error: "This paid unlock was already used. Please start a new unlock if you would like another deal." },
+        { status: 409 }
+      );
+    }
 
     return NextResponse.json({ ok: true, merchantId, uid, spinPriceCents: amountTotal });
   } catch (e: any) {

@@ -610,6 +610,24 @@ export default function Wheel({
             return;
           }
 
+          // A used entitlement is a final outcome, not a payment-processing delay.
+          // Remove every recovery hint so Discover → wheel cannot re-arm it.
+          if (res.status === 409) {
+            try { localStorage.removeItem(LS_KEY); } catch {}
+            setPaidSpinReady(false);
+            setVerifiedSessionId(null);
+            setVerifiedUid(null);
+            setPayBusy(false);
+            setPayStatus(data?.error ?? "This paid unlock was already used.");
+            const sp = new URLSearchParams(window.location.search);
+            if (sp.has("session_id")) {
+              sp.delete("session_id");
+              const next = sp.toString();
+              window.history.replaceState({}, "", `${window.location.pathname}${next ? `?${next}` : ""}`);
+            }
+            return;
+          }
+
           lastError = data?.error ?? lastError;
         } catch (e: any) {
           lastError = e?.message ?? lastError;
@@ -1078,6 +1096,7 @@ export default function Wheel({
       setPayStatus("✅ Deal unlocked! Show your code to redeem within 30 days!");
       setVerifiedSessionId(null); // prevent reuse
       setVerifiedUid(null); // clear verified uid after use
+      try { localStorage.removeItem("wd_paid_session"); } catch {}
       setPayBusy(false);
       setPaidSpinPriceCents(null);
 
