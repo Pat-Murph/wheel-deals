@@ -5,6 +5,7 @@ import Wheel, { WheelItem } from "./Wheel";
 import { QRCodeCanvas } from "qrcode.react";
 import { getActiveMerchants, type Merchant } from "../lib/merchants";
 import SpinCelebration, { getRandomBeast, type Beast, type RarityTier } from "./SpinCelebration";
+import { hasClaimedBoostLocally } from "../lib/deviceFingerprint";
 
 import { getAuth, onAuthStateChanged, signInAnonymously } from "firebase/auth";
 import { app } from "../lib/firebase";
@@ -24,6 +25,12 @@ function titleCase(s: string) {
 
 function safeArray<T>(v: any): T[] {
   return Array.isArray(v) ? v : [];
+}
+
+function getBoostCycleId(value: any): string {
+  const date = value?.toDate?.() ?? (value instanceof Date ? value : value ? new Date(value) : null);
+  const ms = date instanceof Date ? date.getTime() : Number.NaN;
+  return Number.isFinite(ms) ? `boost-${ms}` : `boost-${String(value ?? "unknown")}`;
 }
 
 function getMerchantPhotos(m: any) {
@@ -106,6 +113,7 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
   const [userPos, setUserPos] = useState<{ lat: number; lng: number } | null>(null);
   const [geoChecking, setGeoChecking] = useState(false);
   const [geoError, setGeoError] = useState<string | null>(null);
+  const [freeBoostClaimed, setFreeBoostClaimed] = useState(false);
 
   // Ticket Event state
   const [ticketEvent, setTicketEvent] = useState<any>(null);
@@ -280,6 +288,21 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
     const boostPrice = m?.boostWheelPriceCents;
     return boostPrice != null && activeWheel?.spinPriceCents === boostPrice;
   }, [selectedMerchant, activeWheel]);
+
+  const boostCycleId = useMemo(
+    () => getBoostCycleId((selectedMerchant as any)?.boostPurchasedAt),
+    [selectedMerchant]
+  );
+
+  useEffect(() => {
+    if (!isFreeSpinWheel || !selectedMerchant?.id) {
+      setFreeBoostClaimed(false);
+      return;
+    }
+    setFreeBoostClaimed(hasClaimedBoostLocally(selectedMerchant.id, boostCycleId));
+  }, [isFreeSpinWheel, selectedMerchant?.id, boostCycleId]);
+
+  const freeBoostAvailable = isFreeSpinWheel && !freeBoostClaimed;
 
   // Distance from user to merchant in meters (uses storefront lat/lng)
   const distanceToMerchantMeters = useMemo(() => {
@@ -1124,13 +1147,13 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
       )}
 
       {/* Set boostCycleId on window for client-side anti-abuse tracking */}
-      {isFreeSpinWheel && (() => {
-        try { (window as any).__boostCycleId = (selectedMerchant as any)?.boostPurchasedAt ?? ""; } catch {}
+      {freeBoostAvailable && (() => {
+        try { (window as any).__boostCycleId = boostCycleId; } catch {}
         return null;
       })()}
 
       {/* Free deal proximity gate banner — hidden in event mode */}
-      {!initialEventId && isFreeSpinWheel && (
+      {!initialEventId && freeBoostAvailable && (
         <div style={{
           background: "linear-gradient(135deg, #fff7ed, #ffedd5)",
           border: "2px solid #f97316",
@@ -1251,7 +1274,7 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
       {/* Wheel — hidden behind geo gate if free deal and not within range */}
       <div id="wheel-section" ref={wheelContainerRef} style={{ display: "flex", justifyContent: "center", position: "relative", width: "100%", overflow: "visible" }}>
         {/* Event mode — wheel is fully visible so customers can see possible deals */}
-        {!initialEventId && isFreeSpinWheel && userPos && !freeSpinGatePassed && (
+        {!initialEventId && freeBoostAvailable && userPos && !freeSpinGatePassed && (
           <div style={{
             position: "absolute",
             inset: 0,
@@ -1274,9 +1297,9 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
           merchantId={selectedMerchant.id}
           merchantName={(selectedMerchant as any)?.name ?? undefined}
           uid={uid ?? undefined}
-          spinPriceCents={initialEventId ? 99999 : (isFreeSpinWheel && freeSpinGatePassed ? 0 : (activeWheel?.spinPriceCents ?? 135))}
+          spinPriceCents={initialEventId ? 99999 : (freeBoostAvailable && freeSpinGatePassed ? 0 : (activeWheel?.spinPriceCents ?? 135))}
           hideControls={!!initialEventId}
-          isFreeSpinBoost={!initialEventId && isFreeSpinWheel && freeSpinGatePassed}
+          isFreeSpinBoost={!initialEventId && freeBoostAvailable && freeSpinGatePassed}
           onPaymentVerified={(priceCents) => {
             if (initialEventId) return; // no payment in event mode
             // Lock the tier tabs to the tier that was actually paid
@@ -1311,6 +1334,22 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
             }
             // Store result for after celebration (code card shown when celebration dismisses)
             pendingResultRef.current = { label, code: extra.code, expiresAt: extra.expiresAt ?? undefined };
+
+            // A confirmed free result must disappear immediately, even before a
+            // navigation refreshes the merchant document from Firestore.
+            if (isFreeSpinWheel) {
+              setFreeBoostClaimed(true);
+              setMerchants((current) => current.map((merchant) => {
+                if (merchant.id !== selectedMerchant.id) return merchant;
+                const remaining = Math.max(0, Number((merchant as any).boostFreeSpinsRemaining ?? 0) - 1);
+                return {
+                  ...merchant,
+                  boostFreeSpinsRemaining: remaining,
+                  boostActive: remaining > 0 && (merchant as any).boostActive === true,
+                } as Merchant;
+              }));
+              void getActiveMerchants().then(setMerchants).catch(() => {});
+            }
           }}
         />
       </div>

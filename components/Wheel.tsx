@@ -598,6 +598,7 @@ export default function Wheel({
               }));
             } catch { /* storage is only a recovery aid */ }
             setPayStatus("✅ Payment verified — unlock now!");
+            setPayBusy(false);
 
             const sp = new URLSearchParams(window.location.search);
             if (sp.get("session_id") === sessionId) {
@@ -1077,6 +1078,8 @@ export default function Wheel({
       setPayStatus("✅ Deal unlocked! Show your code to redeem within 30 days!");
       setVerifiedSessionId(null); // prevent reuse
       setVerifiedUid(null); // clear verified uid after use
+      setPayBusy(false);
+      setPaidSpinPriceCents(null);
 
       // Mark boost as claimed locally (anti-abuse layer)
       if (isFreeSpinBoost && merchantId) {
@@ -1090,6 +1093,7 @@ export default function Wheel({
       // ✅ notify parent so you can show ONE unified code + QR in WheelDealsClient
       onResult?.(resLabel, { code: nextCode, spinId: nextSpinId, expiresAt: nextExpiresAt });
     } catch (e: any) {
+      setPayBusy(false);
       setPayStatus(
         e?.message ?? "Unlock failed. Please contact support."
       );
