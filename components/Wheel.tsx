@@ -315,7 +315,7 @@ export default function Wheel({
   const wrapRef = useRef<HTMLDivElement | null>(null);
 
   // Slightly larger default wheel while still fitting standard mobile cards.
-  const size = sizeProp ?? 320;
+  const size = sizeProp ?? 330;
 
   // wrapper (scale only)
   const wheelWinWrapRef = useRef<HTMLDivElement | null>(null);
