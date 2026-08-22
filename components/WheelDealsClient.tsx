@@ -97,6 +97,7 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
   const pendingResultRef = useRef<{ label: string; code: string; expiresAt?: string } | null>(null);
   // Beast info for share card — saved when celebration fires
   const [lastBeast, setLastBeast] = useState<{ beast: Beast; tier: RarityTier } | null>(null);
+  const [beastActionStatus, setBeastActionStatus] = useState<string | null>(null);
   const [emailInput, setEmailInput] = useState("");
   const [emailSending, setEmailSending] = useState(false);
   const [emailStatus, setEmailStatus] = useState<string | null>(null);
@@ -509,6 +510,98 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
     window.history.replaceState({}, '', url.toString());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialEventId, uid]);
+
+  async function beastImageBase64(beast: Beast): Promise<string> {
+    const response = await fetch(beast.imagePath, { cache: "no-store" });
+    if (!response.ok) throw new Error("Could not load the Beast image.");
+    const blob = await response.blob();
+    return await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result).split(",")[1] ?? "");
+      reader.onerror = () => reject(new Error("Could not prepare the Beast image."));
+      reader.readAsDataURL(blob);
+    });
+  }
+
+  async function saveBeastImage(beast: Beast): Promise<string | null> {
+    const filename = `${beast.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-wheel-deals.webp`;
+    const isNative = Boolean((window as any).Capacitor?.isNativePlatform?.());
+
+    if (isNative) {
+      const { Filesystem, Directory } = await import("@capacitor/filesystem");
+      const data = await beastImageBase64(beast);
+      const saved = await Filesystem.writeFile({
+        path: `WheelDeals/${filename}`,
+        data,
+        directory: Directory.Documents,
+        recursive: true,
+      });
+      return saved.uri;
+    }
+
+    const response = await fetch(beast.imagePath, { cache: "no-store" });
+    if (!response.ok) throw new Error("Could not load the Beast image.");
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    link.style.display = "none";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1500);
+    return null;
+  }
+
+  async function shareBeast() {
+    if (!lastBeast) return;
+    setBeastActionStatus(null);
+    const { beast, tier } = lastBeast;
+    const title = `I unlocked ${beast.name} on Wheel Deals!`;
+    const text = `${tier.label} — ${beast.name}! Unlock local deals with Wheel Deals.`;
+
+    try {
+      const isNative = Boolean((window as any).Capacitor?.isNativePlatform?.());
+      if (isNative) {
+        const fileUri = await saveBeastImage(beast);
+        const { Share } = await import("@capacitor/share");
+        await Share.share({ title, text, files: fileUri ? [fileUri] : undefined, dialogTitle: "Share your Beast" });
+        setBeastActionStatus("Share options opened.");
+        return;
+      }
+
+      const response = await fetch(beast.imagePath, { cache: "no-store" });
+      if (!response.ok) throw new Error("Could not load the Beast image.");
+      const blob = await response.blob();
+      const file = new File([blob], `${beast.name}-WheelDeals.webp`, { type: "image/webp" });
+      if (navigator.share && navigator.canShare?.({ files: [file] })) {
+        await navigator.share({ title, text, files: [file] });
+        setBeastActionStatus("Share options opened.");
+        return;
+      }
+
+      window.open(beast.imagePath, "_blank", "noopener,noreferrer");
+      setBeastActionStatus("Image opened—use your browser's Share or Save control.");
+    } catch (error: any) {
+      if (error?.name === "AbortError") return;
+      window.open(beast.imagePath, "_blank", "noopener,noreferrer");
+      setBeastActionStatus("Image opened—use your browser's Share or Save control.");
+    }
+  }
+
+  async function saveCurrentBeast() {
+    if (!lastBeast) return;
+    setBeastActionStatus(null);
+    try {
+      await saveBeastImage(lastBeast.beast);
+      const isNative = Boolean((window as any).Capacitor?.isNativePlatform?.());
+      setBeastActionStatus(isNative ? "Image saved in your WheelDeals Documents folder." : "Image download started.");
+    } catch {
+      window.open(lastBeast.beast.imagePath, "_blank", "noopener,noreferrer");
+      setBeastActionStatus("Image opened—use your browser's Save Image control.");
+    }
+  }
 
   async function sendSupportMessage() {
     if (!supportMsg.trim()) return;
@@ -1449,27 +1542,7 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
           </div>
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center" }}>
             <button
-              onClick={async () => {
-                try {
-                  const response = await fetch(lastBeast.beast.imagePath);
-                  const blob = await response.blob();
-                  if (navigator.share && navigator.canShare?.({ files: [new File([blob], `${lastBeast.beast.name}-WheelDeals.webp`, { type: "image/webp" })] })) {
-                    await navigator.share({
-                      title: `I unlocked ${lastBeast.beast.name} on Wheel Deals!`,
-                      text: `${lastBeast.tier.label} - ${lastBeast.beast.name}! Unlock deals at local businesses with Wheel Deals.`,
-                      files: [new File([blob], `${lastBeast.beast.name}-WheelDeals.webp`, { type: "image/webp" })],
-                    });
-                  } else {
-                    // Fallback: download the image
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement("a");
-                    a.href = url;
-                    a.download = `${lastBeast.beast.name}-WheelDeals.webp`;
-                    a.click();
-                    URL.revokeObjectURL(url);
-                  }
-                } catch {}
-              }}
+              onClick={shareBeast}
               style={{
                 padding: "10px 20px", borderRadius: 10, border: "none", fontWeight: 950, fontSize: 14,
                 cursor: "pointer", color: "#111",
@@ -1479,18 +1552,7 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
               Share Beast
             </button>
             <button
-              onClick={async () => {
-                try {
-                  const response = await fetch(lastBeast.beast.imagePath);
-                  const blob = await response.blob();
-                  const url = URL.createObjectURL(blob);
-                  const a = document.createElement("a");
-                  a.href = url;
-                  a.download = `${lastBeast.beast.name}-WheelDeals.webp`;
-                  a.click();
-                  URL.revokeObjectURL(url);
-                } catch {}
-              }}
+              onClick={saveCurrentBeast}
               style={{
                 padding: "10px 20px", borderRadius: 10, border: `1px solid ${lastBeast.tier.glowColor}66`,
                 fontWeight: 950, fontSize: 14, cursor: "pointer",
@@ -1500,6 +1562,11 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
               Save Image
             </button>
           </div>
+          {beastActionStatus && (
+            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.85)", textAlign: "center", fontWeight: 750 }}>
+              {beastActionStatus}
+            </div>
+          )}
           <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", textAlign: "center", fontWeight: 600 }}>
             Collect all 100 Wheel Deals Beasts!
           </div>
