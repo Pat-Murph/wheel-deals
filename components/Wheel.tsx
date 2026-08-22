@@ -314,7 +314,8 @@ export default function Wheel({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
 
-  const size = sizeProp ?? 300;
+  // Slightly larger default wheel while still fitting standard mobile cards.
+  const size = sizeProp ?? 320;
 
   // wrapper (scale only)
   const wheelWinWrapRef = useRef<HTMLDivElement | null>(null);
@@ -1143,7 +1144,7 @@ export default function Wheel({
         display: "grid",
         gap: 14,
         justifyItems: "center",
-        padding: 12,
+        padding: 8,
         borderRadius: 18,
         width: "100%",
         boxSizing: "border-box" as const,
@@ -1201,17 +1202,17 @@ export default function Wheel({
           </div>
         </div>
 
-        <div
-          style={{
-            minHeight: 22,
-            marginTop: 8,
-            fontWeight: 800,
-            color: winnerText ? "#F5D060" : "rgba(245,208,96,0.65)",
-          }}
-        >
-          {winnerText || (spinning ? "Unlocking..." : "Tap to unlock a deal")}
-          {/* subtitle color handled by parent */}
-        </div>
+        {(winnerText || spinning) && (
+          <div
+            style={{
+              marginTop: 8,
+              fontWeight: 800,
+              color: winnerText ? "#F5D060" : "rgba(245,208,96,0.65)",
+            }}
+          >
+            {winnerText || "Unlocking..."}
+          </div>
+        )}
 
         {redeemCode && (
           <div style={{ marginTop: 8, fontWeight: 900, letterSpacing: 1, color: "#ffffff" }}>
