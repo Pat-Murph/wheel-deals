@@ -603,189 +603,32 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialEventId, uid]);
 
-  function loadShareImage(src: string): Promise<HTMLImageElement> {
-    return new Promise((resolve, reject) => {
-      const image = new Image();
-      image.crossOrigin = "anonymous";
-      image.onload = () => resolve(image);
-      image.onerror = () => reject(new Error("Could not load a share-card image."));
-      image.src = src;
+  function brandedBeastCardUrl() {
+    if (!lastBeast) throw new Error("No Beast is ready to share.");
+    const locationParts = [selectedMerchant?.city?.trim(), selectedMerchant?.state?.trim()].filter(Boolean);
+    const params = new URLSearchParams({
+      beast: lastBeast.beast.name,
+      rarity: lastBeast.tier.label,
+      deal: lastPrize?.trim() || "A local deal",
+      merchant: selectedMerchant?.name?.trim() || "A local business",
+      location: locationParts.join(", "),
+      glow: lastBeast.tier.glowColor,
+      image: lastBeast.beast.imagePath,
     });
+    return `/api/share/beast?${params.toString()}`;
   }
 
-  function roundedRectPath(
-    ctx: CanvasRenderingContext2D,
-    x: number,
-    y: number,
-    width: number,
-    height: number,
-    radius: number,
-  ) {
-    const r = Math.min(radius, width / 2, height / 2);
-    ctx.beginPath();
-    ctx.moveTo(x + r, y);
-    ctx.lineTo(x + width - r, y);
-    ctx.quadraticCurveTo(x + width, y, x + width, y + r);
-    ctx.lineTo(x + width, y + height - r);
-    ctx.quadraticCurveTo(x + width, y + height, x + width - r, y + height);
-    ctx.lineTo(x + r, y + height);
-    ctx.quadraticCurveTo(x, y + height, x, y + height - r);
-    ctx.lineTo(x, y + r);
-    ctx.quadraticCurveTo(x, y, x + r, y);
-    ctx.closePath();
-  }
-
-  function fitCanvasText(
-    ctx: CanvasRenderingContext2D,
-    text: string,
-    maxWidth: number,
-    startSize: number,
-    minSize: number,
-    weight = 900,
-  ) {
-    let size = startSize;
-    while (size > minSize) {
-      ctx.font = `${weight} ${size}px Arial, sans-serif`;
-      if (ctx.measureText(text).width <= maxWidth) break;
-      size -= 2;
-    }
-    return size;
-  }
-
-  function ellipsizeCanvasText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number) {
-    if (ctx.measureText(text).width <= maxWidth) return text;
-    let shortened = text;
-    while (shortened.length > 1 && ctx.measureText(`${shortened}…`).width > maxWidth) {
-      shortened = shortened.slice(0, -1);
-    }
-    return `${shortened.trimEnd()}…`;
+  function absoluteBrandedBeastCardUrl() {
+    return new URL(brandedBeastCardUrl(), window.location.origin).toString();
   }
 
   async function createBrandedBeastCard(): Promise<File> {
     if (!lastBeast) throw new Error("No Beast is ready to share.");
-
-    const { beast, tier } = lastBeast;
-    const canvas = document.createElement("canvas");
-    canvas.width = 1080;
-    canvas.height = 1350;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) throw new Error("Could not prepare the branded share card.");
-
-    const [beastImage, logoImage] = await Promise.all([
-      loadShareImage(beast.imagePath),
-      loadShareImage("/icon-512.png"),
-    ]);
-
-    const merchantName = selectedMerchant?.name?.trim() || "a local business";
-    const locationParts = [selectedMerchant?.city?.trim(), selectedMerchant?.state?.trim()].filter(Boolean);
-    const merchantLocation = locationParts.join(", ");
-    const dealName = lastPrize?.trim() || "a local deal";
-
-    const background = ctx.createLinearGradient(0, 0, 1080, 1350);
-    background.addColorStop(0, "#07142e");
-    background.addColorStop(0.6, "#0d234b");
-    background.addColorStop(1, "#050b19");
-    ctx.fillStyle = background;
-    ctx.fillRect(0, 0, 1080, 1350);
-
-    const glow = ctx.createRadialGradient(540, 560, 40, 540, 560, 620);
-    glow.addColorStop(0, `${tier.glowColor}66`);
-    glow.addColorStop(1, "rgba(0,0,0,0)");
-    ctx.fillStyle = glow;
-    ctx.fillRect(0, 0, 1080, 1120);
-
-    ctx.save();
-    roundedRectPath(ctx, 52, 42, 124, 124, 28);
-    ctx.clip();
-    ctx.drawImage(logoImage, 52, 42, 124, 124);
-    ctx.restore();
-
-    ctx.fillStyle = "#ffffff";
-    ctx.font = "900 54px Arial, sans-serif";
-    ctx.fillText("WHEEL DEALS", 202, 100);
-    ctx.fillStyle = "#f6a000";
-    ctx.font = "800 28px Arial, sans-serif";
-    ctx.fillText("UNLOCK LOCAL SAVINGS", 204, 142);
-
-    const imageX = 52;
-    const imageY = 196;
-    const imageWidth = 976;
-    const imageHeight = 830;
-    ctx.save();
-    roundedRectPath(ctx, imageX, imageY, imageWidth, imageHeight, 40);
-    ctx.clip();
-    const scale = Math.max(imageWidth / beastImage.naturalWidth, imageHeight / beastImage.naturalHeight);
-    const drawWidth = beastImage.naturalWidth * scale;
-    const drawHeight = beastImage.naturalHeight * scale;
-    ctx.drawImage(
-      beastImage,
-      imageX + (imageWidth - drawWidth) / 2,
-      imageY + (imageHeight - drawHeight) / 2,
-      drawWidth,
-      drawHeight,
-    );
-
-    const imageShade = ctx.createLinearGradient(0, imageY + 500, 0, imageY + imageHeight);
-    imageShade.addColorStop(0, "rgba(3,8,18,0)");
-    imageShade.addColorStop(1, "rgba(3,8,18,0.94)");
-    ctx.fillStyle = imageShade;
-    ctx.fillRect(imageX, imageY, imageWidth, imageHeight);
-    ctx.restore();
-
-    ctx.save();
-    roundedRectPath(ctx, 84, 226, 390, 66, 33);
-    ctx.fillStyle = "rgba(4,10,24,0.84)";
-    ctx.fill();
-    ctx.strokeStyle = tier.glowColor;
-    ctx.lineWidth = 3;
-    ctx.stroke();
-    ctx.fillStyle = tier.glowColor;
-    ctx.font = "900 28px Arial, sans-serif";
-    ctx.fillText(tier.label.toUpperCase(), 110, 269);
-    ctx.restore();
-
-    const beastName = beast.name.toUpperCase();
-    const beastSize = fitCanvasText(ctx, beastName, 860, 76, 46);
-    ctx.textAlign = "center";
-    ctx.font = `900 ${beastSize}px Arial, sans-serif`;
-    ctx.fillStyle = "#ffffff";
-    ctx.shadowColor = tier.glowColor;
-    ctx.shadowBlur = 22;
-    ctx.fillText(beastName, 540, 925);
-    ctx.shadowBlur = 0;
-
-    ctx.fillStyle = "#f6a000";
-    ctx.font = "900 28px Arial, sans-serif";
-    ctx.fillText("DEAL UNLOCKED", 540, 1082);
-
-    const dealSize = fitCanvasText(ctx, dealName, 920, 50, 30);
-    ctx.font = `900 ${dealSize}px Arial, sans-serif`;
-    ctx.fillStyle = "#ffffff";
-    ctx.fillText(ellipsizeCanvasText(ctx, dealName, 920), 540, 1140);
-
-    const merchantLine = merchantLocation ? `${merchantName} • ${merchantLocation}` : merchantName;
-    const merchantSize = fitCanvasText(ctx, merchantLine, 920, 33, 23, 800);
-    ctx.font = `800 ${merchantSize}px Arial, sans-serif`;
-    ctx.fillStyle = "#cbd5e1";
-    ctx.fillText(ellipsizeCanvasText(ctx, merchantLine, 920), 540, 1192);
-
-    ctx.save();
-    roundedRectPath(ctx, 190, 1232, 700, 76, 38);
-    const websiteGradient = ctx.createLinearGradient(190, 1232, 890, 1308);
-    websiteGradient.addColorStop(0, "#ffd93d");
-    websiteGradient.addColorStop(1, "#ff8a00");
-    ctx.fillStyle = websiteGradient;
-    ctx.fill();
-    ctx.fillStyle = "#101827";
-    ctx.font = "900 34px Arial, sans-serif";
-    ctx.fillText("wheeldealsapp.com", 540, 1281);
-    ctx.restore();
-    ctx.textAlign = "start";
-
-    const blob = await new Promise<Blob>((resolve, reject) => {
-      canvas.toBlob((result) => result ? resolve(result) : reject(new Error("Could not export the branded share card.")), "image/png", 0.95);
-    });
-    const filename = `${beast.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-wheel-deals.png`;
+    const response = await fetch(brandedBeastCardUrl(), { cache: "no-store" });
+    if (!response.ok) throw new Error(`Could not create the branded share card (${response.status}).`);
+    const blob = await response.blob();
+    if (!blob.size || !blob.type.includes("image")) throw new Error("The branded share card was not returned as an image.");
+    const filename = `${lastBeast.beast.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-wheel-deals.png`;
     return new File([blob], filename, { type: "image/png" });
   }
 
@@ -856,6 +699,14 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
     const { title, text } = beastShareCopy();
 
     try {
+      const imageUrl = absoluteBrandedBeastCardUrl();
+      const nativeBridge = (window as any).WheelDealsNative;
+      if (nativeBridge?.share && typeof nativeBridge.share === "function") {
+        nativeBridge.share(title, text, imageUrl);
+        setBeastActionStatus("Your Android share menu will open momentarily.");
+        return;
+      }
+
       const file = await createBrandedBeastCard();
       const isNative = Boolean((window as any).Capacitor?.isNativePlatform?.());
 
@@ -871,10 +722,22 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
           });
           setBeastActionStatus("Share options opened.");
           return;
-        } catch (nativeError: any) {
-          if (nativeError?.message?.toLowerCase?.().includes("cancel")) return;
-          // Some Android WebView/Capacitor combinations reject a native file URI.
-          // Fall through to the Web Share API with the same in-memory PNG.
+        } catch (nativeFileError: any) {
+          if (nativeFileError?.message?.toLowerCase?.().includes("cancel")) return;
+          try {
+            const { Share } = await import("@capacitor/share");
+            await Share.share({
+              title,
+              text,
+              url: imageUrl,
+              dialogTitle: "Share your Wheel Deals Beast",
+            });
+            setBeastActionStatus("Share options opened. The branded image link is included.");
+            return;
+          } catch {
+            // Older Android builds may not include the native plugins. Continue
+            // through the Web Share and branded-image fallbacks below.
+          }
         }
       }
 
@@ -884,14 +747,20 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
         return;
       }
 
-      await saveBrandedBeastImage(file);
-      setBeastActionStatus("Branded image saved. Share it from your Photos or Files app.");
+      window.open(imageUrl, "_blank", "noopener,noreferrer");
+      setBeastActionStatus("The branded image opened. Use your device's Share or Save Image control.");
     } catch (error: any) {
       if (error?.name === "AbortError" || error?.message?.toLowerCase?.().includes("cancel")) {
         setBeastActionStatus(null);
         return;
       }
-      setBeastActionStatus("Could not open sharing. Try Save Image, then share it from Photos or Files.");
+      console.error("Wheel Deals Beast sharing failed", error);
+      try {
+        window.open(absoluteBrandedBeastCardUrl(), "_blank", "noopener,noreferrer");
+        setBeastActionStatus("The branded image opened. Use your device's Share or Save Image control.");
+      } catch {
+        setBeastActionStatus("Could not open sharing. Please fully close and reopen the app, then try again.");
+      }
     } finally {
       setBeastActionBusy(false);
     }
@@ -902,12 +771,25 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
     setBeastActionBusy(true);
     setBeastActionStatus("Creating your branded Beast image…");
     try {
+      const nativeBridge = (window as any).WheelDealsNative;
+      if (nativeBridge?.save && typeof nativeBridge.save === "function") {
+        nativeBridge.save(absoluteBrandedBeastCardUrl());
+        setBeastActionStatus("Saving the branded Beast image to Photos…");
+        return;
+      }
+
       const file = await createBrandedBeastCard();
       await saveBrandedBeastImage(file);
       const isNative = Boolean((window as any).Capacitor?.isNativePlatform?.());
       setBeastActionStatus(isNative ? "Branded image saved in your WheelDeals Documents folder." : "Branded image download started.");
-    } catch {
-      setBeastActionStatus("Could not save the image. Please try again.");
+    } catch (error) {
+      console.error("Wheel Deals Beast image saving failed", error);
+      try {
+        window.open(absoluteBrandedBeastCardUrl(), "_blank", "noopener,noreferrer");
+        setBeastActionStatus("The branded image opened. Use your device's Save Image control.");
+      } catch {
+        setBeastActionStatus("Could not save the image. Please fully close and reopen the app, then try again.");
+      }
     } finally {
       setBeastActionBusy(false);
     }
