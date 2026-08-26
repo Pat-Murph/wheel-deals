@@ -1,6 +1,8 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Capacitor } from "@capacitor/core";
+import EmbeddedCheckoutModal from "./EmbeddedCheckoutModal";
 
 export type WheelItem = {
   label: string;
@@ -361,6 +363,11 @@ export default function Wheel({
   const [payBusy, setPayBusy] = useState(false);
   const [paidSpinReady, setPaidSpinReady] = useState(false);
   const [payStatus, setPayStatus] = useState<string | null>(null);
+  const [embeddedCheckout, setEmbeddedCheckout] = useState<{
+    clientSecret: string;
+    sessionId: string;
+    publishableKey: string;
+  } | null>(null);
 
   // ✅ store the verified sessionId so we can consume entitlement after unlocking
   const [verifiedSessionId, setVerifiedSessionId] = useState<string | null>(
@@ -935,14 +942,30 @@ export default function Wheel({
     }
 
     try {
+      const preferEmbeddedCheckout = Capacitor.isNativePlatform();
       const res = await fetch("/api/stripe/spin", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ merchantId, uid, spinPriceCents: spinPriceCents ?? 135 }),
+        body: JSON.stringify({
+          merchantId,
+          uid,
+          spinPriceCents: spinPriceCents ?? 135,
+          checkoutMode: preferEmbeddedCheckout ? "embedded" : "hosted",
+        }),
       });
-
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error ?? "Could not start checkout");
+
+      if (data?.clientSecret && data?.sessionId && data?.publishableKey) {
+        setEmbeddedCheckout({
+          clientSecret: data.clientSecret,
+          sessionId: data.sessionId,
+          publishableKey: data.publishableKey,
+        });
+        setPayStatus("Secure checkout is open inside Wheel Deals.");
+        return;
+      }
+
       if (!data?.url) throw new Error("Missing checkout url");
 
       // Save music state so it can resume after returning from Stripe
@@ -954,14 +977,84 @@ export default function Wheel({
         }
       } catch {}
 
-      // Navigate in same tab (avoids Chrome Custom Tab header on Android)
+      // Ordinary web visitors, or native builds without a publishable key, use
+      // Stripe-hosted Checkout and return through the verified recovery page.
       window.location.href = data.url;
     } catch (e: any) {
       setPayStatus(e?.message ?? "Checkout failed.");
     } finally {
       setPayBusy(false);
     }
-  }
+    }
+
+  const completeEmbeddedCheckout = useCallback(async () => {
+    const checkout = embeddedCheckout;
+    if (!checkout) return;
+
+    setPayBusy(true);
+    setPayStatus("Verifying payment…");
+    let lastError = "Payment verification is still processing.";
+
+    for (let attempt = 0; attempt < 6; attempt += 1) {
+      try {
+        const res = await fetch("/api/stripe/spin/verify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sessionId: checkout.sessionId }),
+        });
+        const data = await res.json().catch(() => ({}));
+
+        if (res.ok && data?.ok) {
+          setPaidSpinReady(true);
+          setVerifiedSessionId(checkout.sessionId);
+          if (data.uid) setVerifiedUid(data.uid);
+          if (data.spinPriceCents) {
+            setPaidSpinPriceCents(data.spinPriceCents);
+            onPaymentVerified?.(data.spinPriceCents);
+          }
+          try {
+            localStorage.setItem("wd_paid_session", JSON.stringify({
+              sessionId: checkout.sessionId,
+              merchantId: data.merchantId ?? merchantId ?? "",
+              uid: data.uid ?? null,
+              ts: Date.now(),
+            }));
+          } catch { /* recovery storage is optional */ }
+          setPayStatus("✅ Payment verified — unlock now!");
+          setEmbeddedCheckout(null);
+          setPayBusy(false);
+          window.setTimeout(() => {
+            document.getElementById("wheel-section")?.scrollIntoView({ behavior: "smooth", block: "center" });
+          }, 100);
+          return;
+        }
+
+        if (res.status === 409) {
+          try { localStorage.removeItem("wd_paid_session"); } catch {}
+          setPaidSpinReady(false);
+          setVerifiedSessionId(null);
+          setVerifiedUid(null);
+          setPayStatus(data?.error ?? "This paid unlock was already used.");
+          setEmbeddedCheckout(null);
+          setPayBusy(false);
+          return;
+        }
+
+        lastError = data?.error ?? lastError;
+      } catch (e: any) {
+        lastError = e?.message ?? lastError;
+      }
+
+      if (attempt < 5) {
+        setPayStatus("Confirming payment…");
+        await new Promise((resolve) => window.setTimeout(resolve, 800 * (attempt + 1)));
+      }
+    }
+
+    setPayStatus(lastError || "We could not confirm this payment yet. Please try again.");
+    setEmbeddedCheckout(null);
+    setPayBusy(false);
+  }, [embeddedCheckout, merchantId, onPaymentVerified]);
 
   const spin = async () => {
     // ✅ start background music on user gesture (if not already playing)
@@ -1538,6 +1631,18 @@ export default function Wheel({
         By unlocking, you agree all purchases are final. Deals have no cash value. Codes expire 30 days after purchase.
       </div>
 
+      {embeddedCheckout && (
+        <EmbeddedCheckoutModal
+          key={embeddedCheckout.sessionId}
+          clientSecret={embeddedCheckout.clientSecret}
+          publishableKey={embeddedCheckout.publishableKey}
+          onComplete={completeEmbeddedCheckout}
+          onClose={() => {
+            setEmbeddedCheckout(null);
+            setPayStatus("Checkout closed. No charge was made unless Stripe confirmed the payment.");
+          }}
+        />
+      )}
       <style>{`
         @keyframes wdPulse {
           0%, 100% { transform: translateX(-50%) scale(1); opacity: 0.9; }
