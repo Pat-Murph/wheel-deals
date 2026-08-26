@@ -23,7 +23,7 @@ function dateKeyLA(d = new Date()) {
 
 export async function POST(req: Request) {
   try {
-    const { merchantId, uid, spinPriceCents: rawPrice } = await req.json();
+    const { merchantId, uid, spinPriceCents: rawPrice, checkoutMode } = await req.json();
     const spinPriceCents = VALID_SPIN_PRICES.includes(Number(rawPrice)) ? Number(rawPrice) : DEFAULT_TIER.priceCents;
     const tier = getTierByPrice(spinPriceCents);
 
@@ -104,8 +104,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Missing NEXT_PUBLIC_APP_URL" }, { status: 500 });
     }
 
-    const session = await stripe.checkout.sessions.create({
-      mode: "payment",
+    const commonSession = {
+      mode: "payment" as const,
       line_items: [
         {
           quantity: 1,
@@ -116,23 +116,47 @@ export async function POST(req: Request) {
           },
         },
       ],
-
-      // Session-level metadata (verify can read this)
       metadata: { merchantId, uid },
-
       payment_intent_data: {
         application_fee_amount: tier.platformFeeCents,
         transfer_data: { destination: stripeAccountId },
         metadata: { merchantId, uid, spinPriceCents: String(tier.priceCents) },
       },
+    };
 
-      // Send successful payments through the recovery page first. It verifies the
-      // Stripe session before returning the customer to the exact wheel they paid for.
+    const publishableKey =
+      process.env.STRIPE_PUBLISHABLE_KEY ??
+      process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
+
+    if (checkoutMode === "embedded" && publishableKey) {
+      const embeddedSession = await stripe.checkout.sessions.create({
+        ...commonSession,
+        ui_mode: "embedded",
+        // Do not offer payment methods that hand customers to another website.
+        // Card authentication, Link and supported wallets remain inside Checkout.
+        redirect_on_completion: "never",
+      });
+
+      if (!embeddedSession.client_secret) {
+        return NextResponse.json({ error: "Unable to initialize in-app checkout" }, { status: 500 });
+      }
+
+      return NextResponse.json({
+        clientSecret: embeddedSession.client_secret,
+        sessionId: embeddedSession.id,
+        publishableKey,
+      });
+    }
+
+    const hostedSession = await stripe.checkout.sessions.create({
+      ...commonSession,
+      // Browser fallback for ordinary web visitors and devices that cannot mount
+      // embedded Checkout. The recovery page verifies the paid entitlement.
       success_url: `${origin}/pay-return?merchantId=${encodeURIComponent(merchantId)}&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/wheel?merchantId=${encodeURIComponent(merchantId)}&cancelled=1`,
     });
 
-    return NextResponse.json({ url: session.url });
+    return NextResponse.json({ url: hostedSession.url });
   } catch (err: any) {
     console.error("Stripe unlock error:", err);
     return NextResponse.json({ error: err?.message ?? "Server error" }, { status: 500 });
