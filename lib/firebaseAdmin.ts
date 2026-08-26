@@ -1,10 +1,12 @@
 // lib/firebaseAdmin.ts
 import { getApps, initializeApp, cert, App } from "firebase-admin/app";
 import { getFirestore, Firestore } from "firebase-admin/firestore";
+import { getAuth, Auth } from "firebase-admin/auth";
 import fs from "fs";
 
 let _app: App | null = null;
 let _db: Firestore | null = null;
+let _auth: Auth | null = null;
 
 function loadServiceAccount(): object {
   const raw = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
@@ -42,6 +44,13 @@ export function getAdminDb(): Firestore {
     _db = getFirestore();
   }
   return _db;
+}
+
+export function getAdminAuth(): Auth {
+  if (!_auth) {
+    _auth = getAuth(getAdminApp());
+  }
+  return _auth;
 }
 
 // Lazy proxy — only initializes when a property is accessed at runtime
