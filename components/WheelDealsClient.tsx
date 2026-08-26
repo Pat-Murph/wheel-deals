@@ -15,6 +15,15 @@ type Props = {
   initialEventId?: string;
 };
 
+type ActiveDeal = {
+  spinId: string;
+  prizeLabel: string;
+  code: string;
+  expiresAt: string;
+  createdAt?: string | null;
+  type?: string;
+};
+
 function titleCase(s: string) {
   return (s || "")
     .split(" ")
@@ -94,9 +103,15 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
   const [celebrationWeightPct, setCelebrationWeightPct] = useState(50);
   const [celebrationLabel, setCelebrationLabel] = useState("");
   // Pending result — shown after celebration dismisses
-  const pendingResultRef = useRef<{ label: string; code: string; expiresAt?: string } | null>(null);
+  const pendingResultRef = useRef<{ label: string; code: string; spinId?: string; expiresAt?: string } | null>(null);
+  const [activeDeals, setActiveDeals] = useState<ActiveDeal[]>([]);
+  const [selectedActiveSpinId, setSelectedActiveSpinId] = useState<string>("");
+  const [activeDealsLoading, setActiveDealsLoading] = useState(false);
+  const [activeDealsError, setActiveDealsError] = useState<string | null>(null);
+  const activeDealRequestRef = useRef(0);
   // Beast info for share card — saved when celebration fires
   const [lastBeast, setLastBeast] = useState<{ beast: Beast; tier: RarityTier } | null>(null);
+  const [lastBeastSpinId, setLastBeastSpinId] = useState("");
   const [beastActionStatus, setBeastActionStatus] = useState<string | null>(null);
   const [emailInput, setEmailInput] = useState("");
   const [emailSending, setEmailSending] = useState(false);
@@ -145,6 +160,72 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
     }
   }
 
+  const applyActiveDeal = useCallback((deal: ActiveDeal | null) => {
+    if (!deal) {
+      setSelectedActiveSpinId("");
+      setIssuedCode("");
+      setLastPrize(null);
+      setExpiresAt(null);
+      return;
+    }
+
+    setSelectedActiveSpinId(deal.spinId);
+    setIssuedCode(deal.code);
+    setLastPrize(deal.prizeLabel);
+    setExpiresAt(deal.expiresAt);
+  }, []);
+
+  const loadActiveDeals = useCallback(async () => {
+    if (!uid || !selectedMerchantId || initialEventId) return;
+
+    const requestId = ++activeDealRequestRef.current;
+    setActiveDealsLoading(true);
+    setActiveDealsError(null);
+
+    try {
+      const currentUser = getAuth(app).currentUser;
+      if (!currentUser || currentUser.uid !== uid) return;
+      const idToken = await currentUser.getIdToken();
+      const response = await fetch(`/api/spins/active?merchantId=${encodeURIComponent(selectedMerchantId)}`, {
+        method: "GET",
+        headers: { Authorization: `Bearer ${idToken}` },
+        cache: "no-store",
+      });
+      const data = await response.json().catch(() => ({}));
+      if (requestId !== activeDealRequestRef.current) return;
+      if (!response.ok || !data?.ok) {
+        throw new Error(data?.error ?? "Could not load saved deal codes");
+      }
+
+      const deals = Array.isArray(data.deals) ? (data.deals as ActiveDeal[]) : [];
+      setActiveDeals(deals);
+      applyActiveDeal(deals[0] ?? null);
+    } catch (error: any) {
+      if (requestId !== activeDealRequestRef.current) return;
+      console.error("Active deal restore failed:", error);
+      setActiveDealsError(error?.message ?? "Could not load saved deal codes");
+    } finally {
+      if (requestId === activeDealRequestRef.current) setActiveDealsLoading(false);
+    }
+  }, [applyActiveDeal, initialEventId, selectedMerchantId, uid]);
+
+  useEffect(() => {
+    void loadActiveDeals();
+  }, [loadActiveDeals]);
+
+  useEffect(() => {
+    if (initialEventId) return;
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") void loadActiveDeals();
+    };
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    window.addEventListener("focus", refreshWhenVisible);
+    return () => {
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+      window.removeEventListener("focus", refreshWhenVisible);
+    };
+  }, [initialEventId, loadActiveDeals]);
+
   useEffect(() => {
     let mounted = true;
     (async () => {
@@ -174,6 +255,11 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
       setSelectedMerchantId(next);
       setIssuedCode("");
       setLastPrize(null);
+      setExpiresAt(null);
+      setActiveDeals([]);
+      setSelectedActiveSpinId("");
+      setLastBeast(null);
+      setLastBeastSpinId("");
       setSpinError(null);
       setActivePhotoIdx(0);
     }
@@ -195,6 +281,11 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
       setSelectedMerchantId(found.id);
       setIssuedCode("");
       setLastPrize(null);
+      setExpiresAt(null);
+      setActiveDeals([]);
+      setSelectedActiveSpinId("");
+      setLastBeast(null);
+      setLastBeastSpinId("");
       setSpinError(null);
       setActivePhotoIdx(0);
     }
@@ -1426,7 +1517,13 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
               return;
             }
             // Store result for after celebration (code card shown when celebration dismisses)
-            pendingResultRef.current = { label, code: extra.code, expiresAt: extra.expiresAt ?? undefined };
+            pendingResultRef.current = {
+              label,
+              code: extra.code,
+              spinId: extra.spinId ?? undefined,
+              expiresAt: extra.expiresAt ?? undefined,
+            };
+            setLastBeastSpinId(extra.spinId ?? "");
 
             // A confirmed free result must disappear immediately, even before a
             // navigation refreshes the merchant document from Firestore.
@@ -1457,9 +1554,48 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
       </>
       )}
 
+      {activeDealsLoading && !issuedCode && !initialEventId && (
+        <div style={{ padding: 12, borderRadius: 12, background: "rgba(15,59,111,0.07)", border: "1px solid rgba(15,59,111,0.15)", fontSize: 13, fontWeight: 850, textAlign: "center", color: "#0f3b6f", width: "100%", boxSizing: "border-box" }}>
+          Checking for your saved deal codes…
+        </div>
+      )}
+
+      {activeDealsError && !issuedCode && !initialEventId && (
+        <div style={{ padding: 12, borderRadius: 12, background: "rgba(239,68,68,0.07)", border: "1px solid rgba(239,68,68,0.18)", fontSize: 13, fontWeight: 800, textAlign: "center", width: "100%", boxSizing: "border-box" }}>
+          <div>{activeDealsError}</div>
+          <button onClick={() => void loadActiveDeals()} style={{ marginTop: 8, padding: "8px 12px", borderRadius: 9, border: "1px solid rgba(0,0,0,0.12)", background: "#fff", fontWeight: 900, cursor: "pointer" }}>
+            Try again
+          </button>
+        </div>
+      )}
+
       {issuedCode && (
         <div style={{ padding: 14, border: "2px solid #C8960C", borderRadius: 14, background: "white", display: "flex", flexDirection: "column", gap: 10, boxShadow: "0 4px 24px rgba(200,150,12,0.18), 0 2px 8px rgba(0,0,0,0.06)", width: "100%", boxSizing: "border-box" }}>
-          <div style={{ fontWeight: 950, fontSize: 18 }}>Redeem Code</div>
+          <div style={{ fontWeight: 950, fontSize: 18 }}>Your Active Deal</div>
+          <div style={{ padding: "9px 12px", borderRadius: 10, background: "rgba(34,197,94,0.09)", border: "1px solid rgba(34,197,94,0.24)", fontSize: 13, fontWeight: 850, color: "#166534" }}>
+            Saved to your Wheel Deals account. This QR code will reappear here until it is redeemed or expires.
+          </div>
+          {activeDeals.length > 1 && (
+            <label style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 12, fontWeight: 900, color: "#374151" }}>
+              You have {activeDeals.length} active deals for this merchant
+              <select
+                value={selectedActiveSpinId}
+                onChange={(event) => {
+                  const deal = activeDeals.find((item) => item.spinId === event.target.value) ?? null;
+                  applyActiveDeal(deal);
+                  setEmailInput("");
+                  setEmailStatus(null);
+                }}
+                style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid #d1d5db", background: "#fff", fontSize: 14, fontWeight: 800 }}
+              >
+                {activeDeals.map((deal) => (
+                  <option key={deal.spinId} value={deal.spinId}>
+                    {deal.prizeLabel} — expires {new Date(deal.expiresAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           <div style={{ fontSize: 13, opacity: 0.75 }}>
             Deal: <b>{lastPrize ?? "—"}</b> · Merchant: <b>{selectedMerchant.name}</b>
           </div>
@@ -1516,7 +1652,7 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
       )}
 
       {/* Share Your Beast card — shown after unlock */}
-      {issuedCode && lastBeast && (
+      {issuedCode && lastBeast && lastBeastSpinId === selectedActiveSpinId && (
         <div style={{
           padding: 16, borderRadius: 14, background: lastBeast.tier.bgGradient,
           display: "flex", flexDirection: "column", alignItems: "center", gap: 12,
@@ -1655,9 +1791,21 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
             // Now reveal the code card
             const pending = pendingResultRef.current;
             if (pending) {
-              setLastPrize(pending.label);
-              setIssuedCode(pending.code);
-              setExpiresAt(pending.expiresAt ?? null);
+              const activeDeal: ActiveDeal = {
+                spinId: pending.spinId ?? pending.code,
+                prizeLabel: pending.label,
+                code: pending.code,
+                expiresAt: pending.expiresAt ?? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+                createdAt: new Date().toISOString(),
+              };
+              setActiveDeals((current) => [
+                activeDeal,
+                ...current.filter((deal) => deal.spinId !== activeDeal.spinId && deal.code !== activeDeal.code),
+              ]);
+              setSelectedActiveSpinId(activeDeal.spinId);
+              setLastPrize(activeDeal.prizeLabel);
+              setIssuedCode(activeDeal.code);
+              setExpiresAt(activeDeal.expiresAt);
               pendingResultRef.current = null;
             }
           }}
