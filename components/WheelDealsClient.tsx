@@ -113,6 +113,7 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
   const [lastBeast, setLastBeast] = useState<{ beast: Beast; tier: RarityTier } | null>(null);
   const [lastBeastSpinId, setLastBeastSpinId] = useState("");
   const [beastActionStatus, setBeastActionStatus] = useState<string | null>(null);
+  const [beastActionBusy, setBeastActionBusy] = useState(false);
   const [emailInput, setEmailInput] = useState("");
   const [emailSending, setEmailSending] = useState(false);
   const [emailStatus, setEmailStatus] = useState<string | null>(null);
@@ -602,27 +603,220 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialEventId, uid]);
 
-  async function beastImageBase64(beast: Beast): Promise<string> {
-    const response = await fetch(beast.imagePath, { cache: "no-store" });
-    if (!response.ok) throw new Error("Could not load the Beast image.");
-    const blob = await response.blob();
-    return await new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(String(reader.result).split(",")[1] ?? "");
-      reader.onerror = () => reject(new Error("Could not prepare the Beast image."));
-      reader.readAsDataURL(blob);
+  function loadShareImage(src: string): Promise<HTMLImageElement> {
+    return new Promise((resolve, reject) => {
+      const image = new Image();
+      image.crossOrigin = "anonymous";
+      image.onload = () => resolve(image);
+      image.onerror = () => reject(new Error("Could not load a share-card image."));
+      image.src = src;
     });
   }
 
-  async function saveBeastImage(beast: Beast): Promise<string | null> {
-    const filename = `${beast.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-wheel-deals.webp`;
-    const isNative = Boolean((window as any).Capacitor?.isNativePlatform?.());
+  function roundedRectPath(
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    radius: number,
+  ) {
+    const r = Math.min(radius, width / 2, height / 2);
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + width - r, y);
+    ctx.quadraticCurveTo(x + width, y, x + width, y + r);
+    ctx.lineTo(x + width, y + height - r);
+    ctx.quadraticCurveTo(x + width, y + height, x + width - r, y + height);
+    ctx.lineTo(x + r, y + height);
+    ctx.quadraticCurveTo(x, y + height, x, y + height - r);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
+  }
 
+  function fitCanvasText(
+    ctx: CanvasRenderingContext2D,
+    text: string,
+    maxWidth: number,
+    startSize: number,
+    minSize: number,
+    weight = 900,
+  ) {
+    let size = startSize;
+    while (size > minSize) {
+      ctx.font = `${weight} ${size}px Arial, sans-serif`;
+      if (ctx.measureText(text).width <= maxWidth) break;
+      size -= 2;
+    }
+    return size;
+  }
+
+  function ellipsizeCanvasText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number) {
+    if (ctx.measureText(text).width <= maxWidth) return text;
+    let shortened = text;
+    while (shortened.length > 1 && ctx.measureText(`${shortened}…`).width > maxWidth) {
+      shortened = shortened.slice(0, -1);
+    }
+    return `${shortened.trimEnd()}…`;
+  }
+
+  async function createBrandedBeastCard(): Promise<File> {
+    if (!lastBeast) throw new Error("No Beast is ready to share.");
+
+    const { beast, tier } = lastBeast;
+    const canvas = document.createElement("canvas");
+    canvas.width = 1080;
+    canvas.height = 1350;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("Could not prepare the branded share card.");
+
+    const [beastImage, logoImage] = await Promise.all([
+      loadShareImage(beast.imagePath),
+      loadShareImage("/icon-512.png"),
+    ]);
+
+    const merchantName = selectedMerchant?.name?.trim() || "a local business";
+    const locationParts = [selectedMerchant?.city?.trim(), selectedMerchant?.state?.trim()].filter(Boolean);
+    const merchantLocation = locationParts.join(", ");
+    const dealName = lastPrize?.trim() || "a local deal";
+
+    const background = ctx.createLinearGradient(0, 0, 1080, 1350);
+    background.addColorStop(0, "#07142e");
+    background.addColorStop(0.6, "#0d234b");
+    background.addColorStop(1, "#050b19");
+    ctx.fillStyle = background;
+    ctx.fillRect(0, 0, 1080, 1350);
+
+    const glow = ctx.createRadialGradient(540, 560, 40, 540, 560, 620);
+    glow.addColorStop(0, `${tier.glowColor}66`);
+    glow.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = glow;
+    ctx.fillRect(0, 0, 1080, 1120);
+
+    ctx.save();
+    roundedRectPath(ctx, 52, 42, 124, 124, 28);
+    ctx.clip();
+    ctx.drawImage(logoImage, 52, 42, 124, 124);
+    ctx.restore();
+
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "900 54px Arial, sans-serif";
+    ctx.fillText("WHEEL DEALS", 202, 100);
+    ctx.fillStyle = "#f6a000";
+    ctx.font = "800 28px Arial, sans-serif";
+    ctx.fillText("UNLOCK LOCAL SAVINGS", 204, 142);
+
+    const imageX = 52;
+    const imageY = 196;
+    const imageWidth = 976;
+    const imageHeight = 830;
+    ctx.save();
+    roundedRectPath(ctx, imageX, imageY, imageWidth, imageHeight, 40);
+    ctx.clip();
+    const scale = Math.max(imageWidth / beastImage.naturalWidth, imageHeight / beastImage.naturalHeight);
+    const drawWidth = beastImage.naturalWidth * scale;
+    const drawHeight = beastImage.naturalHeight * scale;
+    ctx.drawImage(
+      beastImage,
+      imageX + (imageWidth - drawWidth) / 2,
+      imageY + (imageHeight - drawHeight) / 2,
+      drawWidth,
+      drawHeight,
+    );
+
+    const imageShade = ctx.createLinearGradient(0, imageY + 500, 0, imageY + imageHeight);
+    imageShade.addColorStop(0, "rgba(3,8,18,0)");
+    imageShade.addColorStop(1, "rgba(3,8,18,0.94)");
+    ctx.fillStyle = imageShade;
+    ctx.fillRect(imageX, imageY, imageWidth, imageHeight);
+    ctx.restore();
+
+    ctx.save();
+    roundedRectPath(ctx, 84, 226, 390, 66, 33);
+    ctx.fillStyle = "rgba(4,10,24,0.84)";
+    ctx.fill();
+    ctx.strokeStyle = tier.glowColor;
+    ctx.lineWidth = 3;
+    ctx.stroke();
+    ctx.fillStyle = tier.glowColor;
+    ctx.font = "900 28px Arial, sans-serif";
+    ctx.fillText(tier.label.toUpperCase(), 110, 269);
+    ctx.restore();
+
+    const beastName = beast.name.toUpperCase();
+    const beastSize = fitCanvasText(ctx, beastName, 860, 76, 46);
+    ctx.textAlign = "center";
+    ctx.font = `900 ${beastSize}px Arial, sans-serif`;
+    ctx.fillStyle = "#ffffff";
+    ctx.shadowColor = tier.glowColor;
+    ctx.shadowBlur = 22;
+    ctx.fillText(beastName, 540, 925);
+    ctx.shadowBlur = 0;
+
+    ctx.fillStyle = "#f6a000";
+    ctx.font = "900 28px Arial, sans-serif";
+    ctx.fillText("DEAL UNLOCKED", 540, 1082);
+
+    const dealSize = fitCanvasText(ctx, dealName, 920, 50, 30);
+    ctx.font = `900 ${dealSize}px Arial, sans-serif`;
+    ctx.fillStyle = "#ffffff";
+    ctx.fillText(ellipsizeCanvasText(ctx, dealName, 920), 540, 1140);
+
+    const merchantLine = merchantLocation ? `${merchantName} • ${merchantLocation}` : merchantName;
+    const merchantSize = fitCanvasText(ctx, merchantLine, 920, 33, 23, 800);
+    ctx.font = `800 ${merchantSize}px Arial, sans-serif`;
+    ctx.fillStyle = "#cbd5e1";
+    ctx.fillText(ellipsizeCanvasText(ctx, merchantLine, 920), 540, 1192);
+
+    ctx.save();
+    roundedRectPath(ctx, 190, 1232, 700, 76, 38);
+    const websiteGradient = ctx.createLinearGradient(190, 1232, 890, 1308);
+    websiteGradient.addColorStop(0, "#ffd93d");
+    websiteGradient.addColorStop(1, "#ff8a00");
+    ctx.fillStyle = websiteGradient;
+    ctx.fill();
+    ctx.fillStyle = "#101827";
+    ctx.font = "900 34px Arial, sans-serif";
+    ctx.fillText("wheeldealsapp.com", 540, 1281);
+    ctx.restore();
+    ctx.textAlign = "start";
+
+    const blob = await new Promise<Blob>((resolve, reject) => {
+      canvas.toBlob((result) => result ? resolve(result) : reject(new Error("Could not export the branded share card.")), "image/png", 0.95);
+    });
+    const filename = `${beast.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-wheel-deals.png`;
+    return new File([blob], filename, { type: "image/png" });
+  }
+
+  async function fileBase64(file: Blob): Promise<string> {
+    return await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result).split(",")[1] ?? "");
+      reader.onerror = () => reject(new Error("Could not prepare the branded share card."));
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async function writeNativeShareFile(file: File): Promise<string> {
+    const { Filesystem, Directory } = await import("@capacitor/filesystem");
+    const data = await fileBase64(file);
+    const saved = await Filesystem.writeFile({
+      path: `wheel-deals-share/${file.name}`,
+      data,
+      directory: Directory.Cache,
+      recursive: true,
+    });
+    return saved.uri;
+  }
+
+  async function saveBrandedBeastImage(file: File): Promise<string | null> {
+    const isNative = Boolean((window as any).Capacitor?.isNativePlatform?.());
     if (isNative) {
       const { Filesystem, Directory } = await import("@capacitor/filesystem");
-      const data = await beastImageBase64(beast);
+      const data = await fileBase64(file);
       const saved = await Filesystem.writeFile({
-        path: `WheelDeals/${filename}`,
+        path: `WheelDeals/${file.name}`,
         data,
         directory: Directory.Documents,
         recursive: true,
@@ -630,13 +824,10 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
       return saved.uri;
     }
 
-    const response = await fetch(beast.imagePath, { cache: "no-store" });
-    if (!response.ok) throw new Error("Could not load the Beast image.");
-    const blob = await response.blob();
-    const url = URL.createObjectURL(blob);
+    const url = URL.createObjectURL(file);
     const link = document.createElement("a");
     link.href = url;
-    link.download = filename;
+    link.download = file.name;
     link.style.display = "none";
     document.body.appendChild(link);
     link.click();
@@ -645,52 +836,80 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
     return null;
   }
 
+  function beastShareCopy() {
+    if (!lastBeast) return { title: "Wheel Deals", text: "Find local deals at https://wheeldealsapp.com" };
+    const merchantName = selectedMerchant?.name?.trim() || "a local business";
+    const locationParts = [selectedMerchant?.city?.trim(), selectedMerchant?.state?.trim()].filter(Boolean);
+    const merchantLocation = locationParts.join(", ");
+    const where = merchantLocation ? `${merchantName} in ${merchantLocation}` : merchantName;
+    const dealName = lastPrize?.trim() || "a local deal";
+    return {
+      title: `I unlocked ${lastBeast.beast.name} on Wheel Deals!`,
+      text: `I unlocked ${dealName} at ${where} and revealed ${lastBeast.beast.name} (${lastBeast.tier.label}) on Wheel Deals!\n\nFind local deals: https://wheeldealsapp.com`,
+    };
+  }
+
   async function shareBeast() {
-    if (!lastBeast) return;
-    setBeastActionStatus(null);
-    const { beast, tier } = lastBeast;
-    const title = `I unlocked ${beast.name} on Wheel Deals!`;
-    const text = `${tier.label} — ${beast.name}! Unlock local deals with Wheel Deals.`;
+    if (!lastBeast || beastActionBusy) return;
+    setBeastActionBusy(true);
+    setBeastActionStatus("Preparing your branded share card…");
+    const { title, text } = beastShareCopy();
 
     try {
+      const file = await createBrandedBeastCard();
       const isNative = Boolean((window as any).Capacitor?.isNativePlatform?.());
+
       if (isNative) {
-        const fileUri = await saveBeastImage(beast);
-        const { Share } = await import("@capacitor/share");
-        await Share.share({ title, text, files: fileUri ? [fileUri] : undefined, dialogTitle: "Share your Beast" });
-        setBeastActionStatus("Share options opened.");
-        return;
+        try {
+          const fileUri = await writeNativeShareFile(file);
+          const { Share } = await import("@capacitor/share");
+          await Share.share({
+            title,
+            text,
+            files: [fileUri],
+            dialogTitle: "Share your Wheel Deals Beast",
+          });
+          setBeastActionStatus("Share options opened.");
+          return;
+        } catch (nativeError: any) {
+          if (nativeError?.message?.toLowerCase?.().includes("cancel")) return;
+          // Some Android WebView/Capacitor combinations reject a native file URI.
+          // Fall through to the Web Share API with the same in-memory PNG.
+        }
       }
 
-      const response = await fetch(beast.imagePath, { cache: "no-store" });
-      if (!response.ok) throw new Error("Could not load the Beast image.");
-      const blob = await response.blob();
-      const file = new File([blob], `${beast.name}-WheelDeals.webp`, { type: "image/webp" });
-      if (navigator.share && navigator.canShare?.({ files: [file] })) {
+      if (navigator.share && (!navigator.canShare || navigator.canShare({ files: [file] }))) {
         await navigator.share({ title, text, files: [file] });
         setBeastActionStatus("Share options opened.");
         return;
       }
 
-      window.open(beast.imagePath, "_blank", "noopener,noreferrer");
-      setBeastActionStatus("Image opened—use your browser's Share or Save control.");
+      await saveBrandedBeastImage(file);
+      setBeastActionStatus("Branded image saved. Share it from your Photos or Files app.");
     } catch (error: any) {
-      if (error?.name === "AbortError") return;
-      window.open(beast.imagePath, "_blank", "noopener,noreferrer");
-      setBeastActionStatus("Image opened—use your browser's Share or Save control.");
+      if (error?.name === "AbortError" || error?.message?.toLowerCase?.().includes("cancel")) {
+        setBeastActionStatus(null);
+        return;
+      }
+      setBeastActionStatus("Could not open sharing. Try Save Image, then share it from Photos or Files.");
+    } finally {
+      setBeastActionBusy(false);
     }
   }
 
   async function saveCurrentBeast() {
-    if (!lastBeast) return;
-    setBeastActionStatus(null);
+    if (!lastBeast || beastActionBusy) return;
+    setBeastActionBusy(true);
+    setBeastActionStatus("Creating your branded Beast image…");
     try {
-      await saveBeastImage(lastBeast.beast);
+      const file = await createBrandedBeastCard();
+      await saveBrandedBeastImage(file);
       const isNative = Boolean((window as any).Capacitor?.isNativePlatform?.());
-      setBeastActionStatus(isNative ? "Image saved in your WheelDeals Documents folder." : "Image download started.");
+      setBeastActionStatus(isNative ? "Branded image saved in your WheelDeals Documents folder." : "Branded image download started.");
     } catch {
-      window.open(lastBeast.beast.imagePath, "_blank", "noopener,noreferrer");
-      setBeastActionStatus("Image opened—use your browser's Save Image control.");
+      setBeastActionStatus("Could not save the image. Please try again.");
+    } finally {
+      setBeastActionBusy(false);
     }
   }
 
@@ -1679,23 +1898,27 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center" }}>
             <button
               onClick={shareBeast}
+              disabled={beastActionBusy}
               style={{
                 padding: "10px 20px", borderRadius: 10, border: "none", fontWeight: 950, fontSize: 14,
-                cursor: "pointer", color: "#111",
+                cursor: beastActionBusy ? "wait" : "pointer", color: "#111",
+                opacity: beastActionBusy ? 0.7 : 1,
                 background: "linear-gradient(180deg, rgba(255,217,61,0.95), rgba(255,155,61,0.95))",
               }}
             >
-              Share Beast
+              {beastActionBusy ? "Preparing…" : "Share Deal & Beast"}
             </button>
             <button
               onClick={saveCurrentBeast}
+              disabled={beastActionBusy}
               style={{
                 padding: "10px 20px", borderRadius: 10, border: `1px solid ${lastBeast.tier.glowColor}66`,
-                fontWeight: 950, fontSize: 14, cursor: "pointer",
+                fontWeight: 950, fontSize: 14, cursor: beastActionBusy ? "wait" : "pointer",
+                opacity: beastActionBusy ? 0.7 : 1,
                 color: "#fff", background: "rgba(255,255,255,0.1)",
               }}
             >
-              Save Image
+              Save Branded Image
             </button>
           </div>
           {beastActionStatus && (
@@ -1703,7 +1926,8 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
               {beastActionStatus}
             </div>
           )}
-          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", textAlign: "center", fontWeight: 600 }}>
+          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.62)", textAlign: "center", fontWeight: 650, lineHeight: 1.45 }}>
+            Your branded image includes the deal, merchant, Beast, Wheel Deals logo, and wheeldealsapp.com.<br />
             Collect all 100 Wheel Deals Beasts!
           </div>
         </div>
