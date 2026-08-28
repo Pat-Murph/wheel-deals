@@ -2,6 +2,8 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Capacitor } from "@capacitor/core";
+import { getAuth } from "firebase/auth";
+import { app } from "@/lib/firebase";
 import EmbeddedCheckoutModal from "./EmbeddedCheckoutModal";
 
 export type WheelItem = {
@@ -26,7 +28,7 @@ type Props = {
    */
   onResult?: (
     label: string,
-    extra?: { code?: string | null; spinId?: string | null; expiresAt?: string | null }
+    extra?: { code?: string | null; spinId?: string | null; expiresAt?: string | null; type?: string | null }
   ) => void;
 
   // needed for payouts + attribution
@@ -46,6 +48,9 @@ type Props = {
 
   // ✅ called after payment is verified with the exact tier price that was paid
   onPaymentVerified?: (spinPriceCents: number) => void;
+
+  // Reload an earned Share-to-Unlock entitlement after a Beast is shared.
+  shareRewardRefreshKey?: number;
 
   // ✅ when true, hide all payment/spin buttons (event mode — display only)
   hideControls?: boolean;
@@ -311,6 +316,7 @@ export default function Wheel({
   spinPriceCents,
   isFreeSpinBoost = false,
   onPaymentVerified,
+  shareRewardRefreshKey = 0,
   hideControls = false,
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -377,6 +383,14 @@ export default function Wheel({
   const [verifiedUid, setVerifiedUid] = useState<string | null>(null);
   // ✅ the exact price tier that was paid — locks the wheel selector after payment
   const [paidSpinPriceCents, setPaidSpinPriceCents] = useState<number | null>(null);
+  const [entitlementKind, setEntitlementKind] = useState<"paid" | "boost" | "share-reward" | null>(null);
+  const [shareRewardUseKey, setShareRewardUseKey] = useState(0);
+  const [shareReward, setShareReward] = useState<{
+    rewardId: string;
+    sourceSpinId: string;
+    spinPriceCents?: number | null;
+    expiresAt?: string | null;
+  } | null>(null);
 
   // ✅ store redemption info returned from consume
   const [redeemCode, setRedeemCode] = useState<string | null>(null);
@@ -591,6 +605,7 @@ export default function Wheel({
           if (res.ok && data?.ok) {
             if (cancelled) return;
             setPaidSpinReady(true);
+            setEntitlementKind("paid");
             setVerifiedSessionId(sessionId);
             if (data.uid) setVerifiedUid(data.uid);
             if (data.spinPriceCents) {
@@ -623,6 +638,7 @@ export default function Wheel({
           if (res.status === 409) {
             try { localStorage.removeItem(LS_KEY); } catch {}
             setPaidSpinReady(false);
+            setEntitlementKind(null);
             setVerifiedSessionId(null);
             setVerifiedUid(null);
             setPayBusy(false);
@@ -651,6 +667,7 @@ export default function Wheel({
       if (!cancelled) {
         setPayStatus(lastError || "We could not confirm this payment yet. Please return to this wheel in a moment.");
         setPaidSpinReady(false);
+        setEntitlementKind(null);
         setVerifiedSessionId(null);
       }
     };
@@ -679,6 +696,44 @@ export default function Wheel({
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [merchantId]);
+
+  // Restore an unused Share-to-Unlock reward for this customer and business.
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadShareReward() {
+      if (!merchantId || !uid || hideControls) {
+        if (!cancelled) setShareReward(null);
+        return;
+      }
+
+      try {
+        const currentUser = getAuth(app).currentUser;
+        if (!currentUser || currentUser.uid !== uid) return;
+        const idToken = await currentUser.getIdToken();
+        const response = await fetch(
+          `/api/share-rewards/available?merchantId=${encodeURIComponent(merchantId)}`,
+          {
+            method: "GET",
+            headers: { Authorization: `Bearer ${idToken}` },
+            cache: "no-store",
+          }
+        );
+        const data = await response.json().catch(() => ({}));
+        if (cancelled) return;
+        if (!response.ok || !data?.ok) throw new Error(data?.error ?? "Could not load share reward");
+        setShareReward(data.reward ?? null);
+      } catch (error) {
+        console.error("Share reward restore failed:", error);
+        if (!cancelled) setShareReward(null);
+      }
+    }
+
+    void loadShareReward();
+    return () => {
+      cancelled = true;
+    };
+  }, [hideControls, merchantId, shareRewardRefreshKey, shareRewardUseKey, uid]);
 
   // Draw wheel to canvas
   useEffect(() => {
@@ -904,6 +959,20 @@ export default function Wheel({
       return;
     }
 
+    // Earned Share-to-Unlock rewards take priority over Boost and paid checkout.
+    if (shareReward) {
+      setPaidSpinReady(true);
+      setEntitlementKind("share-reward");
+      setVerifiedSessionId(shareReward.rewardId);
+      setVerifiedUid(uid);
+      const rewardPriceCents = Number(shareReward.spinPriceCents ?? 0);
+      setPaidSpinPriceCents(rewardPriceCents > 0 ? rewardPriceCents : null);
+      if (rewardPriceCents > 0) onPaymentVerified?.(rewardPriceCents);
+      setPayStatus("Your free share reward is ready — unlock now!");
+      setPayBusy(false);
+      return;
+    }
+
     // ✅ Free boost unlock path — no Stripe charge, just grant entitlement directly
     if (isFreeSpinBoost) {
       try {
@@ -931,6 +1000,7 @@ export default function Wheel({
         if (!res.ok) throw new Error(data?.error ?? "Could not claim free deal");
         // Grant entitlement so unlock can proceed
         setPaidSpinReady(true);
+        setEntitlementKind("boost");
         setVerifiedSessionId(data.sessionId ?? "free-boost-" + Date.now());
         setPayStatus(null);
       } catch (e: any) {
@@ -1006,6 +1076,7 @@ export default function Wheel({
 
         if (res.ok && data?.ok) {
           setPaidSpinReady(true);
+          setEntitlementKind("paid");
           setVerifiedSessionId(checkout.sessionId);
           if (data.uid) setVerifiedUid(data.uid);
           if (data.spinPriceCents) {
@@ -1032,6 +1103,7 @@ export default function Wheel({
         if (res.status === 409) {
           try { localStorage.removeItem("wd_paid_session"); } catch {}
           setPaidSpinReady(false);
+          setEntitlementKind(null);
           setVerifiedSessionId(null);
           setVerifiedUid(null);
           setPayStatus(data?.error ?? "This paid unlock was already used.");
@@ -1070,7 +1142,7 @@ export default function Wheel({
     }
 
     // ✅ Prevent unlocking a different tier's wheel than what was paid for (race condition fix)
-    if (paidSpinPriceCents !== null && paidSpinPriceCents !== (spinPriceCents ?? 135) && !isFreeSpinBoost) {
+    if (paidSpinPriceCents !== null && paidSpinPriceCents !== (spinPriceCents ?? 135) && (entitlementKind === "paid" || entitlementKind === "share-reward")) {
       setPayStatus(`You paid for the ${spinPriceLabel(paidSpinPriceCents)} tier. Please select that wheel.`);
       return;
     }
@@ -1147,6 +1219,7 @@ export default function Wheel({
 
     // ✅ consume entitlement on server + create unlock record + code
     // lock out additional unlocks immediately (one entitlement = one unlock)
+    const consumedEntitlementKind = entitlementKind ?? (isFreeSpinBoost ? "boost" : "paid");
     setPaidSpinReady(false);
 
     try {
@@ -1160,20 +1233,36 @@ export default function Wheel({
 
       // Get device fingerprint for finalize (needed for boost anti-abuse)
       let finalizeFingerprint: string | undefined;
-      if (isFreeSpinBoost) {
+      if (consumedEntitlementKind === "boost") {
         try {
           const { getDeviceFingerprint } = await import("@/lib/deviceFingerprint");
           finalizeFingerprint = await getDeviceFingerprint();
         } catch { /* non-fatal */ }
       }
 
-      const consumeRes = await fetch(isFreeSpinBoost ? "/api/boost/consume" : "/api/spins/consume", {
+      const currentUser = getAuth(app).currentUser;
+      const shareRewardToken =
+        consumedEntitlementKind === "share-reward" && currentUser
+          ? await currentUser.getIdToken()
+          : null;
+      const consumeEndpoint =
+        consumedEntitlementKind === "share-reward"
+          ? "/api/share-rewards/consume"
+          : consumedEntitlementKind === "boost"
+            ? "/api/boost/consume"
+            : "/api/spins/consume";
+      const consumeHeaders: Record<string, string> = { "Content-Type": "application/json" };
+      if (shareRewardToken) consumeHeaders.Authorization = `Bearer ${shareRewardToken}`;
+
+      const consumeRes = await fetch(consumeEndpoint, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: consumeHeaders,
         body: JSON.stringify(
-          isFreeSpinBoost
-            ? { sessionId: verifiedSessionId, merchantId, uid: effectiveUid, prizeLabel: resLabel, finalize: true, deviceFingerprint: finalizeFingerprint }
-            : { sessionId: verifiedSessionId, merchantId, uid: effectiveUid, prizeLabel: resLabel }
+          consumedEntitlementKind === "share-reward"
+            ? { rewardId: verifiedSessionId, merchantId, prizeLabel: resLabel }
+            : consumedEntitlementKind === "boost"
+              ? { sessionId: verifiedSessionId, merchantId, uid: effectiveUid, prizeLabel: resLabel, finalize: true, deviceFingerprint: finalizeFingerprint }
+              : { sessionId: verifiedSessionId, merchantId, uid: effectiveUid, prizeLabel: resLabel }
         ),
       });
 
@@ -1190,12 +1279,17 @@ export default function Wheel({
       setPayStatus("✅ Deal unlocked! Show your code to redeem within 30 days!");
       setVerifiedSessionId(null); // prevent reuse
       setVerifiedUid(null); // clear verified uid after use
+      setEntitlementKind(null);
+      if (consumedEntitlementKind === "share-reward") {
+        setShareReward(null);
+        setShareRewardUseKey((current) => current + 1);
+      }
       try { localStorage.removeItem("wd_paid_session"); } catch {}
       setPayBusy(false);
       setPaidSpinPriceCents(null);
 
       // Mark boost as claimed locally (anti-abuse layer)
-      if (isFreeSpinBoost && merchantId) {
+      if (consumedEntitlementKind === "boost" && merchantId) {
         try {
           const { markBoostClaimedLocally } = await import("@/lib/deviceFingerprint");
           const boostCycleId = (window as any).__boostCycleId;
@@ -1204,8 +1298,18 @@ export default function Wheel({
       }
 
       // ✅ notify parent so you can show ONE unified code + QR in WheelDealsClient
-      onResult?.(resLabel, { code: nextCode, spinId: nextSpinId, expiresAt: nextExpiresAt });
+      onResult?.(resLabel, {
+        code: nextCode,
+        spinId: nextSpinId,
+        expiresAt: nextExpiresAt,
+        type: consumeData?.type ?? (consumedEntitlementKind === "share-reward" ? "share-reward" : consumedEntitlementKind === "boost" ? "free-boost" : "paid"),
+      });
     } catch (e: any) {
+      if (consumedEntitlementKind === "share-reward") {
+        setShareReward(null);
+        setEntitlementKind(null);
+        setVerifiedSessionId(null);
+      }
       setPayBusy(false);
       setPayStatus(
         e?.message ?? "Unlock failed. Please contact support."
@@ -1316,6 +1420,12 @@ export default function Wheel({
         {payStatus && (
           <div style={{ marginTop: 8, fontWeight: 800, opacity: 0.9, color: "#F5E6C8" }}>
             {payStatus}
+          </div>
+        )}
+
+        {shareReward && !paidSpinReady && (
+          <div style={{ marginTop: 10, padding: "10px 12px", borderRadius: 12, background: "rgba(34,197,94,0.14)", border: "1px solid rgba(34,197,94,0.4)", color: "#bbf7d0", fontWeight: 900, fontSize: 14 }}>
+            You earned one free unlock for sharing your Beast.
           </div>
         )}
 
@@ -1558,7 +1668,9 @@ export default function Wheel({
                 : "0 12px 30px rgba(0,0,0,0.12), 0 0 20px rgba(255,217,61,0.22)",
             }}
           >
-            {payBusy ? (isFreeSpinBoost ? "Claiming free deal\u2026" : "Opening checkout\u2026") : (isFreeSpinBoost ? "\ud83d\udd25 Claim Free Deal" : `Unlock Deal \u2014 Pay ${spinPriceLabel(spinPriceCents)}`)}
+            {payBusy
+              ? (shareReward ? "Preparing free unlock…" : isFreeSpinBoost ? "Claiming free deal…" : "Opening checkout…")
+              : (shareReward ? "Use Free Share Reward" : isFreeSpinBoost ? "🔥 Claim Free Deal" : `Unlock Deal — Pay ${spinPriceLabel(spinPriceCents)}`)}
           </button>
         ) : (
           <button
@@ -1580,7 +1692,13 @@ export default function Wheel({
                 : "0 12px 30px rgba(0,0,0,0.12), 0 0 20px rgba(255,217,61,0.22)",
             }}
           >
-            {spinning ? "Unlocking..." : `Unlock (${spinPriceLabel(spinPriceCents)})`}
+            {spinning
+              ? "Unlocking..."
+              : entitlementKind === "share-reward"
+                ? "Use Free Unlock"
+                : entitlementKind === "boost"
+                  ? "Unlock Free Deal"
+                  : `Unlock (${spinPriceLabel(spinPriceCents)})`}
           </button>
         )}
         </>)}

@@ -103,7 +103,7 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
   const [celebrationWeightPct, setCelebrationWeightPct] = useState(50);
   const [celebrationLabel, setCelebrationLabel] = useState("");
   // Pending result — shown after celebration dismisses
-  const pendingResultRef = useRef<{ label: string; code: string; spinId?: string; expiresAt?: string } | null>(null);
+  const pendingResultRef = useRef<{ label: string; code: string; spinId?: string; expiresAt?: string; type?: string } | null>(null);
   const [activeDeals, setActiveDeals] = useState<ActiveDeal[]>([]);
   const [selectedActiveSpinId, setSelectedActiveSpinId] = useState<string>("");
   const [activeDealsLoading, setActiveDealsLoading] = useState(false);
@@ -114,6 +114,7 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
   const [lastBeastSpinId, setLastBeastSpinId] = useState("");
   const [beastActionStatus, setBeastActionStatus] = useState<string | null>(null);
   const [beastActionBusy, setBeastActionBusy] = useState(false);
+  const [shareRewardRefreshKey, setShareRewardRefreshKey] = useState(0);
   const [emailInput, setEmailInput] = useState("");
   const [emailSending, setEmailSending] = useState(false);
   const [emailStatus, setEmailStatus] = useState<string | null>(null);
@@ -692,6 +693,41 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
     };
   }
 
+  async function claimShareRewardAfterShare(): Promise<string | null> {
+    if (!lastBeastSpinId || !selectedMerchant?.id || !uid) return null;
+
+    try {
+      const currentUser = getAuth(app).currentUser;
+      if (!currentUser || currentUser.uid !== uid) {
+        return "Shared! Reopen Wheel Deals to check your free unlock.";
+      }
+      const idToken = await currentUser.getIdToken();
+      const response = await fetch("/api/share-rewards/claim", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({
+          sourceSpinId: lastBeastSpinId,
+          merchantId: selectedMerchant.id,
+        }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data?.ok) {
+        throw new Error(data?.error ?? "Could not save the free unlock reward.");
+      }
+
+      if (data.eligible && data.status === "available") {
+        setShareRewardRefreshKey((current) => current + 1);
+      }
+      return data?.message ?? null;
+    } catch (error: any) {
+      console.error("Share reward claim failed:", error);
+      return "The share opened, but the free unlock could not be saved. Tap Share again to retry.";
+    }
+  }
+
   async function shareBeast() {
     if (!lastBeast || beastActionBusy) return;
     setBeastActionBusy(true);
@@ -703,7 +739,8 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
       const nativeBridge = (window as any).WheelDealsNative;
       if (nativeBridge?.share && typeof nativeBridge.share === "function") {
         nativeBridge.share(title, text, imageUrl);
-        setBeastActionStatus("Your Android share menu will open momentarily.");
+        const rewardMessage = await claimShareRewardAfterShare();
+        setBeastActionStatus(rewardMessage ?? "Your Android share menu will open momentarily.");
         return;
       }
 
@@ -720,7 +757,8 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
             files: [fileUri],
             dialogTitle: "Share your Wheel Deals Beast",
           });
-          setBeastActionStatus("Share options opened.");
+          const rewardMessage = await claimShareRewardAfterShare();
+          setBeastActionStatus(rewardMessage ?? "Share options opened.");
           return;
         } catch (nativeFileError: any) {
           if (nativeFileError?.message?.toLowerCase?.().includes("cancel")) return;
@@ -732,7 +770,8 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
               url: imageUrl,
               dialogTitle: "Share your Wheel Deals Beast",
             });
-            setBeastActionStatus("Share options opened. The branded image link is included.");
+            const rewardMessage = await claimShareRewardAfterShare();
+            setBeastActionStatus(rewardMessage ?? "Share options opened. The branded image link is included.");
             return;
           } catch {
             // Older Android builds may not include the native plugins. Continue
@@ -743,7 +782,8 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
 
       if (navigator.share && (!navigator.canShare || navigator.canShare({ files: [file] }))) {
         await navigator.share({ title, text, files: [file] });
-        setBeastActionStatus("Share options opened.");
+        const rewardMessage = await claimShareRewardAfterShare();
+        setBeastActionStatus(rewardMessage ?? "Share options opened.");
         return;
       }
 
@@ -1582,9 +1622,10 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
           merchantId={selectedMerchant.id}
           merchantName={(selectedMerchant as any)?.name ?? undefined}
           uid={uid ?? undefined}
-          spinPriceCents={initialEventId ? 99999 : (freeBoostAvailable && freeSpinGatePassed ? 0 : (activeWheel?.spinPriceCents ?? 135))}
+          spinPriceCents={initialEventId ? 99999 : (activeWheel?.spinPriceCents ?? 135)}
           hideControls={!!initialEventId}
           isFreeSpinBoost={!initialEventId && freeBoostAvailable && freeSpinGatePassed}
+          shareRewardRefreshKey={shareRewardRefreshKey}
           onPaymentVerified={(priceCents) => {
             if (initialEventId) return; // no payment in event mode
             // Lock the tier tabs to the tier that was actually paid
@@ -1623,12 +1664,13 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
               code: extra.code,
               spinId: extra.spinId ?? undefined,
               expiresAt: extra.expiresAt ?? undefined,
+              type: extra.type ?? undefined,
             };
             setLastBeastSpinId(extra.spinId ?? "");
 
             // A confirmed free result must disappear immediately, even before a
             // navigation refreshes the merchant document from Firestore.
-            if (isFreeSpinWheel) {
+            if (extra.type === "free-boost") {
               setFreeBoostClaimed(true);
               setMerchants((current) => current.map((merchant) => {
                 if (merchant.id !== selectedMerchant.id) return merchant;
@@ -1777,6 +1819,16 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
             textShadow: `0 0 12px ${lastBeast.tier.glowColor}` }}>
             {lastBeast.beast.name}
           </div>
+          <div style={{
+            width: "100%", padding: "10px 12px", borderRadius: 10,
+            background: "rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.92)",
+            fontSize: 12, fontWeight: 800, lineHeight: 1.45, textAlign: "center",
+            boxSizing: "border-box",
+          }}>
+            {activeDeals.find((deal) => deal.spinId === selectedActiveSpinId)?.type === "share-reward"
+              ? "Share this Beast with friends. Free reward unlocks do not earn another free unlock."
+              : "Share this Deal & Beast to earn one free unlock at this business. Limit: one reward for this paid or Boost unlock."}
+          </div>
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center" }}>
             <button
               onClick={shareBeast}
@@ -1788,7 +1840,11 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
                 background: "linear-gradient(180deg, rgba(255,217,61,0.95), rgba(255,155,61,0.95))",
               }}
             >
-              {beastActionBusy ? "Preparing…" : "Share Deal & Beast"}
+              {beastActionBusy
+                ? "Preparing…"
+                : activeDeals.find((deal) => deal.spinId === selectedActiveSpinId)?.type === "share-reward"
+                  ? "Share Deal & Beast"
+                  : "Share & Earn Free Unlock"}
             </button>
             <button
               onClick={saveCurrentBeast}
@@ -1809,7 +1865,7 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
             </div>
           )}
           <div style={{ fontSize: 11, color: "rgba(255,255,255,0.62)", textAlign: "center", fontWeight: 650, lineHeight: 1.45 }}>
-            Your branded image includes the deal, merchant, Beast, Wheel Deals logo, and wheeldealsapp.com.<br />
+            Your branded image includes the deal, business, Beast, Wheel Deals logo, and wheeldealsapp.com.<br />
             Collect all 100 Wheel Deals Beasts!
           </div>
         </div>
@@ -1903,6 +1959,7 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
                 code: pending.code,
                 expiresAt: pending.expiresAt ?? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
                 createdAt: new Date().toISOString(),
+                type: pending.type,
               };
               setActiveDeals((current) => [
                 activeDeal,
