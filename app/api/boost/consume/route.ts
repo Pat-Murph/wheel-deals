@@ -218,10 +218,11 @@ export async function POST(req: NextRequest) {
         createdAt: FieldValue.serverTimestamp(),
         expiresAt,
         type: "free-boost",
+        shareRewardEligible: true,
         boostCycleId: cycleId,
       });
 
-      return { allowed: true, remaining: newRemaining, code, spinId, expiresAt: expiresAt.toISOString() };
+      return { allowed: true, remaining: newRemaining, code, spinId, expiresAt: expiresAt.toISOString(), type: "free-boost" };
     });
 
     return NextResponse.json(result);
