@@ -89,6 +89,8 @@ export async function POST(req: Request) {
         prizeLabel,
         status: "issued",
         code,
+        type: "paid",
+        shareRewardEligible: true,
         sessionId,
         spinPriceCents: amountTotal,
         revenueCents,
@@ -117,7 +119,7 @@ export async function POST(req: Request) {
         { merge: true }
       );
 
-      return { spinId: spinRef.id, code, expiresAt: expiresAt.toISOString() };
+      return { spinId: spinRef.id, code, expiresAt: expiresAt.toISOString(), type: "paid" };
     });
 
     return NextResponse.json({ ok: true, ...result }, { status: 200 });
