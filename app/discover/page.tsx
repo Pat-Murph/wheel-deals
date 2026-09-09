@@ -303,39 +303,76 @@ export default function DiscoverPage() {
       fontFamily: "'Segoe UI', system-ui, sans-serif",
     }}>
 
-      {/* TOP HERO HEADER */}
-      <div style={{
-        background: "#ffffff",
-        borderBottom: "1px solid #e5e7eb",
-        padding: "8px 14px",
-        display: "flex",
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-between",
-        flexShrink: 0,
-        boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
-      }}>
+      <style>{`
+        .wd-discover-hero {
+          position: relative;
+          width: 100%;
+          overflow: hidden;
+          background: #020f2f;
+          border-bottom: 1px solid #123f7a;
+          box-shadow: 0 3px 10px rgba(2, 15, 47, 0.28);
+          line-height: 0;
+        }
+        .wd-discover-hero-image {
+          display: block;
+          width: 100%;
+          height: auto;
+          object-fit: cover;
+          object-position: center 38%;
+        }
+        .wd-discover-merchant-button {
+          position: absolute;
+          top: 69%;
+          right: 6.5%;
+          transform: translateY(-50%);
+          z-index: 2;
+          padding: 10px 18px;
+          border: 1px solid #d79a00;
+          border-radius: 13px;
+          background: linear-gradient(180deg, #ffd82f 0%, #ffab00 100%);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+          color: #111827;
+          font-size: 14px;
+          font-weight: 900;
+          line-height: 1.15;
+          text-decoration: none;
+          white-space: nowrap;
+        }
+        .wd-discover-merchant-button:active {
+          transform: translateY(-48%) scale(0.98);
+        }
+        @media (min-width: 720px) {
+          .wd-discover-hero-image {
+            height: clamp(290px, 32vw, 380px);
+          }
+          .wd-discover-merchant-button {
+            right: 8%;
+            padding: 12px 24px;
+            font-size: 16px;
+          }
+        }
+        @media (max-width: 420px) {
+          .wd-discover-merchant-button {
+            top: 70%;
+            right: 5%;
+            padding: 8px 14px;
+            border-radius: 11px;
+            font-size: 12px;
+          }
+        }
+      `}</style>
+
+      {/* TOP BEAST HERO HEADER */}
+      <header className="wd-discover-hero">
         <img
-          src="/wd-hero-logo.png"
-          alt="Wheel Deals — Unlock Local Savings"
-          style={{ height: 140, width: "auto", maxWidth: "70%", objectFit: "contain" }}
+          className="wd-discover-hero-image"
+          src="/wheel-deals-beast-hero.webp"
+          alt="Wheel Deals — Unlock Local Savings and discover deals near you"
         />
-        <a href="/merchant" style={{
-          fontSize: 14,
-          fontWeight: 800,
-          color: "#1a1a1a",
-          textDecoration: "none",
-          padding: "10px 20px",
-          borderRadius: 12,
-          background: "linear-gradient(180deg, #FFD700, #FFA500)",
-          border: "1px solid #d4a017",
-          whiteSpace: "nowrap",
-          boxShadow: "0 2px 6px rgba(0,0,0,0.12)",
-          flexShrink: 0,
-        }}>
+        <a className="wd-discover-merchant-button" href="/merchant">
           Merchant
         </a>
-      </div>
+      </header>
 
       {/* FOUNDING BANNER */}
       {foundingRemaining > 0 && (
