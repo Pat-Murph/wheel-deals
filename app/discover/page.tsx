@@ -322,8 +322,8 @@ export default function DiscoverPage() {
         }
         .wd-discover-merchant-button {
           position: absolute;
-          top: 69%;
-          right: 6.5%;
+          top: 78%;
+          right: 3%;
           transform: translateY(-50%);
           z-index: 2;
           padding: 10px 18px;
@@ -346,15 +346,15 @@ export default function DiscoverPage() {
             height: clamp(290px, 32vw, 380px);
           }
           .wd-discover-merchant-button {
-            right: 8%;
+            right: 4%;
             padding: 12px 24px;
             font-size: 16px;
           }
         }
         @media (max-width: 420px) {
           .wd-discover-merchant-button {
-            top: 70%;
-            right: 5%;
+            top: 80%;
+            right: 3%;
             padding: 8px 14px;
             border-radius: 11px;
             font-size: 12px;
