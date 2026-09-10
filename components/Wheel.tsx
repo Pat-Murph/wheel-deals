@@ -398,14 +398,14 @@ export default function Wheel({
 
   // ✅ Background music refs/state (plays only on this component/screen)
   const bgAudioRef = useRef<HTMLAudioElement | null>(null);
-  const [musicOn, setMusicOn] = useState(true);
+  const [musicOn, setMusicOn] = useState(false);
 
   // ✅ Prize list overlay
   const [showPrizes, setShowPrizes] = useState(false);
 
-  const startBgMusic = async () => {
+  const startBgMusic = async (forceStart = false) => {
     try {
-      if (!musicOn) return;
+      if (!musicOn && !forceStart) return;
 
       if (!bgAudioRef.current) {
         const a = new Audio(BG_MUSIC_SRC);
@@ -427,8 +427,8 @@ export default function Wheel({
 
       const a = bgAudioRef.current;
 
-      // ensure correct volume/mute based on current state
-      a.muted = !musicOn;
+      // Reaching this point means the customer explicitly enabled music.
+      a.muted = false;
       a.volume = 0.18;
 
       // If already playing, don't restart — just ensure it's unmuted
@@ -449,31 +449,6 @@ export default function Wheel({
       a.currentTime = 0;
     } catch {}
   };
-
-  // ✅ Auto-start music on first user interaction with the page
-  useEffect(() => {
-    let started = false;
-
-    const tryStart = async () => {
-      if (started) return;
-      started = true;
-      await startBgMusic();
-      document.removeEventListener("click", tryStart);
-      document.removeEventListener("touchstart", tryStart);
-      document.removeEventListener("keydown", tryStart);
-    };
-
-    document.addEventListener("click", tryStart, { once: true });
-    document.addEventListener("touchstart", tryStart, { once: true });
-    document.addEventListener("keydown", tryStart, { once: true });
-
-    return () => {
-      document.removeEventListener("click", tryStart);
-      document.removeEventListener("touchstart", tryStart);
-      document.removeEventListener("keydown", tryStart);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [musicOn]);
 
   // stop music when leaving wheel screen
   useEffect(() => {
@@ -1712,7 +1687,7 @@ export default function Wheel({
             try {
               // if turning ON, start music (user gesture)
               if (next) {
-                await startBgMusic();
+                await startBgMusic(true);
               } else {
                 stopBgMusic();
               }
