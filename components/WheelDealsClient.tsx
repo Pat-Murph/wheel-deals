@@ -118,6 +118,8 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
   const [emailInput, setEmailInput] = useState("");
   const [emailSending, setEmailSending] = useState(false);
   const [emailStatus, setEmailStatus] = useState<string | null>(null);
+  const [dealDownloadBusy, setDealDownloadBusy] = useState(false);
+  const [dealDownloadStatus, setDealDownloadStatus] = useState<string | null>(null);
   // Support modal state
   const [supportOpen, setSupportOpen] = useState(false);
   const [supportName, setSupportName] = useState("");
@@ -156,7 +158,7 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
       window.open(`mailto:${emailInput.trim()}?subject=${subject}&body=${body}`, "_blank");
       setEmailStatus("✅ Email app opened with the code ready to send!");
     } catch {
-      setEmailStatus("❌ Could not open email app. Please copy the code manually.");
+      setEmailStatus("❌ Could not open your email app. Use Download Deal QR to save a backup instead.");
     } finally {
       setEmailSending(false);
     }
@@ -832,6 +834,88 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
       }
     } finally {
       setBeastActionBusy(false);
+    }
+  }
+
+  async function downloadActiveDealQr() {
+    if (!issuedCode || !selectedActiveSpinId || !selectedMerchant?.id || !uid || dealDownloadBusy) return;
+
+    setDealDownloadBusy(true);
+    setDealDownloadStatus("Preparing your Deal QR backup…");
+
+    try {
+      const currentUser = getAuth(app).currentUser;
+      if (!currentUser || currentUser.uid !== uid) {
+        throw new Error("Please reopen Wheel Deals and try again.");
+      }
+
+      const idToken = await currentUser.getIdToken();
+      const response = await fetch("/api/share/beast", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({
+          spinId: selectedActiveSpinId,
+          merchantId: selectedMerchant.id,
+        }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data?.ok || !data?.url) {
+        throw new Error(data?.error ?? "Could not prepare the Deal QR backup.");
+      }
+
+      const imageUrl = new URL(String(data.url), window.location.origin).toString();
+      const nativeBridge = (window as any).WheelDealsNative;
+      if (nativeBridge?.save && typeof nativeBridge.save === "function") {
+        nativeBridge.save(imageUrl);
+        setDealDownloadStatus("Saving your Deal QR backup to Photos…");
+        return;
+      }
+
+      const imageResponse = await fetch(imageUrl, { cache: "no-store" });
+      if (!imageResponse.ok) throw new Error("Could not download the Deal QR image.");
+      const blob = await imageResponse.blob();
+      if (!blob.size || !blob.type.includes("image")) {
+        throw new Error("The Deal QR backup was not returned as an image.");
+      }
+
+      const merchantSlug = selectedMerchant.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "merchant";
+      const codeSlug = issuedCode.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "deal";
+      const file = new File([blob], `wheel-deals-${merchantSlug}-${codeSlug}.png`, { type: "image/png" });
+      const isNative = Boolean((window as any).Capacitor?.isNativePlatform?.());
+
+      if (isNative) {
+        try {
+          const fileUri = await writeNativeShareFile(file);
+          const { Share } = await import("@capacitor/share");
+          await Share.share({
+            title: "Save your Wheel Deals Deal QR",
+            text: `Backup for ${lastPrize ?? "your deal"} at ${selectedMerchant.name}. Choose Save Image or Save to Files.`,
+            files: [fileUri],
+            dialogTitle: "Save your Deal QR",
+          });
+          setDealDownloadStatus("Choose Save Image or Save to Files to keep your Deal QR backup.");
+          return;
+        } catch (nativeError: any) {
+          if (nativeError?.message?.toLowerCase?.().includes("cancel")) {
+            setDealDownloadStatus("Download canceled. Your deal is still saved in Wheel Deals.");
+            return;
+          }
+          await saveBrandedBeastImage(file);
+          setDealDownloadStatus("Deal QR saved in your WheelDeals Documents folder.");
+          return;
+        }
+      }
+
+      await saveBrandedBeastImage(file);
+      setDealDownloadStatus("Deal QR download started.");
+    } catch (error: any) {
+      console.error("Wheel Deals Deal QR download failed", error);
+      setDealDownloadStatus(error?.message ?? "Could not download the Deal QR. Please try again.");
+    } finally {
+      setDealDownloadBusy(false);
     }
   }
 
@@ -1654,6 +1738,7 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
             setSpinError(null);
             setEmailInput("");
             setEmailStatus(null);
+            setDealDownloadStatus(null);
             if (!extra?.code) {
               setSpinError("Unlock completed but no code returned.");
               return;
@@ -1716,7 +1801,7 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
         <div style={{ padding: 14, border: "2px solid #C8960C", borderRadius: 14, background: "white", display: "flex", flexDirection: "column", gap: 10, boxShadow: "0 4px 24px rgba(200,150,12,0.18), 0 2px 8px rgba(0,0,0,0.06)", width: "100%", boxSizing: "border-box" }}>
           <div style={{ fontWeight: 950, fontSize: 18 }}>Your Active Deal</div>
           <div style={{ padding: "9px 12px", borderRadius: 10, background: "rgba(34,197,94,0.09)", border: "1px solid rgba(34,197,94,0.24)", fontSize: 13, fontWeight: 850, color: "#166534" }}>
-            Saved to your Wheel Deals account. This QR code will reappear here until it is redeemed or expires.
+            Saved to Wheel Deals until redeemed or expired. For extra backup, download your Deal QR or email the code to yourself.
           </div>
           {activeDeals.length > 1 && (
             <label style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 12, fontWeight: 900, color: "#374151" }}>
@@ -1728,6 +1813,7 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
                   applyActiveDeal(deal);
                   setEmailInput("");
                   setEmailStatus(null);
+                  setDealDownloadStatus(null);
                 }}
                 style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid #d1d5db", background: "#fff", fontSize: 14, fontWeight: 800 }}
               >
@@ -1753,13 +1839,24 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
             <div style={{ fontSize: 11, opacity: 0.65, textAlign: "center" }}>Merchant can scan this QR or type the code.</div>
           </div>
 
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center" }}>
-            <button onClick={() => navigator.clipboard.writeText(issuedCode)} style={{
-              padding: "10px 14px", borderRadius: 10, border: "1px solid rgba(0,0,0,0.12)",
-              fontWeight: 900, cursor: "pointer", background: "linear-gradient(180deg, #f3f4f6, #fff)", fontSize: 13,
-            }}>
-              Copy code
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "center" }}>
+            <button
+              onClick={() => void downloadActiveDealQr()}
+              disabled={dealDownloadBusy}
+              style={{
+                padding: "11px 16px", borderRadius: 10, border: "1px solid rgba(0,0,0,0.12)",
+                fontWeight: 950, cursor: dealDownloadBusy ? "wait" : "pointer",
+                background: "linear-gradient(180deg, rgba(255,217,61,0.95), rgba(255,155,61,0.95))",
+                fontSize: 13, opacity: dealDownloadBusy ? 0.72 : 1,
+              }}
+            >
+              {dealDownloadBusy ? "Preparing download…" : "⬇ Download Deal QR"}
             </button>
+            {dealDownloadStatus && (
+              <div style={{ fontSize: 12, fontWeight: 800, color: "#475569", textAlign: "center" }}>
+                {dealDownloadStatus}
+              </div>
+            )}
           </div>
 
           {/* Email code */}
