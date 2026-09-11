@@ -26,7 +26,7 @@ import {
   increment,
 } from "firebase/firestore";
 import { app, getDb } from "../../lib/firebase";
-import { blockAnonAuth, fullSignOut } from "../../lib/auth";
+import { fullSignOut } from "../../lib/auth";
 import {
   getMerchantDaily,
   getMerchantName,
@@ -280,10 +280,6 @@ function QrScanner(props: {
 }
 
 export default function MerchantDashboardPage() {
-  useEffect(() => {
-    blockAnonAuth().catch(() => {});
-  }, []);
-
   const auth = useMemo(() => getAuth(app), []);
   const [user, setUser] = useState<User | null>(null);
 
@@ -345,6 +341,9 @@ export default function MerchantDashboardPage() {
   /* ---------- AUTH ---------- */
   useEffect(() => {
     return onAuthStateChanged(auth, (u) => {
+      // Anonymous customers should see merchant sign-in without being signed out.
+      // Preserving their UID keeps saved active-deal QR codes retrievable when
+      // they return to Discover or a merchant page.
       if (u?.isAnonymous) setUser(null);
       else setUser(u);
     });
