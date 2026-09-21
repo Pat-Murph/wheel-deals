@@ -1,6 +1,6 @@
 // app/api/cron/cleanup-unconnected/route.ts
-// 1. Deactivates merchants who haven't connected Stripe within 90 days of onboarding.
-// 2. Checks all merchants with a stripeAccountId and updates stripeChargesEnabled.
+// Checks active merchants with a stripeAccountId and updates stripeChargesEnabled.
+// Merchants are no longer deactivated automatically for not connecting Stripe.
 // Can be triggered by Vercel Cron or manually via GET/POST request.
 export const dynamic = "force-dynamic";
 
@@ -8,35 +8,8 @@ import { NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { stripe } from "@/lib/stripeServer";
 
-const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000;
-
-async function runCleanup() {
-  const cutoff = new Date(Date.now() - NINETY_DAYS_MS);
-  const merchantsRef = adminDb.collection("merchants");
-
-  const snap = await merchantsRef.where("active", "==", true).get();
-
-  const deactivated: string[] = [];
-
-  for (const doc of snap.docs) {
-    const data = doc.data();
-    // Skip merchants that already have Stripe connected
-    if (data.stripeAccountId) continue;
-    // Check createdAt — if older than 90 days, deactivate
-    const createdAt = data.createdAt;
-    if (!createdAt) continue;
-    const createdDate = createdAt.toDate ? createdAt.toDate() : new Date(createdAt);
-    if (isNaN(createdDate.getTime())) continue;
-    if (createdDate < cutoff) {
-      await merchantsRef.doc(doc.id).update({
-        active: false,
-        deactivatedReason: "stripe_not_connected_90d",
-        deactivatedAt: new Date(),
-      });
-      deactivated.push(doc.id);
-    }
-  }
-  return deactivated;
+function errorMessage(error: unknown) {
+  return error instanceof Error ? error.message : "Unknown error";
 }
 
 async function checkStripeStatuses() {
@@ -60,8 +33,8 @@ async function checkStripeStatuses() {
         await doc.ref.set({ stripeChargesEnabled: isReady }, { merge: true });
         updated++;
       }
-    } catch (err: any) {
-      console.error(`Error checking Stripe account for ${doc.id}:`, err?.message);
+    } catch (error: unknown) {
+      console.error(`Error checking Stripe account for ${doc.id}:`, errorMessage(error));
     }
   }
   return { checked, updated };
@@ -75,20 +48,20 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const deactivated = await runCleanup();
     const stripeStatus = await checkStripeStatuses();
 
     return NextResponse.json({
       ok: true,
-      deactivatedCount: deactivated.length,
-      deactivatedIds: deactivated,
+      automaticMerchantDeactivation: false,
+      deactivatedCount: 0,
+      deactivatedIds: [],
       stripeStatusChecked: stripeStatus.checked,
       stripeStatusUpdated: stripeStatus.updated,
     });
-  } catch (e: any) {
-    console.error("Cleanup error:", e);
+  } catch (error: unknown) {
+    console.error("Stripe status sync error:", error);
     return NextResponse.json(
-      { ok: false, error: e?.message ?? "Server error" },
+      { ok: false, error: errorMessage(error) },
       { status: 500 }
     );
   }
