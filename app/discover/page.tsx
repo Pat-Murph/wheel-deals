@@ -13,6 +13,7 @@ import {
   DISCOVER_CATEGORIES,
 } from "../../lib/merchants";
 import { getFoundingMerchantCount, FOUNDING_MERCHANT_LIMIT } from "../../lib/founding";
+import { REFERRAL_PROGRAM_ENABLED } from "../../lib/featureFlags";
 import { getAuth, onAuthStateChanged, signInAnonymously } from "firebase/auth";
 import { app } from "../../lib/firebase";
 
@@ -416,7 +417,7 @@ export default function DiscoverPage() {
       )}
 
       {/* Referral program banner */}
-      <a href="/referral" style={{
+      {REFERRAL_PROGRAM_ENABLED && <a href="/referral" style={{
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
@@ -449,7 +450,7 @@ export default function DiscoverPage() {
         }}>
           Learn more
         </div>
-      </a>
+      </a>}
 
 
       {/* SEARCH BARS */}
