@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef } from "react";
+import { REFERRAL_PROGRAM_ENABLED } from "../../lib/featureFlags";
 
 export default function ReferralPage() {
   const flyerRef = useRef<HTMLDivElement>(null);
@@ -19,6 +20,20 @@ export default function ReferralPage() {
     `);
     w.document.close();
     setTimeout(() => { w.print(); w.close(); }, 400);
+  }
+
+  if (!REFERRAL_PROGRAM_ENABLED) {
+    return (
+      <main style={{ minHeight: "100vh", display: "grid", placeItems: "center", background: "#f9fafb", padding: 24 }}>
+        <div style={{ maxWidth: 420, textAlign: "center", background: "#fff", border: "1px solid #e5e7eb", borderRadius: 16, padding: 28 }}>
+          <h1 style={{ fontSize: 24, fontWeight: 900, margin: "0 0 10px", color: "#111827" }}>Page unavailable</h1>
+          <p style={{ margin: "0 0 20px", color: "#4b5563", lineHeight: 1.6 }}>This page is not available right now.</p>
+          <a href="/discover" style={{ display: "inline-block", color: "#111827", background: "#fbbf24", borderRadius: 10, padding: "11px 16px", fontWeight: 800, textDecoration: "none" }}>
+            Back to Discover
+          </a>
+        </div>
+      </main>
+    );
   }
 
   return (
