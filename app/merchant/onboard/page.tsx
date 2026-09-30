@@ -12,6 +12,7 @@ import {
 import { app, storage, getDb } from "../../../lib/firebase";
 import { DISCOVER_CATEGORIES } from "../../../lib/merchants";
 import { claimFoundingSpot } from "../../../lib/founding";
+import { REFERRAL_PROGRAM_ENABLED } from "../../../lib/featureFlags";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import {
   collection,
@@ -263,7 +264,9 @@ async function saveMerchantForUser(args: {
     mobileServiceRadiusMiles: typeof mobileServiceRadiusMiles === 'number' ? mobileServiceRadiusMiles : 25,
     businessHours: businessHours ?? {},
     showBusinessHours: showBusinessHours !== false,
-    ...(referrerEmail.trim() && !isEdit ? { referrerEmail: referrerEmail.trim().toLowerCase() } : {}),
+    ...(REFERRAL_PROGRAM_ENABLED && referrerEmail.trim() && !isEdit
+      ? { referrerEmail: referrerEmail.trim().toLowerCase() }
+      : {}),
   };
 
   if (isEdit) {
@@ -893,7 +896,7 @@ export default function MerchantOnboardPage() {
 
         // ✅ NEW
         termsAccepted: true,
-        referrerEmail: referrerEmail.trim(),
+        referrerEmail: REFERRAL_PROGRAM_ENABLED ? referrerEmail.trim() : "",
       });
 
       setMerchantId(res.merchantId);
@@ -1365,7 +1368,7 @@ export default function MerchantOnboardPage() {
           </div>
 
           {/* Referrer email — only shown for new sign-ups */}
-          {!isEdit && (
+          {!isEdit && REFERRAL_PROGRAM_ENABLED && (
             <div style={{ marginTop: 8 }}>
               <input
                 value={referrerEmail}
