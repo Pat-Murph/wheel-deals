@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 export const dynamic = "force-dynamic";
-import { adminDb } from "@/lib/firebaseAdmin";
+import { adminDb, getAdminAuth } from "@/lib/firebaseAdmin";
 import { FieldValue } from "firebase-admin/firestore";
 import { randomBytes } from "crypto";
 
 const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
 const RESERVATION_MS = 15 * 60 * 1000;
+const INSTALLATION_ID_PATTERN = /^v2_[0-9a-f]{32}$/;
 
 function generateCode(): string {
   return randomBytes(4).toString("hex").toUpperCase();
@@ -53,7 +54,7 @@ async function isMerchantAccount(uid: string): Promise<boolean> {
 
 /**
  * Free boost rules:
- * - One completed free unlock per device and user per merchant boost cycle.
+ * - One completed free unlock per installation and authenticated customer per merchant boost cycle.
  * - A customer is eligible again only after a new merchant boost activation AND 24 hours.
  * - A server-side reservation is created before the wheel begins, preventing a customer from
  *   leaving and reopening the wheel to obtain repeated free unlock attempts.
@@ -62,12 +63,26 @@ export async function POST(req: NextRequest) {
   try {
     const { merchantId, uid, prizeLabel, finalize, deviceFingerprint, sessionId } = await req.json();
 
-    if (!merchantId || !uid) {
+    if (typeof merchantId !== "string" || !merchantId || typeof uid !== "string" || !uid) {
       return NextResponse.json({ error: "Missing merchantId/uid" }, { status: 400 });
     }
-    if (!deviceFingerprint) {
+    const authorization = req.headers.get("authorization") ?? "";
+    const token = authorization.startsWith("Bearer ") ? authorization.slice(7).trim() : "";
+    if (!token) {
+      return NextResponse.json({ error: "Please sign in again to claim your free deal." }, { status: 401 });
+    }
+    let authenticatedUid: string;
+    try {
+      authenticatedUid = (await getAdminAuth().verifyIdToken(token)).uid;
+    } catch {
+      return NextResponse.json({ error: "Your session expired. Please reopen Wheel Deals and try again." }, { status: 401 });
+    }
+    if (authenticatedUid !== uid) {
+      return NextResponse.json({ error: "Customer session changed. Please reopen the deal and try again." }, { status: 403 });
+    }
+    if (typeof deviceFingerprint !== "string" || !INSTALLATION_ID_PATTERN.test(deviceFingerprint)) {
       return NextResponse.json(
-        { error: "Unable to verify your device. Please enable cookies and try again." },
+        { error: "Please reopen Wheel Deals to refresh your device ID and try again." },
         { status: 400 }
       );
     }
