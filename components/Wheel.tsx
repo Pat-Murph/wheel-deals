@@ -951,24 +951,20 @@ export default function Wheel({
     // ✅ Free boost unlock path — no Stripe charge, just grant entitlement directly
     if (isFreeSpinBoost) {
       try {
-        // Get device fingerprint for anti-abuse enforcement
-        let deviceFingerprint: string | undefined;
-        try {
-          const { getDeviceFingerprint, hasClaimedBoostLocally } = await import("@/lib/deviceFingerprint");
-          deviceFingerprint = await getDeviceFingerprint();
-          // Client-side quick check (server is authoritative, this just saves a round-trip)
-          const boostCycleId = (window as any).__boostCycleId;
-          if (boostCycleId && hasClaimedBoostLocally(merchantId!, boostCycleId)) {
-            throw new Error("You already claimed your free deal for this boost cycle. Come back when the merchant activates a new boost!");
-          }
-        } catch (fpErr: any) {
-          if (fpErr?.message?.includes("already claimed")) throw fpErr;
-          /* non-fatal fingerprint error */ 
+        const { getDeviceFingerprint, hasClaimedBoostLocally } = await import("@/lib/deviceFingerprint");
+        const deviceFingerprint = await getDeviceFingerprint();
+        // Client-side quick check; the authenticated server remains authoritative.
+        const boostCycleId = (window as any).__boostCycleId;
+        if (boostCycleId && hasClaimedBoostLocally(merchantId!, boostCycleId)) {
+          throw new Error("You already claimed your free deal for this boost cycle. Come back when the merchant activates a new boost!");
         }
+        const customer = getAuth(app).currentUser;
+        if (!customer || customer.uid !== uid) throw new Error("Customer session changed. Please reopen the deal and try again.");
+        const idToken = await customer.getIdToken();
 
         const res = await fetch("/api/boost/consume", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${idToken}` },
           body: JSON.stringify({ merchantId, uid, deviceFingerprint }),
         });
         const data = await res.json().catch(() => ({}));
@@ -1206,18 +1202,19 @@ export default function Wheel({
       if (!effectiveUid) throw new Error("Missing uid");
       if (!verifiedSessionId) throw new Error("Missing sessionId");
 
-      // Get device fingerprint for finalize (needed for boost anti-abuse)
+      // Use the same installation ID for reservation and finalization.
       let finalizeFingerprint: string | undefined;
       if (consumedEntitlementKind === "boost") {
-        try {
-          const { getDeviceFingerprint } = await import("@/lib/deviceFingerprint");
-          finalizeFingerprint = await getDeviceFingerprint();
-        } catch { /* non-fatal */ }
+        const { getDeviceFingerprint } = await import("@/lib/deviceFingerprint");
+        finalizeFingerprint = await getDeviceFingerprint();
       }
 
       const currentUser = getAuth(app).currentUser;
-      const shareRewardToken =
-        consumedEntitlementKind === "share-reward" && currentUser
+      if (consumedEntitlementKind === "boost" && (!currentUser || currentUser.uid !== effectiveUid)) {
+        throw new Error("Customer session changed. Please reopen the deal and try again.");
+      }
+      const customerToken =
+        (consumedEntitlementKind === "share-reward" || consumedEntitlementKind === "boost") && currentUser
           ? await currentUser.getIdToken()
           : null;
       const consumeEndpoint =
@@ -1227,7 +1224,7 @@ export default function Wheel({
             ? "/api/boost/consume"
             : "/api/spins/consume";
       const consumeHeaders: Record<string, string> = { "Content-Type": "application/json" };
-      if (shareRewardToken) consumeHeaders.Authorization = `Bearer ${shareRewardToken}`;
+      if (customerToken) consumeHeaders.Authorization = `Bearer ${customerToken}`;
 
       const consumeRes = await fetch(consumeEndpoint, {
         method: "POST",
