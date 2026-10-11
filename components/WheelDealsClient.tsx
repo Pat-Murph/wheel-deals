@@ -6,6 +6,8 @@ import { QRCodeCanvas } from "qrcode.react";
 import { getActiveMerchants, type Merchant } from "../lib/merchants";
 import SpinCelebration, { getRandomBeast, type Beast, type RarityTier } from "./SpinCelebration";
 import { hasClaimedBoostLocally } from "../lib/deviceFingerprint";
+import { boostDistance, distanceMeters, hasAvailableBoostWheel, isAlwaysRadiusBoost, withinBoostArea } from "../lib/boostLocation";
+import { useBoostLocation } from "../lib/useBoostLocation";
 
 import { getAuth, onAuthStateChanged, signInAnonymously } from "firebase/auth";
 import { app } from "../lib/firebase";
@@ -129,10 +131,6 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
   const [supportStatus, setSupportStatus] = useState<string | null>(null);
   const [activePhotoIdx, setActivePhotoIdx] = useState(0);
   const [photoBroken, setPhotoBroken] = useState<Record<string, boolean>>({});
-  // Geolocation for free deal proximity gate
-  const [userPos, setUserPos] = useState<{ lat: number; lng: number } | null>(null);
-  const [geoChecking, setGeoChecking] = useState(false);
-  const [geoError, setGeoError] = useState<string | null>(null);
   const [freeBoostClaimed, setFreeBoostClaimed] = useState(false);
 
   // Ticket Event state
@@ -362,28 +360,11 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
   const activeWheel = merchantWheels[selectedWheelIdx] ?? merchantWheels[0];
   const wheelItems: WheelItem[] = activeWheel?.items ?? [];
 
-  // Haversine distance in meters
-  function haversineMeters(lat1: number, lon1: number, lat2: number, lon2: number) {
-    const R = 6371000;
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLon = (lon2 - lon1) * Math.PI / 180;
-    const a = Math.sin(dLat / 2) ** 2 +
-      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
-    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  }
-
   // Is the active wheel a boosted free-deal wheel?
-  const isFreeSpinWheel = useMemo(() => {
-    if (!(selectedMerchant as any)?.boostActive) return false;
-    // Mobile merchants must be checked in (active mobile session) to show boost on wheel page
-    const m = selectedMerchant as any;
-    if (m?.isMobile) {
-      const activeUntil = m?.mobileActiveUntil?.toDate?.();
-      if (!activeUntil || activeUntil <= new Date()) return false;
-    }
-    const boostPrice = m?.boostWheelPriceCents;
-    return boostPrice != null && activeWheel?.spinPriceCents === boostPrice;
-  }, [selectedMerchant, activeWheel]);
+  const isFreeSpinWheel = useMemo(
+    () => hasAvailableBoostWheel(selectedMerchant, activeWheel?.spinPriceCents),
+    [selectedMerchant, activeWheel]
+  );
 
   const boostCycleId = useMemo(
     () => getBoostCycleId((selectedMerchant as any)?.boostPurchasedAt),
@@ -400,63 +381,22 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
 
   const freeBoostAvailable = isFreeSpinWheel && !freeBoostClaimed;
 
-  // Distance from user to merchant in meters (uses storefront lat/lng)
-  const distanceToMerchantMeters = useMemo(() => {
-    if (!userPos) return null;
-    const m = selectedMerchant as any;
-    if (typeof m?.lat !== "number" || typeof m?.lng !== "number") return null;
-    return haversineMeters(userPos.lat, userPos.lng, m.lat, m.lng);
-  }, [userPos, selectedMerchant]);
-
-  // Distance from user to mobile check-in point (for mobile merchants)
-  const distanceToMobileCheckinMeters = useMemo(() => {
-    if (!userPos) return null;
-    const m = selectedMerchant as any;
-    if (!m?.isMobile) return null;
-    if (typeof m?.mobileLat !== "number" || typeof m?.mobileLng !== "number") return null;
-    return haversineMeters(userPos.lat, userPos.lng, m.mobileLat, m.mobileLng);
-  }, [userPos, selectedMerchant]);
-
-  const isWithin200m = distanceToMerchantMeters != null && distanceToMerchantMeters <= 200;
-  const isWithin200mOfCheckin = distanceToMobileCheckinMeters != null && distanceToMobileCheckinMeters <= 200;
-  const isWithin25mi = distanceToMerchantMeters != null && distanceToMerchantMeters <= 25 * 1609.34;
-
-  // For mobile merchants with boostMode='always', the free deal is available within 25mi with no geo-gate.
-  // For boostMode='checkin' (default), the 200m proximity gate applies to the check-in location.
-  const boostMode = (selectedMerchant as any)?.boostMode as string | undefined;
-  const isMobileAlwaysBoost = (selectedMerchant as any)?.isMobile && boostMode === 'always';
-  // Whether the free deal geo-gate is satisfied
-  const freeSpinGatePassed = isMobileAlwaysBoost
-    ? isWithin25mi
-    : (selectedMerchant as any)?.isMobile
-      ? isWithin200mOfCheckin
-      : isWithin200m;
-
-  async function requestLocationForFreeSpin() {
-    setGeoChecking(true);
-    setGeoError(null);
-    return new Promise<void>((resolve) => {
-      if (!navigator.geolocation) {
-        setGeoError("Geolocation is not supported by your browser.");
-        setGeoChecking(false);
-        resolve();
-        return;
+  const isMobileAlwaysBoost = isAlwaysRadiusBoost(selectedMerchant);
+  const { userPos, geoChecking, geoError, requestLocation: requestLocationForFreeSpin } = useBoostLocation(
+    selectedMerchant ? `${selectedMerchant.id}:${boostCycleId}` : "",
+    !initialEventId && freeBoostAvailable && isMobileAlwaysBoost,
+  );
+  const distanceToBoostMeters = boostDistance(selectedMerchant, userPos);
+  const distanceToMerchantMeters = userPos && typeof selectedMerchant?.lat === "number" && typeof selectedMerchant?.lng === "number"
+    ? distanceMeters(userPos, { lat: selectedMerchant.lat, lng: selectedMerchant.lng }) : null;
+  const freeSpinGatePassed = withinBoostArea(selectedMerchant, userPos);
+  const boostLocationGate = !initialEventId && freeBoostAvailable && isMobileAlwaysBoost && !freeSpinGatePassed
+    ? {
+        label: geoChecking ? "Checking location…" : geoError ? "Retry location for free deal" : userPos ? "Re-check location for free deal" : "Allow location for free deal",
+        busy: geoChecking,
+        onRetry: requestLocationForFreeSpin,
       }
-      navigator.geolocation.getCurrentPosition(
-        (p) => {
-          setUserPos({ lat: p.coords.latitude, lng: p.coords.longitude });
-          setGeoChecking(false);
-          resolve();
-        },
-        (err) => {
-          setGeoError("Location permission denied. Please allow location access to claim your free deal.");
-          setGeoChecking(false);
-          resolve();
-        },
-        { enableHighAccuracy: true, timeout: 10000 }
-      );
-    });
-  }
+    : undefined;
 
   // ===== TICKET EVENT LOGIC =====
   // Load ticket event data when eventId is provided
@@ -1228,7 +1168,7 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
                 ? `${Math.round(distanceToMerchantMeters)} m away`
                 : `${(distanceToMerchantMeters / 1609.34).toFixed(1)} mi away`;
             } else if (isActiveMobile && userPos && typeof m.mobileLat === 'number' && typeof m.mobileLng === 'number') {
-              const d = haversineMeters(userPos.lat, userPos.lng, m.mobileLat, m.mobileLng);
+              const d = distanceMeters(userPos, { lat: m.mobileLat, lng: m.mobileLng });
               distLabel = d < 1000
                 ? `${Math.round(d)} m away`
                 : `${(d / 1609.34).toFixed(1)} mi away`;
@@ -1586,9 +1526,10 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
             <>
               <div style={{ fontSize: 13, color: "#92400e", fontWeight: 600 }}>
                 {isMobileAlwaysBoost
-                  ? "Allow location access to claim your free deal (within 25 miles)."
+                  ? geoChecking ? "Checking your location automatically. Allow access if your phone asks." : "Location access is needed to confirm you are within 25 miles."
                   : "You must be within 200m of the store to claim your free deal."}
               </div>
+              {!isMobileAlwaysBoost && (
               <button
                 onClick={requestLocationForFreeSpin}
                 disabled={geoChecking}
@@ -1606,6 +1547,7 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
               >
                 {geoChecking ? "Checking location…" : "Check my location"}
               </button>
+              )}
               {geoError && (
                 <div style={{ fontSize: 12, color: "#dc2626", fontWeight: 700 }}>{geoError}</div>
               )}
@@ -1615,11 +1557,10 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
             <>
               <div style={{ fontSize: 13, color: "#dc2626", fontWeight: 700 }}>
                 {isMobileAlwaysBoost
-                  ? `You are ${distanceToMerchantMeters != null ? `${(distanceToMerchantMeters / 1609.34).toFixed(1)} mi` : "too far"} away. You must be within 25 miles to claim the free deal.`
-                  : `You are ${(() => {
-                      const d = (selectedMerchant as any)?.isMobile ? distanceToMobileCheckinMeters : distanceToMerchantMeters;
-                      return d != null ? `${Math.round(d)}m` : "too far";
-                    })()} away. Drive to ${selectedMerchant.name} to unlock your free deal!`}
+                  ? distanceToBoostMeters != null
+                    ? `You are ${(distanceToBoostMeters / 1609.34).toFixed(1)} mi from the service area. You must be within 25 miles to claim the free deal.`
+                    : "This business has not set its service-area location. Please contact the merchant."
+                  : `You are ${distanceToBoostMeters != null ? `${Math.round(distanceToBoostMeters)}m` : "too far"} away. Drive to ${selectedMerchant.name} to unlock your free deal!`}
               </div>
               {!isMobileAlwaysBoost && (() => {
                 const m = selectedMerchant as any;
@@ -1651,7 +1592,7 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
                   📍 Get Directions
                 </a>
               )}
-              <button
+              {!isMobileAlwaysBoost && <button
                 onClick={requestLocationForFreeSpin}
                 disabled={geoChecking}
                 style={{
@@ -1667,13 +1608,13 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
                 }}
               >
                 {geoChecking ? "Checking…" : "Re-check location"}
-              </button>
+              </button>}
             </>
           )}
           {userPos && freeSpinGatePassed && (
             <div style={{ fontSize: 13, color: "#16a34a", fontWeight: 800 }}>
               {isMobileAlwaysBoost
-                ? "✅ You're within range! Unlock the wheel below for your free deal!"
+                ? "You're within range! Tap Claim Free Deal below."
                 : "✅ You're here! Unlock the wheel below for your free deal!"}
             </div>
           )}
@@ -1683,7 +1624,7 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
       {/* Wheel — hidden behind geo gate if free deal and not within range */}
       <div id="wheel-section" ref={wheelContainerRef} style={{ display: "flex", justifyContent: "center", position: "relative", width: "100%", overflow: "visible" }}>
         {/* Event mode — wheel is fully visible so customers can see possible deals */}
-        {!initialEventId && freeBoostAvailable && userPos && !freeSpinGatePassed && (
+        {!initialEventId && freeBoostAvailable && !isMobileAlwaysBoost && userPos && !freeSpinGatePassed && (
           <div style={{
             position: "absolute",
             inset: 0,
@@ -1709,6 +1650,7 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
           spinPriceCents={initialEventId ? 99999 : (activeWheel?.spinPriceCents ?? 135)}
           hideControls={!!initialEventId}
           isFreeSpinBoost={!initialEventId && freeBoostAvailable && freeSpinGatePassed}
+          boostLocationGate={boostLocationGate}
           shareRewardRefreshKey={shareRewardRefreshKey}
           onPaymentVerified={(priceCents) => {
             if (initialEventId) return; // no payment in event mode

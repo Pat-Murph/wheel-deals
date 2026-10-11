@@ -46,6 +46,10 @@ type Props = {
   // ✅ when true, this is a free boost spin (no Stripe charge, calls boost/consume instead)
   isFreeSpinBoost?: boolean;
 
+  // A 25-mile Boost must never fall through to paid checkout while its
+  // automatic location check is pending, failed, or out of range.
+  boostLocationGate?: { label: string; busy: boolean; onRetry: () => void };
+
   // ✅ called after payment is verified with the exact tier price that was paid
   onPaymentVerified?: (spinPriceCents: number) => void;
 
@@ -315,6 +319,7 @@ export default function Wheel({
   uid,
   spinPriceCents,
   isFreeSpinBoost = false,
+  boostLocationGate,
   onPaymentVerified,
   shareRewardRefreshKey = 0,
   hideControls = false,
@@ -917,6 +922,10 @@ export default function Wheel({
 
   // ✅ create checkout + redirect (uses your server route)
   async function payForSpin() {
+    if (boostLocationGate && !shareReward) {
+      if (!boostLocationGate.busy) boostLocationGate.onRetry();
+      return;
+    }
     // ✅ start background music on user gesture
     await startBgMusic();
 
@@ -1389,7 +1398,7 @@ export default function Wheel({
           </div>
         )}
 
-        {payStatus && (
+        {payStatus && !((isFreeSpinBoost || boostLocationGate) && payStatus === "Merchant has not connected Stripe yet") && (
           <div style={{ marginTop: 8, fontWeight: 800, opacity: 0.9, color: "#F5E6C8" }}>
             {payStatus}
           </div>
@@ -1623,7 +1632,7 @@ export default function Wheel({
         {!paidSpinReady ? (
           <button
             onClick={payForSpin}
-            disabled={payBusy}
+            disabled={payBusy || (!shareReward && boostLocationGate?.busy === true)}
             style={{
               padding: "12px 18px",
               borderRadius: 14,
@@ -1631,7 +1640,7 @@ export default function Wheel({
               background: payBusy
                 ? "linear-gradient(180deg, #f3f4f6, #fff)"
                 : "linear-gradient(180deg, rgba(255,217,61,0.95), rgba(255,155,61,0.95))",
-              cursor: payBusy ? "not-allowed" : "pointer",
+              cursor: payBusy || (!shareReward && boostLocationGate?.busy) ? "not-allowed" : "pointer",
               fontWeight: 900,
               letterSpacing: 0.2,
               color: "#111",
@@ -1640,9 +1649,11 @@ export default function Wheel({
                 : "0 12px 30px rgba(0,0,0,0.12), 0 0 20px rgba(255,217,61,0.22)",
             }}
           >
-            {payBusy
-              ? (shareReward ? "Preparing free unlock…" : isFreeSpinBoost ? "Claiming free deal…" : "Opening checkout…")
-              : (shareReward ? "Use Free Share Reward" : isFreeSpinBoost ? "🔥 Claim Free Deal" : `Unlock Deal — Pay ${spinPriceLabel(spinPriceCents)}`)}
+            {!shareReward && boostLocationGate
+              ? boostLocationGate.label
+              : payBusy
+                ? (shareReward ? "Preparing free unlock…" : isFreeSpinBoost ? "Claiming free deal…" : "Opening checkout…")
+                : (shareReward ? "Use Free Share Reward" : isFreeSpinBoost ? "Claim Free Deal" : `Unlock Deal — Pay ${spinPriceLabel(spinPriceCents)}`)}
           </button>
         ) : (
           <button
