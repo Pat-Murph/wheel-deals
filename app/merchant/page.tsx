@@ -53,6 +53,7 @@ type MerchantDoc = {
   // Boost / free deal fields
   boostActive?: boolean;
   boostFreeSpinsRemaining?: number;
+  boostUnlocksGranted?: number;
   boostWheelPriceCents?: number;
   boostPurchasedAt?: string;
   boostMode?: 'checkin' | 'always';
@@ -323,6 +324,32 @@ export default function MerchantDashboardPage() {
   const [boostWheelPriceCents, setBoostWheelPriceCents] = useState<number>(135);
   const [boostMode, setBoostMode] = useState<'checkin' | 'always'>('checkin');
   const [boostBusy, setBoostBusy] = useState(false);
+  const [boostUnlockCount, setBoostUnlockCount] = useState("500");
+  const [boostCapability, setBoostCapability] = useState<{ uid: string; merchantId: string; allowed: boolean } | null>(null);
+  const [boostCapabilityLoading, setBoostCapabilityLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    setBoostCapability(null);
+    setBoostCapabilityLoading(true);
+    if (!user || !merchantId) return;
+    (async () => {
+      try {
+        const token = await user.getIdToken();
+        const response = await fetch(`/api/boost/activate-free?merchantId=${encodeURIComponent(merchantId)}`, {
+          headers: { Authorization: `Bearer ${token}` }, cache: "no-store",
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error ?? "Could not check Boost controls.");
+        if (!cancelled) setBoostCapability({ uid: user.uid, merchantId, allowed: result.customQuantityAllowed === true });
+      } catch (error: unknown) {
+        if (!cancelled) setStatus(error instanceof Error ? error.message : "Could not check Boost controls.");
+      } finally {
+        if (!cancelled) setBoostCapabilityLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [user, merchantId]);
 
   // Ticket Events
   const [ticketEvents, setTicketEvents] = useState<any[]>([]);
@@ -572,9 +599,20 @@ export default function MerchantDashboardPage() {
       setStatus(`❌ Boost payment failed: ${params.get("boost_error")}`);
       window.history.replaceState({}, "", window.location.pathname);
     }
+    const boostNotice = params.get("boost_notice");
+    if (boostNotice) {
+      reloadMerchant(merchantId).catch(() => {});
+      setStatus(boostNotice === "already_active"
+        ? "A Boost is already active, so this payment did not replace it. Contact Wheel Deals support about the additional payment before trying again."
+        : boostNotice === "ended_campaign"
+          ? "This payment belongs to an ended Boost. It did not restart or replace your current campaign."
+          : "This Boost payment was already processed. No extra unlocks were added and your current Boost was not changed.");
+      window.history.replaceState({}, "", window.location.pathname);
+    }
   }, [merchantId]);
 
-  const isFreeBoostEligible = (merchant?.foundingNumber ?? 999) <= 300;
+  const isCompanyBoostAccount = boostCapability?.uid === user?.uid && boostCapability?.merchantId === merchantId && boostCapability?.allowed === true;
+  const isFreeBoostEligible = isCompanyBoostAccount || ((merchant?.foundingNumber ?? 999) >= 1 && (merchant?.foundingNumber ?? 999) <= 300);
 
   async function purchaseBoost() {
     if (!merchantId || !user) return;
@@ -582,20 +620,24 @@ export default function MerchantDashboardPage() {
     setStatus(null);
     try {
       if (isFreeBoostEligible) {
-        // Founding merchants (first 300) get free boost — activate directly without payment
+        const quantity = isCompanyBoostAccount ? Number(boostUnlockCount) : 10;
+        if (!Number.isSafeInteger(quantity) || quantity < 1) throw new Error("Choose a positive whole number of Boost unlocks.");
+        const token = await user.getIdToken();
+        // Custom quantities are independently authorized on the server.
         const res = await fetch("/api/boost/activate-free", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ merchantId, uid: user.uid, boostWheelPriceCents, boostMode: merchant?.isMobile ? boostMode : undefined }),
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ merchantId, boostUnlockCount: quantity, boostWheelPriceCents, boostMode: merchant?.isMobile ? boostMode : undefined }),
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data?.error ?? "Could not activate free boost");
-        setMerchant((m) => m ? { ...m, boostActive: true, boostFreeSpinsRemaining: 10 } : m);
-        setStatus("🔥 Boost activated! You have 10 free deals ready. Your listing now shows a fire badge.");
+        setMerchant((m) => m ? { ...m, boostActive: true, boostFreeSpinsRemaining: data.boostFreeSpinsRemaining, boostUnlocksGranted: data.boostUnlocksGranted, boostMode: data.boostMode, boostPurchasedAt: data.boostPurchasedAt, boostWheelPriceCents: data.boostWheelPriceCents } : m);
+        setStatus(`Boost activated! ${data.boostFreeSpinsRemaining.toLocaleString()} free unlocks are ready.`);
       } else {
+        const token = await user.getIdToken();
         const res = await fetch("/api/stripe/boost", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
           body: JSON.stringify({ merchantId, uid: user.uid, boostWheelPriceCents, boostMode: merchant?.isMobile ? boostMode : undefined }),
         });
         const data = await res.json();
@@ -604,6 +646,28 @@ export default function MerchantDashboardPage() {
       }
     } catch (e: any) {
       setStatus(e?.message ?? "Boost purchase failed.");
+    } finally {
+      setBoostBusy(false);
+    }
+  }
+
+  async function endBoost() {
+    if (!merchantId || !user) return;
+    if (!confirm("End Boost now? New free unlocks will stop, including any not yet completed. Already-issued customer deals stay valid. Unused unlocks will not carry over to a new Boost.")) return;
+    setBoostBusy(true);
+    setStatus(null);
+    try {
+      const token = await user.getIdToken();
+      const response = await fetch("/api/boost/end", {
+        method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ merchantId }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error ?? "Could not end Boost.");
+      setMerchant((m) => m ? { ...m, boostActive: false } : m);
+      setStatus("Boost ended. New free unlocks are off; already-issued customer deals stay valid.");
+    } catch (error: unknown) {
+      setStatus(error instanceof Error ? error.message : "Could not end Boost.");
     } finally {
       setBoostBusy(false);
     }
@@ -1037,25 +1101,36 @@ export default function MerchantDashboardPage() {
         </div>
 
         <div style={{ marginTop: 8, fontSize: 13, color: "#374151", lineHeight: 1.6 }}>
-          {isFreeBoostEligible ? (
+          {isCompanyBoostAccount ? (
+            <>Wheel Deals company controls: choose <b>any positive whole number of free unlocks</b> for your next Boost, including 500 for your giveaway.</>
+          ) : isFreeBoostEligible ? (
             <>As a founding merchant, you get <b>free boosts</b>! Activate to unlock <b>10 free deals</b> on a wheel of your choice.
             Your listing gets a <b>fire badge</b> and <b>orange border</b> on the Discover page to stand out.
-            Customers must be within <b>200 meters</b> of your store to claim the free deal — driving foot traffic directly to you.</>
+            </>
           ) : (
             <>Pay <b>$5.00</b> to unlock <b>10 free deals</b> on a wheel of your choice.
             Your listing gets a <b>fire badge</b> and <b>orange border</b> on the Discover page to stand out.
-            Customers must be within <b>200 meters</b> of your store to claim the free deal — driving foot traffic directly to you.</>
+            </>
           )}
+          <div>{merchant.isMobile && (merchant.boostActive ? merchant.boostMode : boostMode) === "always"
+            ? "Customers within 25 miles of your service area can claim, even when you are not checked in."
+            : "Customers must be within 200 meters of your store or active check-in location to claim."}</div>
         </div>
 
         {merchant.boostActive ? (
           <div style={{ marginTop: 10, padding: "10px 14px", background: "#fff7ed", borderRadius: 10, fontSize: 13, fontWeight: 800, color: "#c2410c" }}>
-            Boost is active! Once all {10} free deals are claimed, your listing returns to normal. Purchase another boost anytime.
+            Boost is active with {(merchant.boostFreeSpinsRemaining ?? 0).toLocaleString()} free unlocks left.
+            {merchant.boostUnlocksGranted ? ` Started with ${merchant.boostUnlocksGranted.toLocaleString()}.` : ""}
+            {" "}It ends when these are claimed, or you can end it early below. Ending Boost does not pause your business listing.
             {merchant.isMobile && merchant.boostMode && (
               <div style={{ marginTop: 6, fontSize: 12, fontWeight: 700, color: "#92400e" }}>
                 Mode: {merchant.boostMode === 'always' ? '25-mile radius (always available)' : 'Check-in only (200m proximity)'}
               </div>
             )}
+            <div style={{ marginTop: 8, fontSize: 12, fontWeight: 700 }}>Already-issued deals remain valid. Unused unlocks do not carry over to a new Boost.</div>
+            <button onClick={endBoost} disabled={boostBusy} style={{ ...btnDanger(boostBusy), width: "100%", marginTop: 10 }}>
+              {boostBusy ? "Ending Boost…" : "End Boost"}
+            </button>
           </div>
         ) : (
           <div style={{ marginTop: 12, display: "grid", gap: 10 }}>
@@ -1074,6 +1149,16 @@ export default function MerchantDashboardPage() {
                 </option>
               ))}
             </select>
+
+            {isCompanyBoostAccount && (
+              <div style={{ display: "grid", gap: 6 }}>
+                <label htmlFor="boost-unlock-count" style={{ fontSize: 13, fontWeight: 800 }}>Number of free Boost unlocks</label>
+                <input id="boost-unlock-count" type="number" inputMode="numeric" min="1" step="1"
+                  value={boostUnlockCount} onChange={(event) => setBoostUnlockCount(event.target.value)}
+                  style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid #ddd", fontSize: 16, fontWeight: 800 }} />
+                <div style={{ fontSize: 12, color: "#6b7280" }}>Company account only. Set 500 for your promo, or choose another whole-number amount.</div>
+              </div>
+            )}
 
             {/* Boost mode selector for mobile merchants */}
             {merchant.isMobile && (
@@ -1098,10 +1183,10 @@ export default function MerchantDashboardPage() {
 
             <button
               onClick={purchaseBoost}
-              disabled={boostBusy}
-              style={{ ...btnPrimary(boostBusy), display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
+              disabled={boostBusy || boostCapabilityLoading}
+              style={{ ...btnPrimary(boostBusy || boostCapabilityLoading), display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
             >
-              {boostBusy ? (isFreeBoostEligible ? "Activating…" : "Redirecting to payment…") : isFreeBoostEligible ? "🔥 Activate Free Boost" : "🔥 Unlock 10 Free Deals — $5.00"}
+              {boostCapabilityLoading ? "Checking Boost controls…" : boostBusy ? (isFreeBoostEligible ? "Activating…" : "Redirecting to payment…") : isFreeBoostEligible ? "Activate Free Boost" : "Unlock 10 Free Deals — $5.00"}
             </button>
           </div>
         )}
