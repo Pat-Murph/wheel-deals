@@ -53,6 +53,11 @@ service cloud.firestore {
       allow read: if true;
 
       allow create: if isOwnerCreatingMerchant()
+        && !request.resource.data.keys().hasAny([
+          'boostActive', 'boostFreeSpinsRemaining', 'boostUnlocksGranted',
+          'boostWheelPriceCents', 'boostMode', 'boostPurchasedAt',
+          'boostEndedAt', 'boostPaidSessionId'
+        ])
         && request.resource.data.active == true
         && request.resource.data.name is string
         && request.resource.data.category is string
@@ -63,10 +68,16 @@ service cloud.firestore {
       //   (b) the user is the owner (ownerUid matches) — needed for the
       //       founding-spot claim which runs AFTER the onboarding transaction
       //       before the staff doc is fully visible to rules
-      allow update: if isMerchantStaff(merchantId)
+      // Boost is managed by owner-authenticated server endpoints. Neither
+      // owners nor staff may mint a custom allocation through the client SDK.
+      allow update: if !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+          'ownerUid', 'boostActive', 'boostFreeSpinsRemaining', 'boostUnlocksGranted',
+          'boostWheelPriceCents', 'boostMode', 'boostPurchasedAt',
+          'boostEndedAt', 'boostPaidSessionId'
+        ]) && (isMerchantStaff(merchantId)
         || (signedIn()
             && exists(/databases/$(database)/documents/merchants/$(merchantId))
-            && get(/databases/$(database)/documents/merchants/$(merchantId)).data.ownerUid == request.auth.uid);
+            && get(/databases/$(database)/documents/merchants/$(merchantId)).data.ownerUid == request.auth.uid));
       allow delete: if false;
 
       match /staff/{uid} {
