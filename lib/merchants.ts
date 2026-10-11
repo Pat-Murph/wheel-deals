@@ -58,6 +58,8 @@ export type Merchant = {
   isMobile?: boolean;
   mobileLat?: number;
   mobileLng?: number;
+  mobileServiceLat?: number;
+  mobileServiceLng?: number;
   mobileActiveUntil?: any; // Firestore Timestamp
 };
 
@@ -553,6 +555,8 @@ export async function getActiveMerchants(): Promise<Merchant[]> {
       isMobile: data.isMobile ?? false,
       mobileLat: typeof data.mobileLat === 'number' ? data.mobileLat : undefined,
       mobileLng: typeof data.mobileLng === 'number' ? data.mobileLng : undefined,
+      mobileServiceLat: typeof data.mobileServiceLat === 'number' ? data.mobileServiceLat : undefined,
+      mobileServiceLng: typeof data.mobileServiceLng === 'number' ? data.mobileServiceLng : undefined,
       mobileActiveUntil: data.mobileActiveUntil ?? undefined,
     } satisfies Merchant;
   });
