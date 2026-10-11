@@ -165,3 +165,27 @@ test('customer page auto-checks only an active 25-mile boosted wheel and suppres
   assert.equal(checkin.autoArgs[1], false);
   assert.match(checkin.html, /Check my location/);
 });
+
+test('merchant description preserves blank paragraphs and single line breaks from the edit field', () => {
+  for (const newline of ['\n', '\r\n']) {
+    const about = `About this business.${newline}${newline}Pickup instructions.${newline}Contact us for details.`;
+    const { html } = renderCustomer({ userPos: null, geoChecking: false }, { boostActive: false, about });
+    assert.ok(html.includes(about));
+    assert.match(html, /white-space:pre-wrap/);
+    assert.match(html, /overflow-wrap:anywhere/);
+  }
+});
+
+test('description stays plain text, escapes HTML, and wraps long emails without altering the saved content', () => {
+  const about = 'Contact pat@wheeldealsapp.com. <script>alert("test")</script>';
+  const { html } = renderCustomer({ userPos: null, geoChecking: false }, { boostActive: false, about });
+  assert.match(html, /Contact pat@wheeldealsapp\.com\./);
+  assert.match(html, /&lt;script&gt;alert\(&quot;test&quot;\)&lt;\/script&gt;/);
+  assert.doesNotMatch(html, /<script>/);
+  assert.match(html, /overflow-wrap:anywhere/);
+});
+
+test('empty descriptions do not add a blank formatted block', () => {
+  const { html } = renderCustomer({ userPos: null, geoChecking: false }, { boostActive: false, about: '' });
+  assert.doesNotMatch(html, /white-space:pre-wrap/);
+});
