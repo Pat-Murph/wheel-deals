@@ -1030,7 +1030,7 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
 
           {/* About */}
           {aboutText ? (
-            <div style={{ fontSize: 14, lineHeight: 1.5, fontWeight: 600, color: "#374151" }}>
+            <div style={{ fontSize: 14, lineHeight: 1.5, fontWeight: 600, color: "#374151", whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
               {aboutText}
             </div>
           ) : null}
