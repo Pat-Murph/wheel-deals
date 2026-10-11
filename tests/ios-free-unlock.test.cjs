@@ -172,3 +172,34 @@ test('Boost requires the real Firebase customer, ignores legacy IDs, and keeps i
   server.records.get(`merchants/shop/boostDeviceUsage/${phoneA}`).usedAt = new Date(Date.now() - 25 * 3600_000);
   assert.equal((await server.post('customerA', phoneA)).status, 200);
 });
+
+test('ending Boost blocks new reservations and unfinished claims but leaves existing deals intact', async () => {
+  const server = mockBoostServer();
+  const phone = 'v2_' + '3'.repeat(32);
+  const reservation = await server.post('customer', phone);
+  assert.equal(reservation.status, 200);
+  server.records.set('spins/existing', { status: 'issued', code: 'STILL-VALID' });
+  server.records.get('merchants/shop').boostActive = false;
+  assert.equal((await server.post('customer', phone)).status, 429);
+  const completion = await server.post('customer', phone, 'valid-customer', {
+    finalize: true, sessionId: reservation.body.sessionId, prizeLabel: '10% off',
+  });
+  assert.notEqual(completion.status, 200);
+  assert.equal(server.records.get('spins/existing').code, 'STILL-VALID');
+  assert.equal(server.records.get('merchants/shop').boostFreeSpinsRemaining, 5);
+});
+
+test('a restarted Boost replaces old-cycle reservations without allowing old sessions to complete', async () => {
+  const server = mockBoostServer();
+  const phone = 'v2_' + '4'.repeat(32);
+  const old = await server.post('customer', phone);
+  server.records.get('merchants/shop').boostPurchasedAt = '2026-10-06T20:00:00.000Z';
+  const current = await server.post('customer', phone);
+  assert.equal(current.status, 200);
+  assert.notEqual(old.body.sessionId, current.body.sessionId);
+  const completion = await server.post('customer', phone, 'valid-customer', {
+    finalize: true, sessionId: old.body.sessionId, prizeLabel: '10% off',
+  });
+  assert.notEqual(completion.status, 200);
+  assert.equal(server.records.get('merchants/shop').boostFreeSpinsRemaining, 5);
+});
