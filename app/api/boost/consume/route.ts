@@ -125,7 +125,7 @@ export async function POST(req: NextRequest) {
 
         const reservation = reservationSnap.data();
         const reservationExpiry = asDate(reservation?.expiresAt);
-        if (reservation && reservationExpiry && reservationExpiry > now) {
+        if (reservation && reservation.boostCycleId === cycleId && reservationExpiry && reservationExpiry > now) {
           if (reservation.uid === uid && reservation.boostCycleId === cycleId && reservation.sessionId) {
             return {
               allowed: true,
