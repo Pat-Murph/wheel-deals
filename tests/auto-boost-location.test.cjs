@@ -140,6 +140,7 @@ function renderCustomer(location, overrides = {}, props = {}) {
     '../lib/merchants': { getActiveMerchants: async () => [business] },
     './SpinCelebration': { default: () => null, getRandomBeast: () => ({}) },
     '../lib/deviceFingerprint': { hasClaimedBoostLocally: () => false },
+    '../lib/beastImagePreload': { preloadBeastImage: async () => true },
     '../lib/boostLocation': geo,
     '../lib/useBoostLocation': { useBoostLocation: (...args) => { autoArgs = args; return { ...location, requestLocation: () => {} }; } },
     'firebase/auth': {}, '../lib/firebase': { app: {} },
