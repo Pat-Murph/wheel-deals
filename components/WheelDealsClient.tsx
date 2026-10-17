@@ -6,6 +6,7 @@ import { QRCodeCanvas } from "qrcode.react";
 import { getActiveMerchants, type Merchant } from "../lib/merchants";
 import SpinCelebration, { getRandomBeast, type Beast, type RarityTier } from "./SpinCelebration";
 import { hasClaimedBoostLocally } from "../lib/deviceFingerprint";
+import { preloadBeastImage } from "../lib/beastImagePreload";
 import { boostDistance, distanceMeters, hasAvailableBoostWheel, isAlwaysRadiusBoost, withinBoostArea } from "../lib/boostLocation";
 import { useBoostLocation } from "../lib/useBoostLocation";
 
@@ -114,6 +115,7 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
   // Beast info for share card — saved when celebration fires
   const [lastBeast, setLastBeast] = useState<{ beast: Beast; tier: RarityTier } | null>(null);
   const [lastBeastSpinId, setLastBeastSpinId] = useState("");
+  const preparedBeastRef = useRef<{ merchantId: string; label: string; result: { beast: Beast; tier: RarityTier } } | null>(null);
   const [beastActionStatus, setBeastActionStatus] = useState<string | null>(null);
   const [beastActionBusy, setBeastActionBusy] = useState(false);
   const [shareRewardRefreshKey, setShareRewardRefreshKey] = useState(0);
@@ -302,6 +304,7 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
   useEffect(() => {
     setActivePhotoIdx(0);
     setPhotoBroken({});
+    preparedBeastRef.current = null;
   }, [selectedMerchantId]);
 
   const heroPhoto = merchantPhotos[activePhotoIdx] || merchantPhotos[0] || "";
@@ -1660,6 +1663,16 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
             const idx = merchantWheels.findIndex((w) => w.spinPriceCents === priceCents);
             if (idx >= 0) setSelectedWheelIdx(idx);
           }}
+          onSpinStart={(label) => {
+            if (initialEventId) return;
+            const totalWeight = wheelItems.reduce((s, it) => s + (Number(it.weight) || 0), 0);
+            const item = wheelItems.find((it) => it.label === label);
+            const weightPct = totalWeight > 0 && item
+              ? (Number(item.weight) / totalWeight) * 100 : 50;
+            const result = getRandomBeast(weightPct);
+            preparedBeastRef.current = { merchantId: selectedMerchant.id, label, result };
+            void preloadBeastImage(result.beast.imagePath);
+          }}
           onSpinLand={(label) => {
             if (initialEventId) return; // no spin in event mode
             // ✅ Fire celebration INSTANTLY when wheel stops — no server delay
@@ -1671,7 +1684,11 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
             setCelebrationLabel(label);
             setCelebrationWeightPct(weightPct);
             // Save beast info for share card
-            const beastResult = getRandomBeast(weightPct);
+            const prepared = preparedBeastRef.current;
+            const beastResult = prepared?.merchantId === selectedMerchant.id && prepared.label === label
+              ? prepared.result : getRandomBeast(weightPct);
+            preparedBeastRef.current = null;
+            void preloadBeastImage(beastResult.beast.imagePath);
             setLastBeast(beastResult);
             setCelebrationVisible(true);
           }}

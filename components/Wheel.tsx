@@ -15,6 +15,9 @@ type Props = {
   items: WheelItem[];
   size?: number; // wheel diameter in px
 
+  /** Prepare reveal artwork once the result is chosen, before animation starts. */
+  onSpinStart?: (label: string) => void;
+
   /**
    * ✅ Called IMMEDIATELY when the wheel lands (before server call).
    * Use this to trigger the celebration popup instantly.
@@ -312,6 +315,7 @@ function spinPriceLabel(cents: number | undefined): string {
 export default function Wheel({
   items,
   size: sizeProp,
+  onSpinStart,
   onSpinLand,
   onResult,
   merchantId,
@@ -1145,6 +1149,9 @@ export default function Wheel({
 
     pendingWinnerRef.current = winnerLabel;
     pendingWinnerIdxRef.current = winnerIndex;
+
+    // Start the selected Beast download during the animation, never after landing.
+    onSpinStart?.(winnerLabel);
 
     // Winner.mid under TOP pointer:
     // R mod 360 = 360 - winner.mid

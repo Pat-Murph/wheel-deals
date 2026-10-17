@@ -19,6 +19,7 @@
  */
 
 import React, { useEffect, useRef, useState } from "react";
+import { isBeastImageReady, preloadBeastImage } from "../lib/beastImagePreload";
 
 export type Beast = {
   id: string;
@@ -142,9 +143,8 @@ export const RARITY_TIERS: RarityTier[] = [
 ];
 
 /**
- * Beast assets load only when selected. This avoids downloading the entire
- * 100-image collection on every wheel-page visit while keeping the short
- * celebration timing unchanged.
+ * Only the selected Beast is preloaded during the wheel animation. Never
+ * download the 100-image collection on every visit; retain the short reveal.
  */
 
 /** Pick the right rarity tier for a given slice weight percentage */
@@ -217,13 +217,26 @@ type Props = {
 
 export default function SpinCelebration({ sliceWeightPct, dealLabel, selectedBeast, onDone }: Props) {
   // Use the preselected Beast when supplied; otherwise choose one once on mount.
-  const fallbackPick = useRef(getRandomBeast(sliceWeightPct));
-  const { tier, beast } = selectedBeast ?? fallbackPick.current;
+  const fallbackPick = useRef<{ tier: RarityTier; beast: Beast } | null>(null);
+  if (!selectedBeast && !fallbackPick.current) fallbackPick.current = getRandomBeast(sliceWeightPct);
+  const { tier, beast } = (selectedBeast ?? fallbackPick.current)!;
+  const [imageState, setImageState] = useState<{ path: string; ready: boolean }>({
+    path: beast.imagePath, ready: isBeastImageReady(beast.imagePath),
+  });
+  const imageReady = isBeastImageReady(beast.imagePath) || (imageState.path === beast.imagePath && imageState.ready);
 
   const [phase, setPhase] = useState<"enter" | "hold" | "exit">("hold");
   const [particles, setParticles] = useState<{ id: number; x: number; y: number; size: number; color: string; vx: number; vy: number }[]>([]);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const rafRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    void preloadBeastImage(beast.imagePath).then((ready) => {
+      if (mounted && ready) setImageState({ path: beast.imagePath, ready });
+    });
+    return () => { mounted = false; };
+  }, [beast.imagePath]);
 
   // Generate burst particles
   useEffect(() => {
@@ -324,6 +337,10 @@ export default function SpinCelebration({ sliceWeightPct, dealLabel, selectedBea
       <img
         src={beast.imagePath}
         alt={beast.name}
+        loading="eager"
+        decoding="async"
+        fetchPriority="high"
+        onLoad={() => setImageState({ path: beast.imagePath, ready: true })}
         style={{
           width: Math.min(320, typeof window !== "undefined" ? window.innerWidth - 48 : 320),
           height: Math.min(320, typeof window !== "undefined" ? window.innerWidth - 48 : 320),
@@ -332,6 +349,8 @@ export default function SpinCelebration({ sliceWeightPct, dealLabel, selectedBea
           zIndex: 2,
           filter: `drop-shadow(0 0 24px ${tier.glowColor}) drop-shadow(0 0 48px ${tier.glowColor}88)`,
           animation: "animal-bounce 0.25s ease-out forwards",
+          opacity: imageReady ? 1 : 0,
+          transition: "opacity 120ms ease-out",
         }}
       />
 
