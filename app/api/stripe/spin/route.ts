@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { stripe } from "@/lib/stripeServer";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { getTierByPrice, VALID_SPIN_PRICES, DEFAULT_TIER } from "@/lib/payments";
+import { isCompanyGiveaway, COMPANY_GIVEAWAY_COMING_SOON } from "@/lib/companyGiveaway";
 
 const MAX_UNLOCKS_PER_DAY = 3;
 
@@ -54,6 +55,12 @@ export async function POST(req: Request) {
     }
 
     const merchant = mSnap.data() as any;
+    if (isCompanyGiveaway(merchant)) {
+      return NextResponse.json(
+        { error: `Wheel Deals company giveaways are always FREE. ${COMPANY_GIVEAWAY_COMING_SOON} — check back!`, code: "company_giveaway_free_only" },
+        { status: 403 }
+      );
+    }
     const stripeAccountId = merchant?.stripeAccountId as string | undefined;
 
     if (!stripeAccountId) {
