@@ -22,6 +22,7 @@ function load(filename, mocks = {}, globals = {}) {
   return exports;
 }
 const geo = load('lib/boostLocation.ts');
+const companyGiveaway = load('lib/companyGiveaway.ts');
 const merchant = {
   id: 'company', name: 'Wheel Deals', isMobile: true, boostMode: 'always',
   boostActive: true, boostFreeSpinsRemaining: 500, boostWheelPriceCents: 135,
@@ -82,6 +83,7 @@ function renderWheel(props = {}, seeds = {}, fetchSpy = () => { throw new Error(
     '@capacitor/core': { Capacitor: { isNativePlatform: () => false } },
     'firebase/auth': { getAuth: () => ({}) }, '@/lib/firebase': { app: {} },
     './EmbeddedCheckoutModal': { default: () => null },
+    '@/lib/companyGiveaway': companyGiveaway,
   }, { window: {}, navigator: { userAgent: 'test' }, fetch: fetchSpy });
   const tree = module.default({ items: merchant.wheel, merchantId: 'company', uid: 'customer', spinPriceCents: 135, ...props });
   return { tree, html: renderToStaticMarkup(tree) };
@@ -143,8 +145,9 @@ function renderCustomer(location, overrides = {}, props = {}) {
     '../lib/beastImagePreload': { preloadBeastImage: async () => true },
     '../lib/boostLocation': geo,
     '../lib/useBoostLocation': { useBoostLocation: (...args) => { autoArgs = args; return { ...location, requestLocation: () => {} }; } },
+    '../lib/companyGiveaway': companyGiveaway,
     'firebase/auth': {}, '../lib/firebase': { app: {} },
-  }, { window: {}, navigator: { userAgent: 'test' } });
+  }, { window: { location: { search: '' } }, URLSearchParams, navigator: { userAgent: 'test' } });
   const html = renderToStaticMarkup(React.createElement(module.default, props));
   return { html, wheelProps, autoArgs };
 }
@@ -189,4 +192,55 @@ test('description stays plain text, escapes HTML, and wraps long emails without 
 test('empty descriptions do not add a blank formatted block', () => {
   const { html } = renderCustomer({ userPos: null, geoChecking: false }, { boostActive: false, about: '' });
   assert.doesNotMatch(html, /white-space:pre-wrap/);
+});
+
+
+test('company-only giveaway fallback is yellow, disabled, and cannot open checkout even through a programmatic click', async () => {
+  let network = 0;
+  const { tree, html } = renderWheel({ companyGiveawayOnly: true }, {}, () => network++);
+  assert.match(html, /More giveaways coming soon/);
+  assert.match(html, /giveaways are always FREE/);
+  assert.doesNotMatch(html, /Unlock Deal — Pay|\$1\.35|purchases are final|after purchase/);
+  const button = buttonIn(tree, companyGiveaway.COMPANY_GIVEAWAY_COMING_SOON);
+  assert.equal(button.props.disabled, true);
+  assert.match(button.props.style.background, /255,217,61/);
+  await button.props.onClick();
+  assert.equal(network, 0);
+  assert.doesNotMatch(renderWheel({ companyGiveawayOnly: true }, { payStatus: 'Merchant has not connected Stripe yet' }).html, /Merchant has not connected Stripe/);
+});
+
+test('company keeps location checking, eligible free claims, earned share rewards and prepared unlocks instead of showing coming-soon', () => {
+  for (const gate of [{ label: 'Checking location…', busy: true }, { label: 'Retry location for free deal', busy: false }]) {
+    const { html, tree } = renderWheel({ companyGiveawayOnly: true, boostLocationGate: { ...gate, onRetry: () => {} } });
+    assert.match(html, new RegExp(gate.label));
+    assert.doesNotMatch(html, /More giveaways coming soon|\$1\.35/);
+    assert.equal(buttonIn(tree, gate.label).props.disabled, gate.busy);
+  }
+  assert.match(renderWheel({ companyGiveawayOnly: true, isFreeSpinBoost: true }).html, />Claim Free Deal<\/button>/);
+  assert.match(renderWheel({ companyGiveawayOnly: true }, { shareReward: { rewardId: 'earned' } }).html, /Use Free Share Reward/);
+  assert.match(renderWheel({ companyGiveawayOnly: true }, { paidSpinReady: true, entitlementKind: 'boost' }).html, /Unlock Free Deal/);
+  assert.match(renderWheel({ companyGiveawayOnly: true }, { paidSpinReady: true, entitlementKind: 'share-reward' }).html, /Use Free Unlock/);
+  assert.doesNotMatch(renderWheel({ companyGiveawayOnly: true }, { paidSpinReady: true, entitlementKind: 'paid' }).html, /\$1\.35/);
+});
+
+test('company policy follows protected merchant owner UID, not editable name/email, customer identity or Stripe connection', () => {
+  const ownerUid = companyGiveaway.WHEEL_DEALS_COMPANY_OWNER_UID;
+  const company = renderCustomer({ userPos: null }, { ownerUid, boostActive: false, stripeAccountId: 'acct_future', stripeChargesEnabled: true, name: 'Renamed giveaway' });
+  assert.equal(company.wheelProps.companyGiveawayOnly, true);
+  const lookalike = renderCustomer({ userPos: null }, { ownerUid: 'different-owner', name: 'Wheel Deals (Give Away)', email: 'pat@wheeldealsapp.com', boostActive: false });
+  assert.equal(lookalike.wheelProps.companyGiveawayOnly, false);
+  const ordinary = renderWheel({ merchantName: 'Wheel Deals (Give Away)', companyGiveawayOnly: false });
+  assert.match(ordinary.html, /Unlock Deal — Pay \$1\.35/);
+  assert.match(ordinary.html, /purchases are final/);
+  assert.doesNotMatch(ordinary.html, /More giveaways coming soon/);
+});
+
+
+test('company multi-wheel selectors have giveaway labels rather than prices; ordinary merchant tier labels remain unchanged', () => {
+  const wheels = [{ spinPriceCents: 135, items: merchant.wheel }, { spinPriceCents: 200, items: merchant.wheel }];
+  const company = renderCustomer({ userPos: null }, { ownerUid: companyGiveaway.WHEEL_DEALS_COMPANY_OWNER_UID, wheels });
+  assert.match(company.html, /Giveaway 1/); assert.match(company.html, /Giveaway 2/);
+  assert.doesNotMatch(company.html, /\$1\.35|\$2\.00/);
+  const ordinary = renderCustomer({ userPos: null }, { ownerUid: 'other-owner', wheels });
+  assert.match(ordinary.html, /\$1\.35/); assert.match(ordinary.html, /\$2\.00/);
 });
