@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Capacitor } from "@capacitor/core";
 import { getAuth } from "firebase/auth";
 import { app } from "@/lib/firebase";
+import { COMPANY_GIVEAWAY_COMING_SOON } from "@/lib/companyGiveaway";
 import EmbeddedCheckoutModal from "./EmbeddedCheckoutModal";
 
 export type WheelItem = {
@@ -48,6 +49,9 @@ type Props = {
 
   // ✅ when true, this is a free boost spin (no Stripe charge, calls boost/consume instead)
   isFreeSpinBoost?: boolean;
+
+  // The company account's giveaways never offer a paid checkout fallback.
+  companyGiveawayOnly?: boolean;
 
   // A 25-mile Boost must never fall through to paid checkout while its
   // automatic location check is pending, failed, or out of range.
@@ -323,6 +327,7 @@ export default function Wheel({
   uid,
   spinPriceCents,
   isFreeSpinBoost = false,
+  companyGiveawayOnly = false,
   boostLocationGate,
   onPaymentVerified,
   shareRewardRefreshKey = 0,
@@ -924,10 +929,18 @@ export default function Wheel({
     return Math.max(0, items.length - 1);
   }
 
+  const companyGiveawayWaiting = companyGiveawayOnly && !shareReward && !isFreeSpinBoost && !boostLocationGate;
+
   // ✅ create checkout + redirect (uses your server route)
   async function payForSpin() {
     if (boostLocationGate && !shareReward) {
       if (!boostLocationGate.busy) boostLocationGate.onRetry();
+      return;
+    }
+    // Guard the handler as well as the disabled button: never open checkout
+    // for company giveaways, even if a click is triggered programmatically.
+    if (companyGiveawayWaiting) {
+      setPayStatus(COMPANY_GIVEAWAY_COMING_SOON);
       return;
     }
     // ✅ start background music on user gesture
@@ -1121,7 +1134,7 @@ export default function Wheel({
 
     // ✅ require verified entitlement
     if (!paidSpinReady || !verifiedSessionId) {
-      setPayStatus(`Pay ${spinPriceLabel(spinPriceCents)} to unlock.`);
+      setPayStatus(companyGiveawayOnly ? COMPANY_GIVEAWAY_COMING_SOON : `Pay ${spinPriceLabel(spinPriceCents)} to unlock.`);
       return;
     }
 
@@ -1405,7 +1418,7 @@ export default function Wheel({
           </div>
         )}
 
-        {payStatus && !((isFreeSpinBoost || boostLocationGate) && payStatus === "Merchant has not connected Stripe yet") && (
+        {payStatus && !((companyGiveawayOnly || isFreeSpinBoost || boostLocationGate) && payStatus === "Merchant has not connected Stripe yet") && (
           <div style={{ marginTop: 8, fontWeight: 800, opacity: 0.9, color: "#F5E6C8" }}>
             {payStatus}
           </div>
@@ -1639,7 +1652,7 @@ export default function Wheel({
         {!paidSpinReady ? (
           <button
             onClick={payForSpin}
-            disabled={payBusy || (!shareReward && boostLocationGate?.busy === true)}
+            disabled={companyGiveawayWaiting || payBusy || (!shareReward && boostLocationGate?.busy === true)}
             style={{
               padding: "12px 18px",
               borderRadius: 14,
@@ -1647,7 +1660,7 @@ export default function Wheel({
               background: payBusy
                 ? "linear-gradient(180deg, #f3f4f6, #fff)"
                 : "linear-gradient(180deg, rgba(255,217,61,0.95), rgba(255,155,61,0.95))",
-              cursor: payBusy || (!shareReward && boostLocationGate?.busy) ? "not-allowed" : "pointer",
+              cursor: companyGiveawayWaiting || payBusy || (!shareReward && boostLocationGate?.busy) ? "not-allowed" : "pointer",
               fontWeight: 900,
               letterSpacing: 0.2,
               color: "#111",
@@ -1656,7 +1669,9 @@ export default function Wheel({
                 : "0 12px 30px rgba(0,0,0,0.12), 0 0 20px rgba(255,217,61,0.22)",
             }}
           >
-            {!shareReward && boostLocationGate
+            {companyGiveawayWaiting
+              ? COMPANY_GIVEAWAY_COMING_SOON
+              : !shareReward && boostLocationGate
               ? boostLocationGate.label
               : payBusy
                 ? (shareReward ? "Preparing free unlock…" : isFreeSpinBoost ? "Claiming free deal…" : "Opening checkout…")
@@ -1688,7 +1703,7 @@ export default function Wheel({
                 ? "Use Free Unlock"
                 : entitlementKind === "boost"
                   ? "Unlock Free Deal"
-                  : `Unlock (${spinPriceLabel(spinPriceCents)})`}
+                  : companyGiveawayOnly ? "Unlock Deal" : `Unlock (${spinPriceLabel(spinPriceCents)})`}
           </button>
         )}
         </>)}
@@ -1736,7 +1751,9 @@ export default function Wheel({
           color: "#94a3b8",
         }}
       >
-        By unlocking, you agree all purchases are final. Deals have no cash value. Codes expire 30 days after purchase.
+        {companyGiveawayOnly
+          ? "Wheel Deals company giveaways are always FREE. No purchase required. Check back for more giveaways! Codes expire 30 days after unlock."
+          : "By unlocking, you agree all purchases are final. Deals have no cash value. Codes expire 30 days after purchase."}
       </div>
 
       {embeddedCheckout && (

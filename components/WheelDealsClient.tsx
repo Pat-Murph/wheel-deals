@@ -8,6 +8,7 @@ import SpinCelebration, { getRandomBeast, type Beast, type RarityTier } from "./
 import { hasClaimedBoostLocally } from "../lib/deviceFingerprint";
 import { preloadBeastImage } from "../lib/beastImagePreload";
 import { boostDistance, distanceMeters, hasAvailableBoostWheel, isAlwaysRadiusBoost, withinBoostArea } from "../lib/boostLocation";
+import { isCompanyGiveaway } from "../lib/companyGiveaway";
 import { useBoostLocation } from "../lib/useBoostLocation";
 
 import { getAuth, onAuthStateChanged, signInAnonymously } from "firebase/auth";
@@ -1456,7 +1457,8 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
       {!initialEventId && merchantWheels.length > 1 && (
         <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
           {merchantWheels.map((wc, idx) => {
-            const label = wc.spinPriceCents === 135 ? "$1.35"
+            const label = isCompanyGiveaway(selectedMerchant) ? `Giveaway ${idx + 1}`
+              : wc.spinPriceCents === 135 ? "$1.35"
               : wc.spinPriceCents === 200 ? "$2.00"
               : wc.spinPriceCents === 300 ? "$3.00"
               : wc.spinPriceCents === 500 ? "$5.00"
@@ -1652,6 +1654,7 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
           uid={uid ?? undefined}
           spinPriceCents={initialEventId ? 99999 : (activeWheel?.spinPriceCents ?? 135)}
           hideControls={!!initialEventId}
+          companyGiveawayOnly={isCompanyGiveaway(selectedMerchant)}
           isFreeSpinBoost={!initialEventId && freeBoostAvailable && freeSpinGatePassed}
           boostLocationGate={boostLocationGate}
           shareRewardRefreshKey={shareRewardRefreshKey}
