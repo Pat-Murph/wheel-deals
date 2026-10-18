@@ -5,6 +5,7 @@ import { getDb } from "./firebase";
 export type Merchant = {
   id: string;
   name: string;
+  ownerUid?: string;
 
   category?: string;
   city?: string;
@@ -518,6 +519,7 @@ export async function getActiveMerchants(): Promise<Merchant[]> {
     return {
       id: d.id,
       name: data.name ?? "Unnamed merchant",
+      ownerUid: typeof data.ownerUid === "string" ? data.ownerUid : undefined,
       category: data.category,
       city: data.city,
       address: data.address,
