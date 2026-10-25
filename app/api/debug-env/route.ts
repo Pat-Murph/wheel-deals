@@ -1,7 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
+let runtimeLogged = false;
 
 export async function GET(req: NextRequest) {
+  if (!runtimeLogged) {
+    console.info(`[Wheel Deals server runtime] Node.js ${process.version}`);
+    runtimeLogged = true;
+  }
   return NextResponse.json({
     NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL ?? "(not set)",
     STRIPE_PUBLISHABLE_KEY_CONFIGURED: Boolean(
