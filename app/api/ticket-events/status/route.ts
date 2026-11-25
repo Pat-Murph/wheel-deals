@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { FieldValue } from "firebase-admin/firestore";
+import { publicTicketEvent, reconcilePendingTicketEventReservations } from "@/lib/ticketEventCheckout";
 
 /**
  * GET /api/ticket-events/status?merchantId=...
@@ -51,7 +52,7 @@ export async function GET(req: Request) {
               (sum, d) => sum + (d.data().spotCount || 1), 0
             );
           }
-          return NextResponse.json({ ok: true, event, userSpots });
+          return NextResponse.json({ ok: true, event: publicTicketEvent(event as any, uid), userSpots });
         }
       }
 
@@ -71,7 +72,7 @@ export async function GET(req: Request) {
         );
       }
 
-      return NextResponse.json({ ok: true, event, userSpots });
+      return NextResponse.json({ ok: true, event: publicTicketEvent(event as any, uid), userSpots });
     }
 
     if (merchantId) {
@@ -82,10 +83,10 @@ export async function GET(req: Request) {
         .where("status", "==", "active")
         .get();
 
-      const events = eventsSnap.docs.map((d) => ({
+      const events = eventsSnap.docs.map((d) => publicTicketEvent({
         id: d.id,
         ...d.data(),
-      }));
+      } as any));
 
       return NextResponse.json({ ok: true, events });
     }
@@ -169,12 +170,12 @@ export async function GET(req: Request) {
         const completedAt = data.completedAt?.toDate?.() ?? new Date(data.completedAt ?? 0);
         return completedAt >= sevenDaysAgo;
       })
-      .map((d) => ({ id: d.id, ...d.data() }));
+      .map((d) => publicTicketEvent({ id: d.id, ...d.data() } as any, uid));
 
-    const events = freshEventsSnap.docs.map((d) => ({
+    const events = freshEventsSnap.docs.map((d) => publicTicketEvent({
       id: d.id,
       ...d.data(),
-    }));
+    } as any));
 
     return NextResponse.json({ ok: true, events, recentlyCompleted });
   } catch (e: any) {
@@ -197,6 +198,8 @@ async function autoCompleteExpiredEvent(eventId: string, eventData: any) {
   const snap = await eventRef.get();
   const current = snap.data() as any;
   if (!current || current.status !== "active") return;
+  // Include checkouts paid in-app that the app never got to confirm.
+  await reconcilePendingTicketEventReservations(eventId);
 
   // Get any entries that exist
   const entriesSnap = await adminDb
