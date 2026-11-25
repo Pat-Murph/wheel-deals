@@ -141,7 +141,9 @@ test('preparation happens after verified entitlement guards and before animation
   assert.ok(spin.indexOf('onSpinStart?.(winnerLabel)') < spin.indexOf('setRotation((prev)'));
   const current = source('components/WheelDealsClient.tsx');
   const original = execFileSync('git', ['show', 'origin/main:components/WheelDealsClient.tsx'], { cwd: path.join(__dirname, '..'), encoding: 'utf8' });
-  assert.equal(current.slice(current.indexOf('  function brandedBeastCardUrl()'), current.indexOf('  async function sendSupportMessage')), original.slice(original.indexOf('  function brandedBeastCardUrl()'), original.indexOf('  async function sendSupportMessage')));
+  assert.equal(current.slice(current.indexOf('  function brandedBeastCardUrl()'), current.indexOf('  async function downloadActiveDealQr')), original.slice(original.indexOf('  function brandedBeastCardUrl()'), original.indexOf('  async function downloadActiveDealQr')));
+  // Deal QR download was intentionally generalized for Daily Drop deals; it must keep the secure owner-only flow.
+  assert.match(current, /async function downloadDealQr\([\s\S]*Authorization: `Bearer \$\{idToken\}`[\s\S]*nativeBridge\.save\(imageUrl\)/);
   const celebration = source('components/SpinCelebration.tsx');
   const old = execFileSync('git', ['show', 'origin/main:components/SpinCelebration.tsx'], { cwd: path.join(__dirname, '..'), encoding: 'utf8' });
   const tiers = (s) => s.slice(s.indexOf('export const RARITY_TIERS'), s.indexOf('\n/**', s.indexOf('export const RARITY_TIERS')));

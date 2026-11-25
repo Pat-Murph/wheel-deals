@@ -138,6 +138,7 @@ function renderCustomer(location, overrides = {}, props = {}) {
   const module = load(file, {
     react: hooks,
     './Wheel': { default: (props) => { wheelProps = props; return null; } },
+    './EmbeddedCheckoutModal': { default: () => null },
     'qrcode.react': { QRCodeCanvas: () => null },
     '../lib/merchants': { getActiveMerchants: async () => [business] },
     './SpinCelebration': { default: () => null, getRandomBeast: () => ({}) },
