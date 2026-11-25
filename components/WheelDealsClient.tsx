@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Wheel, { WheelItem } from "./Wheel";
+import EmbeddedCheckoutModal from "./EmbeddedCheckoutModal";
 import { QRCodeCanvas } from "qrcode.react";
 import { getActiveMerchants, type Merchant } from "../lib/merchants";
 import SpinCelebration, { getRandomBeast, type Beast, type RarityTier } from "./SpinCelebration";
@@ -146,6 +147,10 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
   const [ticketCountdown, setTicketCountdown] = useState('');
   const [ticketSpinResults, setTicketSpinResults] = useState<any[]>([]);
   const [ticketEventEnded, setTicketEventEnded] = useState(false);
+  const [ticketCheckout, setTicketCheckout] = useState<{ clientSecret: string; sessionId: string; publishableKey: string } | null>(null);
+  const [ticketStatus, setTicketStatus] = useState<string | null>(null);
+  const [ticketQrBusySpinId, setTicketQrBusySpinId] = useState<string | null>(null);
+  const [ticketQrStatus, setTicketQrStatus] = useState<Record<string, string | null>>({});
 
   async function sendCodeByEmail() {
     if (!emailInput.trim() || !issuedCode) return;
@@ -493,11 +498,26 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
     }
   }
 
+  async function refreshTicketEvent() {
+    if (!initialEventId || !uid) return;
+    try {
+      const statusRes = await fetch(`/api/ticket-events/status?eventId=${initialEventId}&uid=${uid}`, { cache: 'no-store' });
+      const statusData = await statusRes.json();
+      if (statusData.ok && statusData.event) {
+        setTicketEvent(statusData.event);
+        setTicketUserSpots(statusData.userSpots || 0);
+      }
+    } catch { /* the countdown keeps running; next refresh will catch up */ }
+  }
   async function buyTicketSpots() {
-    if (!initialEventId || !uid || !selectedMerchant) return;
+    if (!initialEventId || !uid || !selectedMerchant || ticketBuying) return;
     setTicketBuying(true);
     setTicketError(null);
+    setTicketStatus(null);
     try {
+      // Same experience as paid unlocks: the installed app keeps Stripe
+      // Checkout inside Wheel Deals; ordinary web browsers use hosted Checkout.
+      const preferEmbeddedCheckout = Boolean((window as any).Capacitor?.isNativePlatform?.());
       const res = await fetch('/api/ticket-events/enter', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -505,34 +525,112 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
           eventId: initialEventId,
           uid,
           spotCount: ticketBuyCount,
-          returnUrl: window.location.href,
+          checkoutMode: preferEmbeddedCheckout ? 'embedded' : 'hosted',
         }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error ?? 'Could not purchase tickets');
-      if (data.checkoutUrl) {
-        window.location.href = data.checkoutUrl;
-      } else if (data.ok) {
-        // Free entry or already handled
-        setTicketUserSpots(prev => prev + ticketBuyCount);
-        // Reload event data
-        const statusRes = await fetch(`/api/ticket-events/status?eventId=${initialEventId}&uid=${uid}`);
-        const statusData = await statusRes.json();
-        if (statusData.ok && statusData.event) setTicketEvent(statusData.event);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error ?? 'Could not start checkout');
+      if (data?.clientSecret && data?.sessionId && data?.publishableKey) {
+        setTicketCheckout({ clientSecret: data.clientSecret, sessionId: data.sessionId, publishableKey: data.publishableKey });
+        setTicketStatus('Secure checkout is open inside Wheel Deals.');
+        return;
       }
+      if (!data?.checkoutUrl) throw new Error('Missing checkout link');
+      window.location.href = data.checkoutUrl;
     } catch (e: any) {
-      setTicketError(e?.message ?? 'Purchase failed');
+      setTicketError(e?.message ?? 'Checkout failed');
     } finally {
       setTicketBuying(false);
     }
   }
-
+  const completeTicketCheckout = useCallback(async () => {
+    const checkout = ticketCheckout;
+    if (!checkout) return;
+    setTicketBuying(true);
+    setTicketStatus('Verifying payment…');
+    let lastError = 'Payment verification is still processing.';
+    for (let attempt = 0; attempt < 6; attempt += 1) {
+      try {
+        const res = await fetch('/api/ticket-events/verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId: checkout.sessionId }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data?.ok) {
+          setTicketCheckout(null);
+          setTicketBuying(false);
+          setTicketStatus(`✅ Payment verified — you're in! Your deal unlocks at the scheduled time.`);
+          await refreshTicketEvent();
+          return;
+        }
+        if (res.status === 409 || res.status === 400) {
+          setTicketCheckout(null);
+          setTicketBuying(false);
+          setTicketStatus(null);
+          setTicketError(data?.error ?? 'This payment could not be applied to the Daily Drop.');
+          await refreshTicketEvent();
+          return;
+        }
+        lastError = data?.error ?? lastError;
+      } catch (e: any) {
+        lastError = e?.message ?? lastError;
+      }
+      if (attempt < 5) {
+        setTicketStatus('Confirming payment…');
+        await new Promise((resolve) => window.setTimeout(resolve, 800 * (attempt + 1)));
+      }
+    }
+    setTicketCheckout(null);
+    setTicketBuying(false);
+    setTicketStatus(null);
+    setTicketError(`${lastError} If you were charged, your spot is still saved and will appear here shortly.`);
+    void refreshTicketEvent();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ticketCheckout, initialEventId, uid]);
+  async function closeTicketCheckout() {
+    const checkout = ticketCheckout;
+    setTicketCheckout(null);
+    if (!checkout) return;
+    setTicketStatus('Checkout closed. No charge was made unless Stripe confirmed the payment.');
+    try {
+      const res = await fetch('/api/ticket-events/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId: checkout.sessionId, action: 'release' }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data?.paid) {
+        setTicketStatus(`✅ Payment verified — you're in! Your deal unlocks at the scheduled time.`);
+      }
+    } catch { /* unpaid reservations also expire automatically */ }
+    await refreshTicketEvent();
+  }
+  async function downloadTicketDealQr(result: any) {
+    const spinId = typeof result?.spinId === 'string' ? result.spinId : '';
+    if (!spinId || !result?.code || ticketQrBusySpinId) return;
+    await downloadDealQr(
+      { spinId, code: String(result.code), prize: result.prize },
+      (busy) => setTicketQrBusySpinId(busy ? spinId : null),
+      (status) => setTicketQrStatus((prev) => ({ ...prev, [spinId]: status })),
+      Boolean(ticketQrBusySpinId),
+    );
+  }
   // Check for ticket event payment return (event_success in URL)
   useEffect(() => {
     if (!initialEventId || !uid) return;
     const params = new URLSearchParams(window.location.search);
     const eventSuccess = params.get('event_success');
+    if (params.get('event_cancelled')) setTicketStatus('Checkout closed. No charge was made unless Stripe confirmed the payment.');
+    if (params.get('event_error')) setTicketError('Payment was not completed. Please try again.');
+    if (params.get('event_cancelled') || params.get('event_error')) {
+      const cleanUrl = new URL(window.location.href);
+      cleanUrl.searchParams.delete('event_cancelled');
+      cleanUrl.searchParams.delete('event_error');
+      window.history.replaceState({}, '', cleanUrl.toString());
+    }
     if (!eventSuccess) return;
+    setTicketStatus(`✅ Payment verified — you're in! Your deal unlocks at the scheduled time.`);
     // Reload event data to get updated spots
     fetch(`/api/ticket-events/status?eventId=${initialEventId}&uid=${uid}`)
       .then(r => r.json())
@@ -782,7 +880,27 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
   }
 
   async function downloadActiveDealQr() {
-    if (!issuedCode || !selectedActiveSpinId || !selectedMerchant?.id || !uid || dealDownloadBusy) return;
+    if (!issuedCode || !selectedActiveSpinId) return;
+    await downloadDealQr(
+      { spinId: selectedActiveSpinId, code: issuedCode, prize: lastPrize },
+      setDealDownloadBusy,
+      setDealDownloadStatus,
+      dealDownloadBusy,
+    );
+  }
+  // Shared secure Deal QR download used by paid unlocks and Daily Drop deals.
+  // The server re-checks ownership and that the code is still unredeemed and
+  // unexpired before signing a short-lived image link, so codes stay single-use.
+  async function downloadDealQr(
+    deal: { spinId: string; code: string; prize: string | null | undefined },
+    setDealDownloadBusy: (busy: boolean) => void,
+    setDealDownloadStatus: (status: string | null) => void,
+    busy: boolean,
+  ) {
+    const issuedCode = deal.code;
+    const selectedActiveSpinId = deal.spinId;
+    const lastPrize = deal.prize;
+    if (!issuedCode || !selectedActiveSpinId || !selectedMerchant?.id || !uid || busy) return;
 
     setDealDownloadBusy(true);
     setDealDownloadStatus("Preparing your Deal QR backup…");
@@ -1347,12 +1465,11 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
                   <div style={{ fontSize: 18, fontWeight: 900, color: "#15803d" }}>{r.prize}</div>
                   {r.code && (
                     <>
-                      <div style={{ marginTop: 8 }}>
-                        <img
-                          src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(r.code)}`}
-                          alt="QR Code"
-                          style={{ width: 150, height: 150, margin: "0 auto", display: "block" }}
-                        />
+                      <div style={{ marginTop: 8, padding: "8px 12px", borderRadius: 10, background: "rgba(34,197,94,0.09)", border: "1px solid rgba(34,197,94,0.24)", fontSize: 12, fontWeight: 850, color: "#166534" }}>
+                        Saved to Wheel Deals until redeemed or expired. For extra backup, download your Deal QR.
+                      </div>
+                      <div style={{ marginTop: 10, display: "flex", justifyContent: "center" }}>
+                        <QRCodeCanvas value={String(r.code)} size={170} />
                       </div>
                       <div style={{ marginTop: 8, fontFamily: "ui-monospace, monospace", fontSize: 20, fontWeight: 1000, letterSpacing: 2 }}>
                         {r.code}
@@ -1360,22 +1477,28 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
                       <div style={{ marginTop: 4, fontSize: 11, color: "#6b7280", fontWeight: 600 }}>
                         Show this code or QR to the merchant to redeem. One-time use only.
                       </div>
-                      <div style={{ marginTop: 8, display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
-                        <button
-                          onClick={() => { navigator.clipboard.writeText(r.code); alert('Code copied!'); }}
-                          style={{ padding: "8px 14px", borderRadius: 8, border: "1px solid #d1d5db", background: "white", fontWeight: 800, fontSize: 12, cursor: "pointer" }}
-                        >
-                          Copy Code
-                        </button>
-                        {typeof navigator !== 'undefined' && navigator.share && (
+                      {r.spinId && (
+                        <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 6, alignItems: "center" }}>
                           <button
-                            onClick={() => navigator.share({ title: `Wheel Deals - ${r.prize}`, text: `My deal code: ${r.code}\nDeal: ${r.prize}\nShow this to the merchant to redeem.` })}
-                            style={{ padding: "8px 14px", borderRadius: 8, border: "1px solid #d1d5db", background: "white", fontWeight: 800, fontSize: 12, cursor: "pointer" }}
+                            onClick={() => void downloadTicketDealQr(r)}
+                            disabled={Boolean(ticketQrBusySpinId)}
+                            style={{
+                              padding: "11px 16px", borderRadius: 10, border: "1px solid rgba(0,0,0,0.12)",
+                              fontWeight: 950, cursor: ticketQrBusySpinId ? "wait" : "pointer",
+                              background: "linear-gradient(180deg, rgba(255,217,61,0.95), rgba(255,155,61,0.95))",
+                              fontSize: 13, opacity: ticketQrBusySpinId && ticketQrBusySpinId !== r.spinId ? 0.6 : ticketQrBusySpinId ? 0.72 : 1,
+                              color: "#111827",
+                            }}
                           >
-                            Save / Share
+                            {ticketQrBusySpinId === r.spinId ? "Preparing download…" : "⬇ Download Deal QR"}
                           </button>
-                        )}
-                      </div>
+                          {ticketQrStatus[r.spinId] && (
+                            <div style={{ fontSize: 12, fontWeight: 800, color: "#475569", textAlign: "center" }}>
+                              {ticketQrStatus[r.spinId]}
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </>
                   )}
                   {r.expiresAt && (
@@ -1428,10 +1551,24 @@ export default function WheelDealsClient({ initialMerchantId, initialEventId }: 
             </div>
           )}
 
+          {ticketStatus && (
+            <div style={{ padding: "10px 14px", borderRadius: 10, background: "rgba(124,58,237,0.08)", border: "1px solid rgba(124,58,237,0.20)", fontWeight: 800, fontSize: 13, color: "#5b21b6", textAlign: "center" }}>
+              {ticketStatus}
+            </div>
+          )}
           {ticketError && (
             <div style={{ padding: "10px 14px", borderRadius: 10, background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.20)", fontWeight: 800, fontSize: 13, color: "#dc2626" }}>
               {ticketError}
             </div>
+          )}
+          {ticketCheckout && (
+            <EmbeddedCheckoutModal
+              key={ticketCheckout.sessionId}
+              clientSecret={ticketCheckout.clientSecret}
+              publishableKey={ticketCheckout.publishableKey}
+              onComplete={completeTicketCheckout}
+              onClose={() => void closeTicketCheckout()}
+            />
           )}
         </div>
       )}
