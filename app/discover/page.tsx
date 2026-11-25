@@ -293,6 +293,117 @@ export default function DiscoverPage() {
     return parts.length ? parts.join(" · ") : "All merchants";
   }, [keyword, category, location]);
 
+  // Daily Drop cards appear in the merchant's normal distance-sorted position
+  // (with the distance shown) instead of being pinned above nearby results.
+  const activeDailyDropByMerchant = useMemo(() => {
+    const byMerchant = new Map<string, any>();
+    for (const ev of ticketEvents) {
+      if (ev?.status !== 'active' || new Date(ev.spinTime).getTime() <= time.getTime()) continue;
+      const current = byMerchant.get(ev.merchantId);
+      if (!current || new Date(ev.spinTime).getTime() < new Date(current.spinTime).getTime()) byMerchant.set(ev.merchantId, ev);
+    }
+    return byMerchant;
+  }, [ticketEvents, time]);
+  function renderDailyDropCard(ev: any, m: any) {
+    const isActiveMobile = Boolean(m?.isMobile && m?.mobileActiveUntil?.toDate && m.mobileActiveUntil.toDate() > time);
+    const spotsLeft = ev.totalSpots - ev.spotsTaken;
+    const spinTime = new Date(ev.spinTime);
+    const msLeft = spinTime.getTime() - time.getTime();
+    const totalSec = Math.max(0, Math.floor(msLeft / 1000));
+    const hours = Math.floor(totalSec / 3600);
+    const mins = Math.floor((totalSec % 3600) / 60);
+    const secs = totalSec % 60;
+    const countdown = hours > 0 ? `${hours}h ${mins}m ${secs}s` : mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+    const pctFull = Math.round((ev.spotsTaken / ev.totalSpots) * 100);
+    // Find merchant photo from loaded items
+    const eventPhoto = m?.photoProcessedUrls?.[0] ?? m?.photoUrls?.[0] ?? null;
+
+    return (
+      <a
+        key={ev.id}
+        href={`/wheel?merchantId=${encodeURIComponent(ev.merchantId)}&eventId=${ev.id}`}
+        style={{
+          display: "block",
+          background: "linear-gradient(135deg, #faf5ff 0%, #ede9fe 50%, #ddd6fe 100%)",
+          border: "2px solid #8b5cf6",
+          borderRadius: 16,
+          padding: "16px 16px",
+          textDecoration: "none",
+          color: "#111827",
+          boxShadow: "0 4px 16px rgba(139,92,246,0.20)",
+          position: "relative",
+          overflow: "hidden",
+        }}
+      >
+        {/* Urgency badge */}
+        <div style={{ position: "absolute", top: 10, right: 10, background: "#7c3aed", color: "#fff", fontSize: 11, fontWeight: 900, padding: "3px 10px", borderRadius: 999, letterSpacing: 0.3 }}>
+          DAILY DROP
+        </div>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          {eventPhoto && (
+            <img
+              src={eventPhoto}
+              alt={ev.merchantName}
+              style={{ width: 56, height: 56, borderRadius: 10, objectFit: "cover", border: "2px solid #c4b5fd" }}
+            />
+          )}
+          <div style={{ paddingRight: 110 }}>
+            <div style={{ fontSize: 18, fontWeight: 900, lineHeight: 1.2 }}>
+              {ev.merchantName || m?.name || 'Daily Drop'}
+            </div>
+            {(m?.city || m?.state) && (
+              <div style={{ fontSize: 13, fontWeight: 600, color: "#6b7280", marginTop: 3 }}>
+                {m?.city ? titleCase(m.city) : ""}{m?.state ? `, ${m.state.toUpperCase()}` : ""}
+              </div>
+            )}
+            {m?.distanceMiles != null && (!m.isMobile || isActiveMobile) && (
+              <div style={{ fontSize: 13, fontWeight: 700, color: "#16a34a", marginTop: 3 }}>
+                {fmtMiles(m.distanceMiles)} away
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 14, marginTop: 10, flexWrap: "wrap" }}>
+          {/* Spots remaining */}
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+            <div style={{ fontSize: 24, fontWeight: 1000, color: spotsLeft <= 5 ? "#dc2626" : "#7c3aed" }}>
+              {spotsLeft}
+            </div>
+            <div style={{ fontSize: 11, fontWeight: 800, color: "#6b7280" }}>spots left</div>
+          </div>
+
+          {/* Progress bar */}
+          <div style={{ flex: 1, minWidth: 80 }}>
+            <div style={{ height: 8, borderRadius: 4, background: "rgba(139,92,246,0.15)", overflow: "hidden" }}>
+              <div style={{ height: "100%", width: `${pctFull}%`, background: "linear-gradient(90deg, #8b5cf6, #7c3aed)", borderRadius: 4, transition: "width 0.3s" }} />
+            </div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "#6b7280", marginTop: 3 }}>
+              {ev.spotsTaken}/{ev.totalSpots} joined
+            </div>
+          </div>
+
+          {/* Countdown */}
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+            <div style={{ fontSize: 11, fontWeight: 800, color: "#6b7280" }}>Unlocks in</div>
+            <div style={{ fontSize: 16, fontWeight: 1000, color: msLeft < 3600000 ? "#dc2626" : "#7c3aed", fontFamily: "ui-monospace, monospace" }}>
+              {countdown}
+            </div>
+          </div>
+        </div>
+
+        <div style={{ marginTop: 10, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: "#6b7280" }}>
+            Up to 4 per person
+          </div>
+          <div style={{ fontSize: 13, fontWeight: 900, color: "#7c3aed", background: "rgba(139,92,246,0.10)", padding: "6px 12px", borderRadius: 8, border: "1px solid #c4b5fd" }}>
+            Join Now →
+          </div>
+        </div>
+      </a>
+    );
+  }
   return (
     <main style={{
       display: "block",
@@ -641,103 +752,6 @@ export default function DiscoverPage() {
         </div>
       )}
 
-      {/* TICKET EVENT CARDS */}
-      {ticketEvents.length > 0 && (
-        <div style={{ padding: "12px 12px 0", display: "flex", flexDirection: "column", gap: 10 }}>
-          {ticketEvents.filter((ev: any) => {
-            // Show active events that haven't passed unlock time
-            return new Date(ev.spinTime).getTime() > Date.now() && ev.status === 'active';
-          }).map((ev: any) => {
-            const spotsLeft = ev.totalSpots - ev.spotsTaken;
-            const spinTime = new Date(ev.spinTime);
-            const msLeft = spinTime.getTime() - time.getTime();
-            const totalSec = Math.max(0, Math.floor(msLeft / 1000));
-            const hours = Math.floor(totalSec / 3600);
-            const mins = Math.floor((totalSec % 3600) / 60);
-            const secs = totalSec % 60;
-            const countdown = hours > 0 ? `${hours}h ${mins}m ${secs}s` : mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
-            const pctFull = Math.round((ev.spotsTaken / ev.totalSpots) * 100);
-            // Find merchant photo from loaded items
-            const matchedMerchant = items.find((m) => m.id === ev.merchantId);
-            const eventPhoto = matchedMerchant?.photoProcessedUrls?.[0] ?? matchedMerchant?.photoUrls?.[0] ?? null;
-
-            return (
-              <a
-                key={ev.id}
-                href={`/wheel?merchantId=${encodeURIComponent(ev.merchantId)}&eventId=${ev.id}`}
-                style={{
-                  display: "block",
-                  background: "linear-gradient(135deg, #faf5ff 0%, #ede9fe 50%, #ddd6fe 100%)",
-                  border: "2px solid #8b5cf6",
-                  borderRadius: 16,
-                  padding: "16px 16px",
-                  textDecoration: "none",
-                  color: "#111827",
-                  boxShadow: "0 4px 16px rgba(139,92,246,0.20)",
-                  position: "relative",
-                  overflow: "hidden",
-                }}
-              >
-                {/* Urgency badge */}
-                <div style={{ position: "absolute", top: 10, right: 10, background: "#7c3aed", color: "#fff", fontSize: 11, fontWeight: 900, padding: "3px 10px", borderRadius: 999, letterSpacing: 0.3 }}>
-                  DAILY DROP
-                </div>
-
-                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                  {eventPhoto && (
-                    <img
-                      src={eventPhoto}
-                      alt={ev.merchantName}
-                      style={{ width: 56, height: 56, borderRadius: 10, objectFit: "cover", border: "2px solid #c4b5fd" }}
-                    />
-                  )}
-                  <div style={{ fontSize: 18, fontWeight: 900, lineHeight: 1.2, paddingRight: 110 }}>
-                    {ev.merchantName || 'Limited Event'}
-                  </div>
-                </div>
-
-                <div style={{ display: "flex", alignItems: "center", gap: 14, marginTop: 10, flexWrap: "wrap" }}>
-                  {/* Spots remaining */}
-                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-                    <div style={{ fontSize: 24, fontWeight: 1000, color: spotsLeft <= 5 ? "#dc2626" : "#7c3aed" }}>
-                      {spotsLeft}
-                    </div>
-                    <div style={{ fontSize: 11, fontWeight: 800, color: "#6b7280" }}>spots left</div>
-                  </div>
-
-                  {/* Progress bar */}
-                  <div style={{ flex: 1, minWidth: 80 }}>
-                    <div style={{ height: 8, borderRadius: 4, background: "rgba(139,92,246,0.15)", overflow: "hidden" }}>
-                      <div style={{ height: "100%", width: `${pctFull}%`, background: "linear-gradient(90deg, #8b5cf6, #7c3aed)", borderRadius: 4, transition: "width 0.3s" }} />
-                    </div>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: "#6b7280", marginTop: 3 }}>
-                      {ev.spotsTaken}/{ev.totalSpots} joined
-                    </div>
-                  </div>
-
-                  {/* Countdown */}
-                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-                    <div style={{ fontSize: 11, fontWeight: 800, color: "#6b7280" }}>Unlocks in</div>
-                    <div style={{ fontSize: 16, fontWeight: 1000, color: msLeft < 3600000 ? "#dc2626" : "#7c3aed", fontFamily: "ui-monospace, monospace" }}>
-                      {countdown}
-                    </div>
-                  </div>
-                </div>
-
-                <div style={{ marginTop: 10, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: "#6b7280" }}>
-                    Up to 4 per person
-                  </div>
-                  <div style={{ fontSize: 13, fontWeight: 900, color: "#7c3aed", background: "rgba(139,92,246,0.10)", padding: "6px 12px", borderRadius: 8, border: "1px solid #c4b5fd" }}>
-                    Join Now →
-                  </div>
-                </div>
-              </a>
-            );
-          })}
-        </div>
-      )}
-
       {/* YOUR EVENTS (completed = show deal, active = show pending) */}
       {myCompletedEvents.length > 0 && (
         <div style={{ padding: "12px 12px 0" }}>
@@ -867,11 +881,11 @@ export default function DiscoverPage() {
           </div>
         )}
 
-        {sortedItems.filter((m) => {
-          // Hide merchants from regular list if they have an active ticket event
-          const hasActiveEvent = ticketEvents.some((ev: any) => ev.merchantId === m.id && ev.status === 'active' && new Date(ev.spinTime).getTime() > Date.now());
-          return !hasActiveEvent;
-        }).map((m) => {
+        {sortedItems.map((m) => {
+          // A merchant with an active Daily Drop shows the Daily Drop card in
+          // its place, so the regular wheel and the drop never appear together.
+          const dailyDrop = activeDailyDropByMerchant.get(m.id);
+          if (dailyDrop) return renderDailyDropCard(dailyDrop, m);
           const photo = (m.photoProcessedUrls?.[0] ?? m.photoUrls?.[0]) || null;
           // For mobile merchants with boostMode='checkin', only show boost when checked in
           const isActiveMobile = m.isMobile && m.mobileActiveUntil && m.mobileActiveUntil.toDate && m.mobileActiveUntil.toDate() > time;
