@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { FieldValue } from "firebase-admin/firestore";
+import { reconcilePendingTicketEventReservations } from "@/lib/ticketEventCheckout";
 
 // No confusing characters: 0/O, 1/I
 function makeCode(len = 8) {
@@ -58,7 +59,7 @@ export async function POST(req: Request) {
       // Event already spun — return existing results (filtered by uid if provided)
       const results = uid
         ? existingData.results.filter((r: any) => r.uid === uid)
-        : existingData.results;
+        : [];
       return NextResponse.json({ ok: true, results, alreadyCompleted: true });
     }
 
@@ -102,7 +103,7 @@ export async function POST(req: Request) {
       if (refetchData?.results) {
         const results = uid
           ? refetchData.results.filter((r: any) => r.uid === uid)
-          : refetchData.results;
+          : [];
         return NextResponse.json({ ok: true, results, alreadyCompleted: true });
       }
       return NextResponse.json({ ok: true, message: "Event already processing", status: result.status });
@@ -132,6 +133,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "No wheel prizes configured" }, { status: 400 });
     }
 
+    // Include customers who paid in-app but closed Wheel Deals before the
+    // app finished confirming their checkout.
+    await reconcilePendingTicketEventReservations(eventId);
     // Get all entries
     const entriesSnap = await adminDb
       .collection("ticketEvents")
@@ -263,7 +267,7 @@ export async function POST(req: Request) {
     // Return results filtered by uid if provided
     const filteredResults = uid
       ? results.filter((r: any) => r.uid === uid)
-      : results;
+      : [];
 
     return NextResponse.json({
       ok: true,
